@@ -1,10 +1,10 @@
 # -*- Makefile -*-
-CARTON = local/bin/carton
-CARTON_LIB = local/lib/perl5
+CARTON = local/carton/bin/carton
+CARTON_LIB = local/carton/lib/perl5
 PERL = perl
-CPANM = $(PERL) local/cpanm
-CPANM_ = $(CPANM) --notest --verbose -l local --reinstall
-CPANM_PATH = local
+CPANM = $(PERL) local/carton/cpanm
+CPANM_ = $(CPANM) --notest --verbose -l local/carton --reinstall
+CPANM_PATH = local/carton
 
 REMOTEDEV_HOST = develop.test
 
@@ -12,21 +12,25 @@ setupenv: setupenv-perl
 
 setupenv-perl: config/perl/libs.txt
 
-config/perl/libs.txt: local/bin/carton
+config/perl/libs.txt: local/carton/bin/carton
 	mkdir -p config/perl
 	PERL5LIB=$(CARTON_LIB) PATH=$(CPANM_PATH):$(PATH) $(CARTON) exec -- perl -e 'print join ":", grep /^local/, @INC' > $@
 
-local/cpanm:
-	mkdir -p local/
+local/carton/cpanm:
+	mkdir -p local/carton/
 	wget -O $@ http://cpanmin.us
 	chmod u+x $@
 
-local/bin/carton: local/cpanm
+local/carton/bin/carton: local/carton/cpanm
 	$(CPANM_) JSON::XS
 	$(CPANM_) Carton
 
-carton-install: config/perl/modules.txt local/bin/carton
-	cat config/perl/modules.txt | PERL5LIB=$(CARTON_LIB) PATH=$(CPANM_PATH):$(PATH) xargs $(CARTON) install 
+config/perl/modules.txt:
+	mkdir -p config/perl
+	touch $@
+
+carton-install: config/perl/modules.txt local/carton/bin/carton
+	cat config/perl/modules.txt modules/*/config/perl/modules.txt | PERL5LIB=$(CARTON_LIB) PATH=$(CPANM_PATH):$(PATH) xargs $(CARTON) install 
 
 local/remotedev/remote-directory-name.txt:
 	mkdir -p local/remotedev
