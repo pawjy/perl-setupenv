@@ -12,7 +12,7 @@ setupenv: setupenv-perl
 
 setupenv-perl: config/perl/libs.txt
 
-config/perl/libs.txt:
+config/perl/libs.txt: local/bin/carton
 	mkdir -p config/perl
 	PERL5LIB=$(CARTON_LIB) PATH=$(CPANM_PATH):$(PATH) $(CARTON) exec -- perl -e 'print join ":", grep /^local/, @INC' > $@
 
