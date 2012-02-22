@@ -1,0 +1,50 @@
+# -*- Makefile -*-
+CARTON = local/bin/carton
+CARTON_LIB = local/lib/perl5
+PERL = perl
+CPANM = $(PERL) local/cpanm
+CPANM_ = $(CPANM) --notest --verbose -l local --reinstall
+CPANM_PATH = local
+
+REMOTEDEV_HOST = develop.test
+
+setupenv: setupenv-perl
+
+setupenv-perl: config/perl/libs.txt
+
+config/perl/libs.txt:
+	mkdir -p config/perl
+	PERL5LIB=$(CARTON_LIB) PATH=$(CPANM_PATH):$(PATH) $(CARTON) exec -- perl -e 'print join ":", grep /^local/, @INC' > $@
+
+local/cpanm:
+	mkdir -p local/
+	wget -O $@ http://cpanmin.us
+	chmod u+x $@
+
+local/bin/carton: local/cpanm
+	$(CPANM_) JSON::XS
+	$(CPANM_) Carton
+
+carton-install: config/perl/modules.txt local/bin/carton
+	cat config/perl/modules.txt | PERL5LIB=$(CARTON_LIB) PATH=$(CPANM_PATH):$(PATH) xargs $(CARTON) install 
+
+local/remotedev/remote-directory-name.txt:
+	mkdir -p local/remotedev
+	ssh $(REMOTEDEV_HOST) "perl -MFile::Temp=tempdir -e 'print tempdir'" > $@
+
+config/remotedev/getreponame.pl:
+	mkdir -p config/remotedev
+	echo 'my $$repo = `git config --get remote.origin.url` or die "No origin URL";' > $@
+	echo 'print $$repo;' >> $@
+
+remotedev-upload: local/remotedev/remote-directory-name.txt config/remotedev/getreponame.pl
+	ssh $(REMOTEDEV_HOST) "cd $(shell cat local/remotedev/remote-directory-name.txt) && ((git clone $(shell perl config/remotedev/getreponame.pl) repo && cd repo && git submodule update --init) || (cd repo && git pull && git submodule update --init))";
+
+remotedev-setup: remotedev-upload
+	ssh $(REMOTEDEV_HOST) "cd $(shell cat local/remotedev/remote-directory-name.txt)/repo && make --makefile Makefile.setupenv carton-install";
+
+remotedev-reset:
+	rm local/remotedev/remote-directory-name.txt
+
+remotedev-test: remotedev-setup
+	ssh $(REMOTEDEV_HOST) "cd $(shell cat local/remotedev/remote-directory-name.txt)/repo && make test"
