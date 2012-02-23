@@ -45,7 +45,7 @@ remotedev-upload: local/remotedev/remote-directory-name.txt config/remotedev/get
 	ssh $(REMOTEDEV_HOST) "cd $(shell cat local/remotedev/remote-directory-name.txt) && ((git clone $(shell perl config/remotedev/getreponame.pl) repo && cd repo && git checkout -b $(shell git name-rev --name-only HEAD) origin/$(shell git name-rev --name-only HEAD) && git submodule update --init) || (cd repo && (git checkout -b $(shell git name-rev --name-only HEAD) origin/$(shell git name-rev --name-only HEAD) || git checkout $(shell git name-rev --name-only HEAD)) && git pull && git submodule update --init))";
 
 remotedev-setup: remotedev-upload
-	ssh $(REMOTEDEV_HOST) "cd $(shell cat local/remotedev/remote-directory-name.txt)/repo && make --makefile Makefile.setupenv carton-install";
+	ssh $(REMOTEDEV_HOST) "cd $(shell cat local/remotedev/remote-directory-name.txt)/repo && make Makefile.setupenv && make --makefile Makefile.setupenv carton-install";
 
 remotedev-reset:
 	rm local/remotedev/remote-directory-name.txt
