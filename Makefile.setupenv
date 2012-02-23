@@ -27,7 +27,7 @@ local/carton/bin/carton: local/carton/cpanm
 
 config/perl/modules.txt:
 	mkdir -p config/perl
-	touch $@
+	echo Carp > $@
 
 carton-install: config/perl/modules.txt local/carton/bin/carton
 	-cat config/perl/modules.txt modules/*/config/perl/modules.txt | PERL5LIB=$(CARTON_LIB) PATH=$(CPANM_PATH):$(PATH) xargs $(CARTON) install 
@@ -44,8 +44,8 @@ config/remotedev/getreponame.pl:
 remotedev-upload: local/remotedev/remote-directory-name.txt config/remotedev/getreponame.pl
 	ssh $(REMOTEDEV_HOST) "cd $(shell cat local/remotedev/remote-directory-\
 name.txt) && ((git clone $(shell perl config/remotedev/getreponame.pl) repo && \
-cd repo && git checkout -b -t $(shell git name-rev --name-only HEAD) && git sub\
-module update --init) || (cd repo && (git checkout -b -t $(shell git name-rev -\
+cd repo && git checkout -t -b $(shell git name-rev --name-only HEAD) && git sub\
+module update --init) || (cd repo && (git checkout -t -b $(shell git name-rev -\
 -name-only HEAD) || git checkout $(shell git name-rev --name-only HEAD)) && git\
  pull && git submodule update --init))";
 
