@@ -63,5 +63,8 @@ remotedev-setup: remotedev-upload
 remotedev-reset:
 	rm local/remotedev/remote-directory-name.txt
 
+remotedev-reset-setupenv:
+	ssh $(REMOTEDEV_HOST) "cd $(shell cat local/remotedev/remote-directory-name.txt)/repo && rm Makefile.setupenv"
+
 remotedev-test: remotedev-setup
 	ssh $(REMOTEDEV_HOST) "cd $(shell cat local/remotedev/remote-directory-name.txt)/repo && make test"
