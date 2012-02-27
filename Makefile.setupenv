@@ -37,8 +37,7 @@ config/perl/submodules.txt: config/perl
 
 config/perl/Makefile.submodules: config/perl/submodules.txt
 	echo "clone:" > $@
-	cat $< | perl -n -e 'chomp; m{([^/\s]+)$$}; $$dir = $$1; print "\t(git \
-clone $$_ || (cd $$dir && git pull))\n"' >> $@
+	cat $< | perl -n -e 'chomp; m{([^/\s]+)$$}; $$dir = $$1; print "\t(git clone $$_ || (cd $$dir && git pull))\n"' >> $@
 
 local-submodules: config/perl/Makefile.submodules
 	mkdir -p local/submodules
