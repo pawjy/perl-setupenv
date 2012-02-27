@@ -15,7 +15,7 @@ setupenv-perl: config/perl/libs.txt
 config/perl/libs.txt: local/carton/bin/carton local-submodules
 	mkdir -p config/perl
 	PERL5LIB=$(CARTON_LIB) PATH=$(CPANM_PATH):$(PATH) $(CARTON) exec -- \
-	    perl -e 'push @INC, glob "local/submodules/*/lib"; print join ":", grep /^local/, @INC' > $@
+	    $(PERL) -e 'push @INC, glob "local/submodules/*/lib"; print join ":", grep /^local/, @INC' > $@
 
 local/carton/cpanm:
 	mkdir -p local/carton/
@@ -36,7 +36,7 @@ config/perl/submodules.txt:
 
 config/perl/Makefile.submodules: config/perl/submodules.txt
 	echo "clone:" > $@
-	cat $< | perl -n -e 'chomp; m{([^/\s]+)$$}; $$dir = $$1; print "\t(git clone $$_ || (cd $$dir && git pull))\n"' >> $@
+	cat $< | $(PERL) -n -e 'chomp; m{([^/\s]+)$$}; $$dir = $$1; print "\t(git clone $$_ || (cd $$dir && git pull))\n"' >> $@
 
 local-submodules: config/perl/Makefile.submodules
 	mkdir -p local/submodules
@@ -55,7 +55,7 @@ config/remotedev/getreponame.pl:
 	echo 'print $$repo;' >> $@
 
 remotedev-upload: local/remotedev/remote-directory-name.txt config/remotedev/getreponame.pl
-	ssh $(REMOTEDEV_HOST) "cd $(shell cat local/remotedev/remote-directory-name.txt) && ((git clone $(shell perl config/remotedev/getreponame.pl) repo && cd repo && git checkout -b $(shell git name-rev --name-only HEAD) origin/$(shell git name-rev --name-only HEAD) && git submodule update --init) || (cd repo && (git checkout -b $(shell git name-rev --name-only HEAD) origin/$(shell git name-rev --name-only HEAD) || git checkout $(shell git name-rev --name-only HEAD)) && git pull && git submodule update --init))";
+	ssh $(REMOTEDEV_HOST) "cd $(shell cat local/remotedev/remote-directory-name.txt) && ((git clone $(shell $(PERL) config/remotedev/getreponame.pl) repo && cd repo && git checkout -b $(shell git name-rev --name-only HEAD) origin/$(shell git name-rev --name-only HEAD) && git submodule update --init) || (cd repo && (git checkout -b $(shell git name-rev --name-only HEAD) origin/$(shell git name-rev --name-only HEAD) || git checkout $(shell git name-rev --name-only HEAD)) && git pull && git submodule update --init))";
 
 remotedev-setup: remotedev-upload
 	ssh $(REMOTEDEV_HOST) "cd $(shell cat local/remotedev/remote-directory-name.txt)/repo && make Makefile.setupenv && make --makefile Makefile.setupenv carton-install";
