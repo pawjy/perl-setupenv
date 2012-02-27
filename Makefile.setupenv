@@ -5,8 +5,10 @@ PERL = perl
 CPANM = $(PERL) local/carton/cpanm
 CPANM_ = $(CPANM) --notest --verbose -l local/carton --reinstall
 CPANM_PATH = local/carton
+PERL_PATH = local/dummy/path/to/perl
 
 REMOTEDEV_HOST = develop.test
+REMOTEDEV_PERL_PATH = perl
 
 setupenv: setupenv-perl
 
@@ -14,7 +16,7 @@ setupenv-perl: config/perl/libs.txt
 
 config/perl/libs.txt: local/carton/bin/carton local-submodules
 	mkdir -p config/perl
-	PERL5LIB=$(CARTON_LIB) PATH=$(CPANM_PATH):$(PATH) $(CARTON) exec -- \
+	PERL5LIB=$(CARTON_LIB) PATH=$(PERL_PATH):$(CPANM_PATH):$(PATH) $(CARTON) exec -- \
 	    $(PERL) -e 'push @INC, glob "local/submodules/*/lib"; print join ":", grep /^local/, @INC' > $@
 
 local/carton/cpanm:
@@ -58,7 +60,7 @@ remotedev-upload: local/remotedev/remote-directory-name.txt config/remotedev/get
 	ssh $(REMOTEDEV_HOST) "cd $(shell cat local/remotedev/remote-directory-name.txt) && ((git clone $(shell $(PERL) config/remotedev/getreponame.pl) repo && cd repo && git checkout -b $(shell git name-rev --name-only HEAD) origin/$(shell git name-rev --name-only HEAD) && git submodule update --init) || (cd repo && (git checkout -b $(shell git name-rev --name-only HEAD) origin/$(shell git name-rev --name-only HEAD) || git checkout $(shell git name-rev --name-only HEAD)) && git pull && git submodule update --init))";
 
 remotedev-setup: remotedev-upload
-	ssh $(REMOTEDEV_HOST) "cd $(shell cat local/remotedev/remote-directory-name.txt)/repo && make Makefile.setupenv && make --makefile Makefile.setupenv carton-install";
+	ssh $(REMOTEDEV_HOST) "cd $(shell cat local/remotedev/remote-directory-name.txt)/repo && make Makefile.setupenv PERL_PATH=$(REMOTEDEV_PERL_PATH) && make --makefile Makefile.setupenv carton-install PERL_PATH=$(REMOTEDEV_PERL_PATH)";
 
 remotedev-reset:
 	rm local/remotedev/remote-directory-name.txt
@@ -67,4 +69,4 @@ remotedev-reset-setupenv:
 	ssh $(REMOTEDEV_HOST) "cd $(shell cat local/remotedev/remote-directory-name.txt)/repo && rm Makefile.setupenv"
 
 remotedev-test: remotedev-setup
-	ssh $(REMOTEDEV_HOST) "cd $(shell cat local/remotedev/remote-directory-name.txt)/repo && make test"
+	ssh $(REMOTEDEV_HOST) "cd $(shell cat local/remotedev/remote-directory-name.txt)/repo && make test PERL_PATH=$(REMOTEDEV_PERL_PATH)"
