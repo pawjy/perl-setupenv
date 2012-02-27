@@ -26,13 +26,12 @@ local/carton/bin/carton: local/carton/cpanm
 	$(CPANM_) JSON::XS
 	$(CPANM_) Carton
 
-config/perl:
+config/perl/modules.txt:
 	mkdir -p config/perl
-
-config/perl/modules.txt: config/perl
 	echo Carp > $@
 
-config/perl/submodules.txt: config/perl
+config/perl/submodules.txt:
+	mkdir -p config/perl
 	touch $@
 
 config/perl/Makefile.submodules: config/perl/submodules.txt
