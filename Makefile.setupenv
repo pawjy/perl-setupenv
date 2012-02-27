@@ -38,7 +38,7 @@ config/perl/submodules.txt:
 
 config/perl/Makefile.submodules: config/perl/submodules.txt
 	echo "clone:" > $@
-	cat $< | $(PERL) -n -e 'chomp; m{([^/\s]+)$$}; $$dir = $$1; print "\t(git clone $$_ || (cd $$dir && git pull))\n"' >> $@
+	cat $< | perl -n -e 'chomp; undef $$branch; $$branch = $$1 if s{\s+(\S+)\s*$$}{}; m{([^/\s]+)$$}; $$dir = $$1; print "\t(git clone $$_ || (cd $$dir && git pull))\n"; print "\tcd $$dir && (git checkout -b $$branch origin/$$branch || git checkout $$branch)\n" if $$branch' >> $@
 
 local-submodules: config/perl/Makefile.submodules
 	mkdir -p local/submodules
