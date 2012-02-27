@@ -12,9 +12,10 @@ setupenv: setupenv-perl
 
 setupenv-perl: config/perl/libs.txt
 
-config/perl/libs.txt: local/carton/bin/carton
+config/perl/libs.txt: local/carton/bin/carton local-submodules
 	mkdir -p config/perl
-	PERL5LIB=$(CARTON_LIB) PATH=$(CPANM_PATH):$(PATH) $(CARTON) exec -- perl -e 'print join ":", grep /^local/, @INC' > $@
+	PERL5LIB=$(CARTON_LIB) PATH=$(CPANM_PATH):$(PATH) $(CARTON) exec -- \
+	    perl -e 'push @INC, glob "local/submodules/*/lib"; print join ":", grep /^local/, @INC' > $@
 
 local/carton/cpanm:
 	mkdir -p local/carton/
@@ -25,9 +26,23 @@ local/carton/bin/carton: local/carton/cpanm
 	$(CPANM_) JSON::XS
 	$(CPANM_) Carton
 
-config/perl/modules.txt:
+config/perl:
 	mkdir -p config/perl
+
+config/perl/modules.txt: config/perl
 	echo Carp > $@
+
+config/perl/submodules.txt: config/perl
+	touch $@
+
+config/perl/Makefile.submodules: config/perl/submodules.txt
+	echo "clone:" > $@
+	cat $< | perl -n -e 'chomp; m{([^/\s]+)$$}; $$dir = $$1; print "\t(git \
+clone $$_ || (cd $$dir && git pull))\n"' >> $@
+
+local-submodules: config/perl/Makefile.submodules
+	mkdir -p local/submodules
+	cd local/submodules && make --makefile=../../$< clone
 
 carton-install: config/perl/modules.txt local/carton/bin/carton
 	-cat config/perl/modules.txt modules/*/config/perl/modules.txt | PERL5LIB=$(CARTON_LIB) PATH=$(CPANM_PATH):$(PATH) xargs $(CARTON) install 
