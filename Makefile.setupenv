@@ -45,7 +45,7 @@ local-submodules: config/perl/Makefile.submodules
 	cd local/submodules && make --makefile=../../$< clone
 
 carton-install: config/perl/modules.txt local/carton/bin/carton local-submodules
-	-cat config/perl/modules.txt modules/*/config/perl/modules.txt local/submodules/*/config/perl/modules.txt | PERL5LIB=$(CARTON_LIB) PATH=$(CPANM_PATH):$(PATH) xargs $(CARTON) install 
+	-cat config/perl/modules.txt modules/*/config/perl/modules.txt local/submodules/*/config/perl/modules.txt | PERL5LIB=$(CARTON_LIB) PATH=$(PERL_PATH):$(CPANM_PATH):$(PATH) xargs $(CARTON) install 
 
 local/remotedev/remote-directory-name.txt:
 	mkdir -p local/remotedev
