@@ -27,6 +27,7 @@ local/carton/cpanm:
 local/carton/bin/carton: local/carton/cpanm
 	$(CPANM_) JSON::XS
 	$(CPANM_) Carton
+	$(CPANM_) Getopt::Long
 
 config/perl/modules.txt:
 	mkdir -p config/perl
