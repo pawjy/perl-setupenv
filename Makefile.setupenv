@@ -80,3 +80,17 @@ remotedev-reset-setupenv:
 
 remotedev-test: remotedev-setup
 	ssh $(REMOTEDEV_HOST) "cd $(shell cat local/remotedev/remote-directory-name.txt)/repo && make test PERL_PATH=$(REMOTEDEV_PERL_PATH)"
+
+# Add following to your Makefile:
+#
+#Makefile.setupenv:
+#        wget -O $@ https://raw.github.com/gist/1883312/Makefile.setupenv
+#
+#setupenv remotedev-test remotedev-reset remotedev-reset-setupenv \
+#config/perl/libs.txt \
+#carton-install carton-update local-submodules: %: Makefile.setupenv always
+#        make --makefile Makefile.setupenv $@ \
+#            REMOTEDEV_HOST=$(REMOTEDEV_HOST) \
+#            REMOTEDEV_PERL_PATH=$(REMOTEDEV_PERL_PATH)
+#
+#always:
