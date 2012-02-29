@@ -83,6 +83,10 @@ remotedev-test: remotedev-setup
 
 # Add following to your Makefile:
 #
+#REMOTEDEV_HOST = remotedev.host.example
+#REMOTEDEV_PERL_PATH = path/to/remote/server/perl/bin
+#PERL_PATH = local/dummy/path/to/perl/bin
+#
 #Makefile.setupenv:
 #        wget -O $@ https://raw.github.com/gist/1883312/Makefile.setupenv
 #
