@@ -55,7 +55,7 @@ carton-update:
 	-cat config/perl/modules.txt modules/*/config/perl/modules.txt local/submodules/*/config/perl/modules.txt | PERL5LIB=$(CARTON_LIB) PATH=$(PERL_PATH):$(CPANM_PATH):$(PATH) xargs $(CARTON) install
 
 carton-install-main:
-	PERL5LIB=$(CARTON_LIB) PATH=$(PERL_PATH):$(CPANM_PATH):$(PATH) $(CARTON) install
+	PERL5LIB=$(CARTON_LIB) PATH=$(PERL_PATH):$(CPANM_PATH):$(PATH) $(CARTON) install --deployment
 
 local/remotedev/remote-directory-name.txt:
 	mkdir -p local/remotedev
