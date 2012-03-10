@@ -40,6 +40,7 @@ local/carton/bin/carton: $(CARTON_SUPPORT_BIN_PATH)/cpanm
 	$(CPANM_) JSON::XS
 	$(CPANM_) Getopt::Long
 	$(CPANM_) Carton
+	touch $@
 
 config/perl/modules.txt:
 	mkdir -p config/perl
