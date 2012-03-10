@@ -30,11 +30,12 @@ config/perl/libs.txt: local/carton/bin/carton local-submodules
 	    $(PERL) -e 'push @INC, glob "local/submodules/*/lib"; print join ":", grep /^local/, @INC' > $@
 
 $(CARTON_SUPPORT_BIN_PATH)/cpanm:
-	mkdir -p local/carton/
+	mkdir -p $(CARTON_SUPPORT_BIN_PATH)
 	wget -O $@ http://cpanmin.us
 	chmod u+x $@
 
 local/carton/bin/carton: $(CARTON_SUPPORT_BIN_PATH)/cpanm
+	$(CPANM_) ExtUtils::ParseXS
 	$(CPANM_) JSON::XS
 	$(CPANM_) Carton
 	$(CPANM_) Getopt::Long
