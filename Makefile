@@ -16,7 +16,8 @@ Makefile.setupenv:
 
 setupenv remotedev-test remotedev-reset remotedev-reset-setupenv \
 config/perl/libs.txt \
-carton-install carton-update local-submodules: %: Makefile-setupenv
+carton-install carton-update carton-install-module \
+local-submodules: %: Makefile-setupenv
 	make --makefile Makefile.setupenv $@ \
             REMOTEDEV_HOST=$(REMOTEDEV_HOST) \
             REMOTEDEV_PERL_PATH=$(REMOTEDEV_PERL_PATH)

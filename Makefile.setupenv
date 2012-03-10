@@ -1,11 +1,11 @@
 # -*- Makefile -*-
 CARTON = local/carton/bin/carton
-CARTON_LIB = local/carton/lib/perl5
+CARTON_LIB = $(abspath local/carton/lib/perl5)
 PERL = perl
-CARTON_SUPPORT_BIN_PATH = local/carton/bin
+CARTON_SUPPORT_BIN_PATH = $(abspath local/carton/bin)
 CPANM = $(PERL) $(CARTON_SUPPORT_BIN_PATH)/cpanm
-CPANM_ = $(CPANM) --notest --verbose -l local/carton --reinstall
-PERL_PATH = local/dummy/path/to/perl
+CPANM_ = $(CPANM) --notest --verbose -l local/carton
+PERL_PATH = $(abspath local/dummy/path/to/perl)
 SSH = ssh
 
 REMOTEDEV_HOST = develop.test
@@ -35,10 +35,11 @@ $(CARTON_SUPPORT_BIN_PATH)/cpanm:
 	chmod u+x $@
 
 local/carton/bin/carton: $(CARTON_SUPPORT_BIN_PATH)/cpanm
-	$(CPANM_) ExtUtils::ParseXS
+	$(CPANM_) --reinstall ExtUtils::ParseXS
+	$(CPANM_) CPAN
 	$(CPANM_) JSON::XS
-	$(CPANM_) Carton
 	$(CPANM_) Getopt::Long
+	$(CPANM_) Carton
 
 config/perl/modules.txt:
 	mkdir -p config/perl
@@ -67,6 +68,9 @@ carton-update:
 
 carton-install-main:
 	PERL5LIB=$(CARTON_LIB) PATH=$(PERL_PATH):$(CARTON_SUPPORT_BIN_PATH):$(PATH) $(CARTON) install --deployment
+
+carton-install-module: local/carton/bin/carton
+	PERL5LIB=$(CARTON_LIB) PATH=$(PERL_PATH):$(CARTON_SUPPORT_BIN_PATH):$(PATH) $(CARTON) install $(CARTON_INSTALL_MODULE)
 
 local/remotedev/remote-directory-name.txt:
 	mkdir -p local/remotedev
@@ -111,7 +115,8 @@ remotedev-test: remotedev-setup
 #
 #setupenv remotedev-test remotedev-reset remotedev-reset-setupenv \
 #config/perl/libs.txt \
-#carton-install carton-update local-submodules: %: Makefile-setupenv
+#carton-install carton-update carton-install-module \
+#local-submodules: %: Makefile-setupenv
 #	make --makefile Makefile.setupenv $@ \
 #            REMOTEDEV_HOST=$(REMOTEDEV_HOST) \
 #            REMOTEDEV_PERL_PATH=$(REMOTEDEV_PERL_PATH)
