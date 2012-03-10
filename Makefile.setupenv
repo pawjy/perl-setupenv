@@ -21,7 +21,7 @@ setupenv-perl: config/perl/libs.txt
 setupenv-update:
 ifeq "$(sort $(SETUPENV_CURRENT_REVISION) $(SETUPENV_MIN_REVISION))" "$(SETUPENV_CURRENT_REVISION) $(SETUPENV_MIN_REVISION)"
 	#$(SETUPENV_CURRENT_REVISION) < $(SETUPENV_MIN_REVISION)
-	wget -O Makefile.setupenv https://raw.github.com/gist/1883312/Makefile.setupenv
+	wget -O Makefile.setupenv https://raw.github.com/wakaba/perl-setupenv/master/Makefile.setupenv
 endif
 
 config/perl/libs.txt: local/carton/bin/carton local-submodules
@@ -106,7 +106,7 @@ remotedev-test: remotedev-setup
 #	    SETUPENV_MIN_REVISION=20120310
 #
 #Makefile.setupenv:
-#	wget -O $@ https://raw.github.com/gist/1883312/Makefile.setupenv
+#	wget -O $@ https://raw.github.com/wakaba/perl-setupenv/master/Makefile.setupenv
 #
 #setupenv remotedev-test remotedev-reset remotedev-reset-setupenv \
 #config/perl/libs.txt \
