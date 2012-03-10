@@ -63,7 +63,8 @@ carton.lock: local/carton/bin/carton config/perl/modules.txt \
     $(shell ls modules/*/config/perl/modules.txt local/submodules/*/config/perl/modules.txt)
 	-cat config/perl/modules.txt modules/*/config/perl/modules.txt local/submodules/*/config/perl/modules.txt | PERL5LIB=$(CARTON_LIB) PATH=$(PERL_PATH):$(CARTON_SUPPORT_BIN_PATH):$(PATH) xargs $(CARTON) install
 
-carton-update:
+carton-update: local/carton/bin/carton config/perl/modules.txt \
+    $(shell ls modules/*/config/perl/modules.txt local/submodules/*/config/perl/modules.txt)
 	-cat config/perl/modules.txt modules/*/config/perl/modules.txt local/submodules/*/config/perl/modules.txt | PERL5LIB=$(CARTON_LIB) PATH=$(PERL_PATH):$(CARTON_SUPPORT_BIN_PATH):$(PATH) xargs $(CARTON) install
 
 carton-install-main:
