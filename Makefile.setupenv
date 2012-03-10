@@ -11,9 +11,18 @@ SSH = ssh
 REMOTEDEV_HOST = develop.test
 REMOTEDEV_PERL_PATH = perl
 
+SETUPENV_CURRENT_REVISION = 20120310
+SETUPENV_MIN_REVISION = $(SETUPENV_CURRENT_REVISION)
+
 setupenv: setupenv-perl
 
 setupenv-perl: config/perl/libs.txt
+
+setupenv-update:
+ifeq "$(sort $(SETUPENV_CURRENT_REVISION) $(SETUPENV_MIN_REVISION))" "$(SETUPENV_CURRENT_REVISION) $(SETUPENV_MIN_REVISION)"
+	#$(SETUPENV_CURRENT_REVISION) < $(SETUPENV_MIN_REVISION)
+	wget -O Makefile.setupenv https://raw.github.com/gist/1883312/Makefile.setupenv
+endif
 
 config/perl/libs.txt: local/carton/bin/carton local-submodules
 	mkdir -p config/perl
@@ -92,12 +101,16 @@ remotedev-test: remotedev-setup
 #	PATH=$(PERL_PATH):$(PATH) PERL5LIB=$(shell cat config/perl/libs.txt) \
 #	    $(PROVE) t/*.t
 #
+#Makefile-setupenv: Makefile.setupenv
+#	make --makefile Makefile.setupenv setupenv-update \
+#	    SETUPENV_MIN_REVISION=20120310
+#
 #Makefile.setupenv:
 #	wget -O $@ https://raw.github.com/gist/1883312/Makefile.setupenv
 #
 #setupenv remotedev-test remotedev-reset remotedev-reset-setupenv \
 #config/perl/libs.txt \
-#carton-install carton-update local-submodules: %: Makefile.setupenv always
+#carton-install carton-update local-submodules: %: Makefile-setupenv
 #	make --makefile Makefile.setupenv $@ \
 #            REMOTEDEV_HOST=$(REMOTEDEV_HOST) \
 #            REMOTEDEV_PERL_PATH=$(REMOTEDEV_PERL_PATH)
