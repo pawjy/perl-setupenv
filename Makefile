@@ -1,7 +1,7 @@
 ## This is an example Makefile.
 REMOTEDEV_HOST = remotedev.host.example
 REMOTEDEV_PERL_PATH = path/to/remote/server/perl/bin
-PERL_PATH = $(abspath local/perlbrew/perls/perl-setupenv/bin)
+PERL_PATH = $(abspath local/perlbrew/perls/perl-latest/bin)
 
 test: local-submodules carton-install config/perl/libs.txt
 	PATH=$(PERL_PATH):$(PATH) PERL5LIB=$(shell cat config/perl/libs.txt) \
