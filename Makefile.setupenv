@@ -135,7 +135,7 @@ carton-update: $(CARTON_SUPPORT_BIN_PATH)/carton \
 	$(CARTON_ENV)  xargs $(CARTON) install
 
 carton-install-main:
-	$(CARTON_ENV) $(CARTON) install --deployment
+	-$(CARTON_ENV) $(CARTON) install --deployment
 
 carton-install-module: $(CARTON_SUPPORT_BIN_PATH)/carton
 	$(CARTON_ENV) $(CARTON) install $(CARTON_INSTALL_MODULE)
