@@ -1,7 +1,7 @@
 # -*- Makefile -*-
-CARTON = local/carton/bin/carton
-CARTON_LIB = $(abspath local/carton/lib/perl5)
 PERL = perl
+CARTON = $(PERL) local/carton/bin/carton
+CARTON_LIB = $(abspath local/carton/lib/perl5)
 CARTON_SUPPORT_BIN_PATH = $(abspath local/carton/bin)
 CPANM = $(PERL) $(CARTON_SUPPORT_BIN_PATH)/cpanm
 CPANM_ = $(CPANM) --notest --verbose -l local/carton
