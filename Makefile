@@ -8,7 +8,7 @@ test: local-submodules carton-install config/perl/libs.txt
 	    $(PROVE) t/*.t
 
 Makefile-setupenv: Makefile.setupenv
-	make --makefile Makefile.setupenv setupenv-update \
+	$(MAKE) --makefile Makefile.setupenv setupenv-update \
 	    SETUPENV_MIN_REVISION=20120312
 
 Makefile.setupenv:
@@ -18,6 +18,6 @@ remotedev-test remotedev-reset remotedev-reset-setupenv \
 config/perl/libs.txt \
 carton-install carton-update carton-install-module \
 local-submodules local-perl: %: Makefile-setupenv
-	make --makefile Makefile.setupenv $@ \
+	$(MAKE) --makefile Makefile.setupenv $@ \
             REMOTEDEV_HOST=$(REMOTEDEV_HOST) \
             REMOTEDEV_PERL_PATH=$(REMOTEDEV_PERL_PATH)

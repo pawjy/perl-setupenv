@@ -92,7 +92,7 @@ local/submodules/Makefile: config/perl/submodules.txt
 	cat $< | perl -n -e 'chomp; undef $$branch; $$branch = $$1 if s{\s+(\S+)\s*$$}{}; m{([^/\s]+)$$}; $$dir = $$1; print "\t(git clone $$_ || (cd $$dir && git pull))\n"; print "\tcd $$dir && (git checkout -b $$branch origin/$$branch || git checkout $$branch)\n" if $$branch' >> $@
 
 local-submodules: local/submodules/Makefile
-	cd local/submodules && make clone
+	cd local/submodules && $(MAKE) clone
 
 carton-install: local-submodules carton.lock carton-install-main
 
@@ -167,7 +167,7 @@ remotedev-test: remotedev-setup
 #	    $(PROVE) t/*.t
 #
 #Makefile-setupenv: Makefile.setupenv
-#	make --makefile Makefile.setupenv setupenv-update \
+#	$(MAKE) --makefile Makefile.setupenv setupenv-update \
 #	    SETUPENV_MIN_REVISION=20120312
 #
 #Makefile.setupenv:
@@ -177,6 +177,6 @@ remotedev-test: remotedev-setup
 #config/perl/libs.txt \
 #carton-install carton-update carton-install-module \
 #local-submodules local-perl: %: Makefile-setupenv
-#	make --makefile Makefile.setupenv $@ \
+#	$(MAKE) --makefile Makefile.setupenv $@ \
 #            REMOTEDEV_HOST=$(REMOTEDEV_HOST) \
 #            REMOTEDEV_PERL_PATH=$(REMOTEDEV_PERL_PATH)
