@@ -11,7 +11,7 @@ test: local-submodules carton-install config/perl/libs.txt
 
 Makefile-setupenv: Makefile.setupenv
 	$(MAKE) --makefile Makefile.setupenv setupenv-update \
-	    SETUPENV_MIN_REVISION=20120312
+	    SETUPENV_MIN_REVISION=20120313
 
 Makefile.setupenv:
 	wget -O $@ https://raw.github.com/wakaba/perl-setupenv/master/Makefile.setupenv
