@@ -44,6 +44,7 @@ else
 endif
 
 local/perlbrew/bin/perlbrew:
+	mkdir -p local/
 	wget -O local/install.perlbrew http://install.perlbrew.pl/
 	PERLBREW_ROOT=$(abspath local/perlbrew) sh local/install.perlbrew
 
