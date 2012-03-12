@@ -41,12 +41,14 @@ local/perlbrew/bin/perlbrew: local/perlbrew/_perlinfo/perl-version
 
 local-perl: local-perl-main $(CARTON_SUPPORT_BIN_PATH)/cpanm
 
-local-perl-main: local/perlbrew/bin/perlbrew
+local-perl-main: local/perlbrew/perls/perl-setupenv/bin
+	## To update carton deps, if necessary...
+	touch -c $(CARTON_SUPPORT_BIN_PATH)/cpanm
+
+local/perlbrew/perls/perl-setupenv/bin: local/perlbrew/bin/perlbrew
 	PERLBREW_ROOT=$(abspath local/perlbrew) local/perlbrew/bin/perlbrew \
 	    install `cat local/perlbrew/_perlinfo/perl-version` \
 	    --notest --as perl-setupenv -j $(PERLBREW_PARALLEL_COUNT)
-	## To update carton deps, if necessary...
-	touch -c $(CARTON_SUPPORT_BIN_PATH)/cpanm
 
 $(CARTON_SUPPORT_BIN_PATH)/cpanm:
 	mkdir -p $(CARTON_SUPPORT_BIN_PATH)
