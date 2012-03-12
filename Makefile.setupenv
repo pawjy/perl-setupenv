@@ -51,8 +51,6 @@ local/perlbrew/bin/perlbrew:
 local-perl: local-perl-main $(CARTON_SUPPORT_BIN_PATH)/cpanm
 
 local-perl-main: local/perlbrew/perls/perl-$(PERL_VERSION)/bin
-## To update carton deps, if necessary...
-	touch -c $(CARTON_SUPPORT_BIN_PATH)/cpanm
 
 local/perlbrew/perls/perl-$(PERL_VERSION)/bin: local/perlbrew/bin/perlbrew \
     local/perlbrew/_perlinfo/perl-$(PERL_VERSION).version
