@@ -7,6 +7,7 @@ CARTON_SUPPORT_BIN_PATH = $(abspath local/carton/bin)
 CPANM = $(PERL) $(CARTON_SUPPORT_BIN_PATH)/cpanm
 CPANM_ = $(CPANM) --notest --verbose -l local/carton
 PERL_PATH = $(abspath local/perlbrew/perls/perl-setupenv/bin)
+CARTON_ENV = PERL5LIB=$(CARTON_LIB) PATH=$(PERL_PATH):$(CARTON_SUPPORT_BIN_PATH):$(PATH)
 SSH = ssh
 
 REMOTEDEV_HOST = develop.test
@@ -49,11 +50,10 @@ $(CARTON_SUPPORT_BIN_PATH)/cpanm:
 	chmod u+x $@
 
 local/carton/bin/carton: $(CARTON_SUPPORT_BIN_PATH)/cpanm
-	$(CPANM_) --reinstall ExtUtils::ParseXS
-	$(CPANM_) CPAN
-	$(CPANM_) JSON::XS
-	$(CPANM_) Getopt::Long
-	$(CPANM_) --reinstall Carton
+	$(CARTON_ENV) $(CPANM_) --reinstall ExtUtils::ParseXS
+	$(CARTON_ENV) $(CPANM_) CPAN JSON::XS Getopt::Long \
+	    Class::Data::Inheritable Devel::StackTrace
+	$(CARTON_ENV) $(CPANM_) --reinstall Carton
 	touch -c $@
 
 config/perl/modules.txt:
@@ -87,7 +87,7 @@ carton.lock: local/carton/bin/carton \
 	    modules/*/config/perl/modules.*.txt \
 	    local/submodules/*/config/perl/modules.txt \
 	    local/submodules/*/config/perl/modules.*.txt | \
-	PERL5LIB=$(CARTON_LIB) PATH=$(PERL_PATH):$(CARTON_SUPPORT_BIN_PATH):$(PATH) xargs $(CARTON) install
+	$(CARTON_ENV) xargs $(CARTON) install
 
 carton-update: local/carton/bin/carton \
     config/perl/modules.txt \
@@ -102,13 +102,13 @@ carton-update: local/carton/bin/carton \
 	    modules/*/config/perl/modules.*.txt \
 	    local/submodules/*/config/perl/modules.txt \
 	    local/submodules/*/config/perl/modules.*.txt | \
-	PERL5LIB=$(CARTON_LIB) PATH=$(PERL_PATH):$(CARTON_SUPPORT_BIN_PATH):$(PATH) xargs $(CARTON) install
+	$(CARTON_ENV)  xargs $(CARTON) install
 
 carton-install-main:
-	PERL5LIB=$(CARTON_LIB) PATH=$(PERL_PATH):$(CARTON_SUPPORT_BIN_PATH):$(PATH) $(CARTON) install --deployment
+	$(CARTON_ENV) $(CARTON) install --deployment
 
 carton-install-module: local/carton/bin/carton
-	PERL5LIB=$(CARTON_LIB) PATH=$(PERL_PATH):$(CARTON_SUPPORT_BIN_PATH):$(PATH) $(CARTON) install $(CARTON_INSTALL_MODULE)
+	$(CARTON_ENV) $(CARTON) install $(CARTON_INSTALL_MODULE)
 
 local/remotedev/remote-directory-name.txt:
 	mkdir -p local/remotedev
