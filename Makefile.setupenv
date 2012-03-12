@@ -7,8 +7,9 @@ CARTON_LIB = $(abspath local/perl-$(PERL_VERSION)/carton/lib/perl5)
 CARTON_SUPPORT_BIN_PATH = $(abspath local/perl-$(PERL_VERSION)/carton/bin)
 CPANM = $(PERL) $(CARTON_SUPPORT_BIN_PATH)/cpanm
 CPANM_ = $(CPANM) --notest --verbose -l local/perl-$(PERL_VERSION)/carton
-PERL_PATH = $(abspath local/perlbrew/perls/perl-latest/bin)
+PERL_PATH = $(abspath local/perlbrew/perls/perl-$(PERL_VERSION)/bin)
 CARTON_ENV = PERL5LIB=$(CARTON_LIB) PATH=$(PERL_PATH):$(CARTON_SUPPORT_BIN_PATH):$(PATH)
+PERL_ENV = PATH=$(PERL_PATH):$(PATH) PERL5LIB=`cat config/perl/libs.txt`
 SSH = ssh
 
 REMOTEDEV_HOST = develop.test
@@ -65,6 +66,13 @@ ifeq "$(PERL_VERSION)" "latest"
 	PERLBREW_ROOT=$(abspath local/perlbrew) local/perlbrew/bin/perlbrew \
 	    alias create  perl-`cat local/perlbrew/_perlinfo/perl-$(PERL_VERSION).version` perl-latest
 endif
+
+perl-exec:
+	$(PERL_ENV) $(PERL) $(PERL_EXEC_ARGS)
+
+perl-version:
+	$(PERL_ENV) $(PERL) -v
+	$(PERL_ENV) $(PERL) -e 'print for map { $$_ . "\n" } @INC'
 
 $(CARTON_SUPPORT_BIN_PATH)/cpanm:
 	mkdir -p $(CARTON_SUPPORT_BIN_PATH)
@@ -156,27 +164,4 @@ remotedev-reset-setupenv:
 remotedev-test: remotedev-setup
 	$(SSH) $(REMOTEDEV_HOST) "cd $(shell cat local/remotedev/remote-directory-name.txt)/repo && make test PERL_PATH=$(REMOTEDEV_PERL_PATH)"
 
-# Add following to your Makefile:
-#
-#REMOTEDEV_HOST = remotedev.host.example
-#REMOTEDEV_PERL_PATH = path/to/remote/server/perl/bin
-#PERL_PATH = $(abspath local/perlbrew/perls/perl-latest/bin)
-#
-#test: local-submodules carton-install config/perl/libs.txt
-#	PATH=$(PERL_PATH):$(PATH) PERL5LIB=$(shell cat config/perl/libs.txt) \
-#	    $(PROVE) t/*.t
-#
-#Makefile-setupenv: Makefile.setupenv
-#	$(MAKE) --makefile Makefile.setupenv setupenv-update \
-#	    SETUPENV_MIN_REVISION=20120312
-#
-#Makefile.setupenv:
-#	wget -O $@ https://raw.github.com/wakaba/perl-setupenv/master/Makefile.setupenv
-#
-#remotedev-test remotedev-reset remotedev-reset-setupenv \
-#config/perl/libs.txt \
-#carton-install carton-update carton-install-module \
-#local-submodules local-perl: %: Makefile-setupenv
-#	$(MAKE) --makefile Makefile.setupenv $@ \
-#            REMOTEDEV_HOST=$(REMOTEDEV_HOST) \
-#            REMOTEDEV_PERL_PATH=$(REMOTEDEV_PERL_PATH)
+# Usage: See <https://raw.github.com/wakaba/perl-setupenv/master/Makefile>.
