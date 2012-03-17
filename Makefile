@@ -5,6 +5,8 @@ PERL_PATH = $(abspath local/perlbrew/perls/perl-$(PERL_VERSION)/bin)
 REMOTEDEV_HOST = remotedev.host.example
 REMOTEDEV_PERL_VERSION = $(PERL_VERSION)
 
+PROVE = prove
+
 test: local-submodules carton-install config/perl/libs.txt
 	PATH=$(PERL_PATH):$(PATH) PERL5LIB=$(shell cat config/perl/libs.txt) \
 	    $(PROVE) t/*.t
