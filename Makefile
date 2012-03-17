@@ -32,5 +32,5 @@ test: local-submodules carton-install config/perl/libs.txt
 
 GENERATEPM = local/generatepm/bin/generate-pm-package
 
-dist:
+dist: generatepm
 	$(GENERATEPM) config/dist/hogehoge.pi dist/
