@@ -1,4 +1,14 @@
 # -*- Makefile -*-
+
+# Makefile.setupenv - Setup local Perl environment for development
+
+# Copyright 2012 Hatena <http://www.hatena.com/>.
+# Copyright 2012 Wakaba <w@suika.fam.cx>.
+
+# Repository: <https://github.com/wakaba/perl-setupenv>.
+# Document: <https://github.com/wakaba/perl-setupenv/blob/master/README>.
+# Usage: <https://raw.github.com/wakaba/perl-setupenv/master/Makefile>.
+
 PERL = perl
 PERL_VERSION = latest
 PERLBREW_PARALLEL_COUNT = 1
@@ -20,16 +30,15 @@ SETUPENV_MIN_REVISION = $(SETUPENV_CURRENT_REVISION)
 
 all: local-perl config/perl/libs.txt carton-install
 
+# ------ setupenv - Development environment setup tool ------
+
 setupenv-update:
 ifeq "$(sort $(SETUPENV_CURRENT_REVISION) $(SETUPENV_MIN_REVISION))" "$(SETUPENV_CURRENT_REVISION) $(SETUPENV_MIN_REVISION)"
 #$(SETUPENV_CURRENT_REVISION) < $(SETUPENV_MIN_REVISION)
 	wget -O Makefile.setupenv https://raw.github.com/wakaba/perl-setupenv/master/Makefile.setupenv
 endif
 
-config/perl/libs.txt: $(CARTON_SUPPORT_BIN_PATH)/carton local-submodules
-	mkdir -p config/perl
-	$(CARTON_ENV) $(CARTON) exec -- \
-	    $(PERL) -e 'push @INC, glob "local/submodules/*/lib"; print join ":", grep /^local/, @INC' > $@
+# ------ local-perl - Perl installation for your application ------
 
 local/perlbrew/_perlinfo/perl-$(PERL_VERSION).version:
 	mkdir -p local/perlbrew/_perlinfo
@@ -74,6 +83,8 @@ perl-version:
 	$(PERL_ENV) $(PERL) -v
 	$(PERL_ENV) $(PERL) -e 'print for map { $$_ . "\n" } @INC'
 
+# ------ carton - Perl module management ------
+
 $(CARTON_SUPPORT_BIN_PATH)/cpanm:
 	mkdir -p $(CARTON_SUPPORT_BIN_PATH)
 	wget -O $@ http://cpanmin.us
@@ -101,6 +112,11 @@ local/submodules/Makefile: config/perl/submodules.txt
 
 local-submodules: local/submodules/Makefile
 	cd local/submodules && $(MAKE) clone
+
+config/perl/libs.txt: $(CARTON_SUPPORT_BIN_PATH)/carton local-submodules
+	mkdir -p config/perl
+	$(CARTON_ENV) $(CARTON) exec -- \
+	    $(PERL) -e 'push @INC, glob "local/submodules/*/lib"; print join ":", grep /^local/, @INC' > $@
 
 carton-install: local-submodules carton.lock carton-install-main
 
@@ -140,6 +156,8 @@ carton-install-main:
 carton-install-module: $(CARTON_SUPPORT_BIN_PATH)/carton
 	$(CARTON_ENV) $(CARTON) install $(CARTON_INSTALL_MODULE)
 
+# ------ remotedev - Run tests at remote host ------
+
 local/remotedev/remote-directory-name.txt:
 	mkdir -p local/remotedev
 	$(SSH) $(REMOTEDEV_HOST) "perl -MFile::Temp=tempdir -e 'print tempdir'" > $@
@@ -163,5 +181,3 @@ remotedev-reset-setupenv:
 
 remotedev-test: remotedev-setup
 	$(SSH) $(REMOTEDEV_HOST) "cd $(shell cat local/remotedev/remote-directory-name.txt)/repo && make test PERL_VERSION=$(REMOTEDEV_PERL_VERSION)"
-
-# Usage: See <https://raw.github.com/wakaba/perl-setupenv/master/Makefile>.
