@@ -181,3 +181,17 @@ remotedev-reset-setupenv:
 
 remotedev-test: remotedev-setup
 	$(SSH) $(REMOTEDEV_HOST) "cd $(shell cat local/remotedev/remote-directory-name.txt)/repo && make test PERL_VERSION=$(REMOTEDEV_PERL_VERSION)"
+
+# ------ generatepm - Generate Perl module package distributions ------
+
+generatepm: local/generatepm/bin/generate-pm-package
+
+local/generatepm/bin/generate-pm-package: always
+	mkdir -p local
+	git clone git://github.com/wakaba/generate-pm-package.git local/generatepm || (cd local/generatepm && git pull)
+	cd local/generatepm && git submodule update --init
+	cd local/generatepm && $(MAKE) all
+
+# ------ ------
+
+always:
