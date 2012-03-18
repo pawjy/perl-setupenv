@@ -50,7 +50,7 @@ ifeq "$(PERL_VERSION)" "latest"
 	    | grep "\[\"name\"\]" \
 	    | sed 's/\["[^"]\+"\]\s\+"\([^"]\+\)"/\1/g' > $@
 else
-	echo "$(PERL_VERSION)" > $@
+	perl -e "print 'perl-$(PERL_VERSION)'" > $@
 endif
 
 local/perlbrew/bin/perlbrew:
