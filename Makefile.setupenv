@@ -28,7 +28,7 @@ REMOTEDEV_PERL_VERSION = latest
 SETUPENV_CURRENT_REVISION = 20120318
 SETUPENV_MIN_REVISION = $(SETUPENV_CURRENT_REVISION)
 
-all: local-perl config/perl/libs.txt carton-install
+all:
 
 # ------ setupenv - Development environment setup tool ------
 
@@ -76,10 +76,10 @@ ifeq "$(PERL_VERSION)" "latest"
 	    alias create  `cat local/perlbrew/_perlinfo/perl-$(PERL_VERSION).version` perl-latest
 endif
 
-perl-exec:
+perl-exec: config/perl/libs.txt
 	$(PERL_ENV) $(PERL) $(PERL_EXEC_ARGS)
 
-perl-version:
+perl-version: config/perl/libs.txt
 	$(PERL_ENV) $(PERL) -v
 	$(PERL_ENV) $(PERL) -e 'print for map { $$_ . "\n" } @INC'
 
