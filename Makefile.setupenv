@@ -60,20 +60,22 @@ local/perlbrew/bin/perlbrew:
 
 local-perl: local-perl-main $(CARTON_SUPPORT_BIN_PATH)/cpanm
 
-local-perl-main: local/perlbrew/perls/perl-$(PERL_VERSION)/bin
+local-perl-main: local/perlbrew/perls/perl-$(PERL_VERSION)/bin/perl
 
-local/perlbrew/perls/perl-$(PERL_VERSION)/bin: local/perlbrew/bin/perlbrew \
+local/perlbrew/perls/perl-$(PERL_VERSION)/bin/perl: local/perlbrew/bin/perlbrew \
     local/perlbrew/_perlinfo/perl-$(PERL_VERSION).version
+ifeq "$(wildcard *$@)"
 ifeq "$(PERL_VERSION)" "latest"
 	-PERLBREW_ROOT=$(abspath local/perlbrew) local/perlbrew/bin/perlbrew \
 	    alias delete perl-latest
 endif
 	PERLBREW_ROOT=$(abspath local/perlbrew) local/perlbrew/bin/perlbrew \
 	    install `cat local/perlbrew/_perlinfo/perl-$(PERL_VERSION).version` \
-	    --notest --as `cat local/perlbrew/_perlinfo/perl-$(PERL_VERSION).version` -j $(PERLBREW_PARALLEL_COUNT)
+	    --notest --as perl-`cat local/perlbrew/_perlinfo/perl-$(PERL_VERSION).version` -j $(PERLBREW_PARALLEL_COUNT)
 ifeq "$(PERL_VERSION)" "latest"
 	PERLBREW_ROOT=$(abspath local/perlbrew) local/perlbrew/bin/perlbrew \
-	    alias create  `cat local/perlbrew/_perlinfo/perl-$(PERL_VERSION).version` perl-latest
+	    alias create perl-`cat local/perlbrew/_perlinfo/perl-$(PERL_VERSION).version` perl-latest
+endif
 endif
 
 perl-exec: config/perl/libs.txt
