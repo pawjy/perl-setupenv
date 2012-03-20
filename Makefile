@@ -8,7 +8,7 @@ REMOTEDEV_PERL_VERSION = $(PERL_VERSION)
 
 Makefile-setupenv: Makefile.setupenv
 	$(MAKE) --makefile Makefile.setupenv setupenv-update \
-	    SETUPENV_MIN_REVISION=20120318
+	    SETUPENV_MIN_REVISION=20120320
 
 Makefile.setupenv:
 	wget -O $@ https://raw.github.com/wakaba/perl-setupenv/master/Makefile.setupenv
