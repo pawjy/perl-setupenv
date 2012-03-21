@@ -167,6 +167,8 @@ local/remotedev/remote-directory-name.txt:
 config/remotedev/getreponame.pl:
 	mkdir -p config/remotedev
 	echo 'my $$repo = `git config --get remote.origin.url` or die "No origin URL";' > $@
+	echo '$$repo =~ s{git\@github.com:}{git://github.com/};' >> $@
+	echo '$$repo =~ tr/\x0D\x0A//d;' >> $@
 	echo 'print $$repo;' >> $@
 
 remotedev-upload: local/remotedev/remote-directory-name.txt config/remotedev/getreponame.pl
