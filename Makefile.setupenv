@@ -38,6 +38,9 @@ ifeq "$(sort $(SETUPENV_CURRENT_REVISION) $(SETUPENV_MIN_REVISION))" "$(SETUPENV
 	wget -O Makefile.setupenv https://raw.github.com/wakaba/perl-setupenv/master/Makefile.setupenv
 endif
 
+local/setupenv/carton.20120328:
+	touch $@
+
 # ------ local-perl - Perl installation for your application ------
 
 local/perlbrew/_perlinfo/perl-$(PERL_VERSION).version:
@@ -92,7 +95,8 @@ $(CARTON_SUPPORT_BIN_PATH)/cpanm:
 	wget -O $@ http://cpanmin.us
 	chmod u+x $@
 
-$(CARTON_SUPPORT_BIN_PATH)/carton: $(CARTON_SUPPORT_BIN_PATH)/cpanm
+$(CARTON_SUPPORT_BIN_PATH)/carton: $(CARTON_SUPPORT_BIN_PATH)/cpanm \
+    local/setupenv/carton.20120328
 	$(CARTON_ENV) $(CPANM_) --reinstall ExtUtils::ParseXS
 	$(CARTON_ENV) $(CPANM_) CPAN 
 	$(CARTON_ENV) perl -MCPAN -MCPAN::HandleConfig \
@@ -172,7 +176,7 @@ carton-update: $(CARTON_SUPPORT_BIN_PATH)/carton \
 	    modules/*/config/perl/modules.*.txt \
 	    local/submodules/*/config/perl/modules.txt \
 	    local/submodules/*/config/perl/modules.*.txt | \
-	$(CARTON_ENV) xargs $(CARTON) install --cached
+	$(CARTON_ENV) xargs $(CARTON) install
 
 carton-install-main:
 	-$(CARTON_ENV) $(CARTON) install --deployment --cached

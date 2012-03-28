@@ -15,12 +15,18 @@ Makefile.setupenv:
 
 local-perl perl-version perl-exec \
 local-submodules config/perl/libs.txt \
-carton-install carton-update carton-install-module \
+carton-install carton-update carton-install-module carton-bundle \
 remotedev-test remotedev-reset remotedev-reset-setupenv \
-generatepm: %: Makefile-setupenv
+generatepm: %: Makefile-setupenv local-cached
 	$(MAKE) --makefile Makefile.setupenv $@ \
             REMOTEDEV_HOST=$(REMOTEDEV_HOST) \
             REMOTEDEV_PERL_VERSION=$(REMOTEDEV_PERL_VERSION)
+
+LOCAL_CACHED_GIT_URL = ...
+
+local-cached:
+	mkdir -p local
+	cd local && (git clone $(LOCAL_CACHED_GIT_URL)) || (cd cached && git pull))
 
 # ------ Examples of rules using Makefile.setup rules ------
 
