@@ -39,6 +39,7 @@ ifeq "$(sort $(SETUPENV_CURRENT_REVISION) $(SETUPENV_MIN_REVISION))" "$(SETUPENV
 endif
 
 local/setupenv/carton.20120328:
+	mkdir -p local/setupenv
 	touch $@
 
 # ------ local-perl - Perl installation for your application ------
