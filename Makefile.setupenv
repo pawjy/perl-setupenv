@@ -172,7 +172,7 @@ carton-update: $(CARTON_SUPPORT_BIN_PATH)/carton \
 	    modules/*/config/perl/modules.*.txt \
 	    local/submodules/*/config/perl/modules.txt \
 	    local/submodules/*/config/perl/modules.*.txt | \
-	$(CARTON_ENV) xargs $(CARTON) install
+	$(CARTON_ENV) xargs $(CARTON) install --cached
 
 carton-install-main:
 	-$(CARTON_ENV) $(CARTON) install --deployment --cached
