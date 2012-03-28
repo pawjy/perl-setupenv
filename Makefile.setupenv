@@ -25,7 +25,7 @@ SSH = ssh
 REMOTEDEV_HOST = develop.test
 REMOTEDEV_PERL_VERSION = latest
 
-SETUPENV_CURRENT_REVISION = 20120320
+SETUPENV_CURRENT_REVISION = 20120328
 SETUPENV_MIN_REVISION = $(SETUPENV_CURRENT_REVISION)
 
 all:
@@ -94,7 +94,10 @@ $(CARTON_SUPPORT_BIN_PATH)/cpanm:
 
 $(CARTON_SUPPORT_BIN_PATH)/carton: $(CARTON_SUPPORT_BIN_PATH)/cpanm
 	$(CARTON_ENV) $(CPANM_) --reinstall ExtUtils::ParseXS
-	$(CARTON_ENV) $(CPANM_) CPAN JSON::XS Getopt::Long \
+	$(CARTON_ENV) $(CPANM_) CPAN 
+	$(CARTON_ENV) perl -MCPAN -MCPAN::HandleConfig \
+	    -e 'CPAN::HandleConfig->load; CPAN::HandleConfig->commit("$(CARTON_SUPPORT_BIN_PATH)/../lib/perl5/CPAN/MyConfig.pm")'
+	$(CARTON_ENV) $(CPANM_) JSON::XS Getopt::Long \
 	    Class::Data::Inheritable Devel::StackTrace
 	$(CARTON_ENV) $(CPANM_) --reinstall Carton
 	touch -c $@
