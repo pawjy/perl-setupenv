@@ -152,7 +152,7 @@ carton.lock: $(CARTON_SUPPORT_BIN_PATH)/carton \
 	    modules/*/config/perl/modules.*.txt \
 	    local/submodules/*/config/perl/modules.txt \
 	    local/submodules/*/config/perl/modules.*.txt | \
-	$(CARTON_ENV) xargs $(PERL) $(CARTON) install
+	$(CARTON_ENV) xargs $(PERL) $(CARTON) install --cached
 
 carton-update: $(CARTON_SUPPORT_BIN_PATH)/carton \
     config/perl/modules.txt \
