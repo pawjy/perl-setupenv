@@ -144,12 +144,14 @@ Makefile.PL: \
 	       modules/*/config/perl/modules.*.txt \
 	       local/submodules/*/config/perl/modules.txt \
 	       local/submodules/*/config/perl/modules.*.txt)
+	echo "use inc::Module::Install;" > $@
 	-cat config/perl/modules.txt config/perl/modules.*.txt \
 	    modules/*/config/perl/modules.txt \
 	    modules/*/config/perl/modules.*.txt \
 	    local/submodules/*/config/perl/modules.txt \
 	    local/submodules/*/config/perl/modules.*.txt | \
-	    xargs -l1 -i% -- echo "requires '%';" > $@
+	    xargs -l1 -i% -- echo "requires '%';" >> $@
+	echo "WriteAll;" >> $@
 
 carton-install: local-submodules carton.lock carton-install-main
 
