@@ -98,8 +98,12 @@ $(CARTON_SUPPORT_BIN_PATH)/carton: $(CARTON_SUPPORT_BIN_PATH)/cpanm
 	$(CARTON_ENV) perl -MCPAN -MCPAN::HandleConfig \
 	    -e 'CPAN::HandleConfig->load; CPAN::HandleConfig->commit("$(CARTON_SUPPORT_BIN_PATH)/../lib/perl5/CPAN/MyConfig.pm")'
 	$(CARTON_ENV) $(CPANM_) JSON::XS Getopt::Long \
-	    Class::Data::Inheritable Devel::StackTrace
-	$(CARTON_ENV) $(CPANM_) --reinstall Carton
+	    Class::Data::Inheritable Devel::StackTrace \
+	    Dist::Metadata::Archive
+	git clone git://github.com/masaki/carton.git $(CARTON_SUPPORT_BIN_PATH)/../carton || (cd $(CARTON_SUPPORT_BIN_PATH)/../carton && git pull)
+	$(CARTON_ENV) $(CPANM_) --reinstall $(CARTON_SUPPORT_BIN_PATH)/../carton
+	#$(CARTON_ENV) $(CPANM_) --reinstall Carton
+	#ln -s $(CARTON_SUPPORT_BIN_PATH)/../carton/bin/carton $@
 	touch -c $@
 
 config/perl/modules.txt:
@@ -122,6 +126,21 @@ config/perl/libs.txt: $(CARTON_SUPPORT_BIN_PATH)/carton local-submodules
 	mkdir -p config/perl
 	$(CARTON_ENV) $(CARTON) exec -- \
 	    $(PERL) -e 'push @INC, glob "local/submodules/*/lib"; print join ":", grep /^local/, @INC' > $@
+
+Makefile.PL: \
+    config/perl/modules.txt \
+    $(wildcard config/perl/modules.txt \
+	       config/perl/modules.*.txt \
+               modules/*/config/perl/modules.txt \
+	       modules/*/config/perl/modules.*.txt \
+	       local/submodules/*/config/perl/modules.txt \
+	       local/submodules/*/config/perl/modules.*.txt)
+	-cat config/perl/modules.txt config/perl/modules.*.txt \
+	    modules/*/config/perl/modules.txt \
+	    modules/*/config/perl/modules.*.txt \
+	    local/submodules/*/config/perl/modules.txt \
+	    local/submodules/*/config/perl/modules.*.txt | \
+	    xargs -l1 -i% -- echo "requires '%';" > $@
 
 carton-install: local-submodules carton.lock carton-install-main
 
@@ -156,10 +175,13 @@ carton-update: $(CARTON_SUPPORT_BIN_PATH)/carton \
 	$(CARTON_ENV) xargs $(CARTON) install
 
 carton-install-main:
-	-$(CARTON_ENV) $(CARTON) install --deployment
+	-$(CARTON_ENV) $(CARTON) install --deployment --cached
 
 carton-install-module: $(CARTON_SUPPORT_BIN_PATH)/carton
 	$(CARTON_ENV) $(CARTON) install $(CARTON_INSTALL_MODULE)
+
+carton-bundle: Makefile.PL
+	$(CARTON_ENV) $(CARTON) bundle --path=local
 
 # ------ remotedev - Run tests at remote host ------
 
