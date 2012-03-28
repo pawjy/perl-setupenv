@@ -180,7 +180,7 @@ carton-install-main:
 carton-install-module: $(CARTON_SUPPORT_BIN_PATH)/carton
 	$(CARTON_ENV) $(CARTON) install $(CARTON_INSTALL_MODULE)
 
-carton-bundle: Makefile.PL
+carton-bundle: $(CARTON_SUPPORT_BIN_PATH)/carton Makefile.PL
 	$(CARTON_ENV) $(CARTON) bundle --path=local
 
 # ------ remotedev - Run tests at remote host ------
