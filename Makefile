@@ -26,7 +26,7 @@ LOCAL_CACHED_GIT_URL = ...
 
 local-cached:
 	mkdir -p local
-	cd local && ((git clone $(LOCAL_CACHED_GIT_URL)) || (cd cached && git pull))
+	cd local && ((git clone $(LOCAL_CACHED_GIT_URL) local/cached) || (cd cached && git pull))
 
 # ------ Examples of rules using Makefile.setup rules ------
 
