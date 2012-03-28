@@ -16,7 +16,10 @@ CARTON = $(PERL) local/perl-$(PERL_VERSION)/carton/bin/carton
 CARTON_LIB = $(abspath local/perl-$(PERL_VERSION)/carton/lib/perl5)
 CARTON_SUPPORT_BIN_PATH = $(abspath local/perl-$(PERL_VERSION)/carton/bin)
 CPANM = $(PERL) $(CARTON_SUPPORT_BIN_PATH)/cpanm
-CPANM_ = $(CPANM) --notest --verbose -l local/perl-$(PERL_VERSION)/carton
+CPANM_ = $(CPANM) --notest --verbose -l local/perl-$(PERL_VERSION)/carton \
+    --mirror local/cache \
+    --mirror http://cpan.metacpan.org/ \
+    --mirror http://backpan.perl.org/
 PERL_PATH = $(abspath local/perlbrew/perls/perl-$(PERL_VERSION)/bin)
 CARTON_ENV = PERL5LIB=$(CARTON_LIB) PATH=$(PERL_PATH):$(CARTON_SUPPORT_BIN_PATH):$(PATH) PERL_CARTON_PATH=local/perl-$(PERL_VERSION)
 PERL_ENV = PATH=$(PERL_PATH):$(PATH) PERL5LIB=`cat config/perl/libs.txt`
@@ -184,7 +187,7 @@ carton-install-main:
 	-$(CARTON_ENV) $(CARTON) install --deployment --cached
 
 carton-install-module: $(CARTON_SUPPORT_BIN_PATH)/carton
-	$(CARTON_ENV) $(CARTON) install $(CARTON_INSTALL_MODULE)
+	$(CARTON_ENV) $(CARTON) install $(CARTON_INSTALL_MODULE) --cached
 
 carton-bundle: $(CARTON_SUPPORT_BIN_PATH)/carton Makefile.PL
 	$(CARTON_ENV) $(CARTON) bundle --path=local

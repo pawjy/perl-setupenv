@@ -22,11 +22,12 @@ generatepm: %: Makefile-setupenv local-cached
             REMOTEDEV_HOST=$(REMOTEDEV_HOST) \
             REMOTEDEV_PERL_VERSION=$(REMOTEDEV_PERL_VERSION)
 
-LOCAL_CACHED_GIT_URL = ...
+# dummy (replace by your local CPAN repository)
+LOCAL_CACHED_GIT_URL = git://github.com/wakaba/perl-setupenv
 
 local-cached:
 	mkdir -p local
-	cd local && ((git clone $(LOCAL_CACHED_GIT_URL) local/cached) || (cd cached && git pull))
+	cd local && ((git clone $(LOCAL_CACHED_GIT_URL) cache) || (cd cache && git pull))
 
 # ------ Examples of rules using Makefile.setup rules ------
 
