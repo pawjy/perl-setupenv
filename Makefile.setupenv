@@ -194,7 +194,7 @@ local/bundle/Makefile.PL: \
 	    xargs -l1 -i% -- echo "requires '%';" >> $@
 	echo "WriteAll;" >> $@
 
-carton-bundle: $(CARTON_SUPPORT_BIN_PATH)/carton local/bundle/Makefile.PL
+carton-bundle: carton-install local/bundle/Makefile.PL
 	cd local/bundle && $(CARTON_ENV) $(CARTON_ABS) bundle --path=../../local
 
 # ------ remotedev - Run tests at remote host ------
