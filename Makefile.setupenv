@@ -12,7 +12,8 @@
 PERL = perl
 PERL_VERSION = latest
 PERLBREW_PARALLEL_COUNT = 1
-CARTON = $(PERL) local/perl-$(PERL_VERSION)/carton/bin/carton
+CARTON = local/perl-$(PERL_VERSION)/carton/bin/carton
+CARTON_ABS = $(abspath $(CARTON))
 CARTON_LIB = $(abspath local/perl-$(PERL_VERSION)/carton/lib/perl5)
 CARTON_SUPPORT_BIN_PATH = $(abspath local/perl-$(PERL_VERSION)/carton/bin)
 CPANM = $(PERL) $(CARTON_SUPPORT_BIN_PATH)/cpanm
@@ -133,25 +134,8 @@ local-submodules: local/submodules/Makefile
 
 config/perl/libs.txt: $(CARTON_SUPPORT_BIN_PATH)/carton local-submodules
 	mkdir -p config/perl
-	$(CARTON_ENV) $(CARTON) exec -- \
+	$(CARTON_ENV) $(PERL) $(CARTON) exec -- \
 	    $(PERL) -e 'push @INC, glob "local/submodules/*/lib"; print join ":", grep /^local/, @INC' > $@
-
-Makefile.PL: \
-    config/perl/modules.txt \
-    $(wildcard config/perl/modules.txt \
-	       config/perl/modules.*.txt \
-               modules/*/config/perl/modules.txt \
-	       modules/*/config/perl/modules.*.txt \
-	       local/submodules/*/config/perl/modules.txt \
-	       local/submodules/*/config/perl/modules.*.txt)
-	echo "use inc::Module::Install;" > $@
-	-cat config/perl/modules.txt config/perl/modules.*.txt \
-	    modules/*/config/perl/modules.txt \
-	    modules/*/config/perl/modules.*.txt \
-	    local/submodules/*/config/perl/modules.txt \
-	    local/submodules/*/config/perl/modules.*.txt | \
-	    xargs -l1 -i% -- echo "requires '%';" >> $@
-	echo "WriteAll;" >> $@
 
 carton-install: local-submodules carton.lock carton-install-main
 
@@ -168,7 +152,7 @@ carton.lock: $(CARTON_SUPPORT_BIN_PATH)/carton \
 	    modules/*/config/perl/modules.*.txt \
 	    local/submodules/*/config/perl/modules.txt \
 	    local/submodules/*/config/perl/modules.*.txt | \
-	$(CARTON_ENV) xargs $(CARTON) install
+	$(CARTON_ENV) xargs $(PERL) $(CARTON) install
 
 carton-update: $(CARTON_SUPPORT_BIN_PATH)/carton \
     config/perl/modules.txt \
@@ -183,16 +167,35 @@ carton-update: $(CARTON_SUPPORT_BIN_PATH)/carton \
 	    modules/*/config/perl/modules.*.txt \
 	    local/submodules/*/config/perl/modules.txt \
 	    local/submodules/*/config/perl/modules.*.txt | \
-	$(CARTON_ENV) xargs $(CARTON) install --cached
+	$(CARTON_ENV) xargs $(PERL) $(CARTON) install --cached
 
 carton-install-main:
-	-$(CARTON_ENV) $(CARTON) install --deployment --cached
+	-$(CARTON_ENV) $(PERL) $(CARTON) install --deployment --cached
 
 carton-install-module: $(CARTON_SUPPORT_BIN_PATH)/carton
-	$(CARTON_ENV) $(CARTON) install $(CARTON_INSTALL_MODULE) --cached
+	$(CARTON_ENV) $(PERL) $(CARTON) install \
+	    $(CARTON_INSTALL_MODULE) --cached
 
-carton-bundle: $(CARTON_SUPPORT_BIN_PATH)/carton Makefile.PL
-	$(CARTON_ENV) $(CARTON) bundle --path=local
+local/bundle/Makefile.PL: \
+    config/perl/modules.txt \
+    $(wildcard config/perl/modules.txt \
+	       config/perl/modules.*.txt \
+               modules/*/config/perl/modules.txt \
+	       modules/*/config/perl/modules.*.txt \
+	       local/submodules/*/config/perl/modules.txt \
+	       local/submodules/*/config/perl/modules.*.txt)
+	mkdir -p local/bundle
+	echo "use inc::Module::Install;" > $@
+	-cat config/perl/modules.txt config/perl/modules.*.txt \
+	    modules/*/config/perl/modules.txt \
+	    modules/*/config/perl/modules.*.txt \
+	    local/submodules/*/config/perl/modules.txt \
+	    local/submodules/*/config/perl/modules.*.txt | \
+	    xargs -l1 -i% -- echo "requires '%';" >> $@
+	echo "WriteAll;" >> $@
+
+carton-bundle: $(CARTON_SUPPORT_BIN_PATH)/carton local/bundle/Makefile.PL
+	cd local/bundle && $(CARTON_ENV) $(CARTON_ABS) bundle --path=../../local
 
 # ------ remotedev - Run tests at remote host ------
 
