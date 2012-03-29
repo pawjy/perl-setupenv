@@ -109,7 +109,8 @@ $(CARTON_SUPPORT_BIN_PATH)/carton: $(CARTON_SUPPORT_BIN_PATH)/cpanm \
 	$(CARTON_ENV) $(CPANM_) JSON::XS Getopt::Long \
 	    Class::Data::Inheritable Devel::StackTrace \
 	    Dist::Metadata::Archive \
-	    inc::Module::Install Module::Install::ReadmeFromPod
+	    inc::Module::Install Module::Install::ReadmeFromPod \
+	    Module::Install::Repository
 	git clone git://github.com/masaki/carton.git $(CARTON_SUPPORT_BIN_PATH)/../carton || (cd $(CARTON_SUPPORT_BIN_PATH)/../carton && git pull)
 	$(CARTON_ENV) $(CPANM_) --reinstall $(CARTON_SUPPORT_BIN_PATH)/../carton
 	#$(CARTON_ENV) $(CPANM_) --reinstall Carton
