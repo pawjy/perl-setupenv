@@ -104,6 +104,7 @@ $(CARTON_SUPPORT_BIN_PATH)/carton: $(CARTON_SUPPORT_BIN_PATH)/cpanm \
     local/setupenv/carton.20120328
 	$(CARTON_ENV) $(CPANM_) --reinstall ExtUtils::ParseXS
 	$(CARTON_ENV) $(CPANM_) CPAN 
+	mkdir -p $(CARTON_SUPPORT_BIN_PATH)/../lib/perl5/CPAN/
 	echo "yes\nlocal::lib\n" | \
 	    $(CARTON_ENV) perl -MCPAN -MCPAN::HandleConfig \
 	    -e 'CPAN::HandleConfig->load; CPAN::HandleConfig->commit("$(CARTON_SUPPORT_BIN_PATH)/../lib/perl5/CPAN/MyConfig.pm")'
