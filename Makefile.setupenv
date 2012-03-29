@@ -72,7 +72,6 @@ local-perl-main: local/perlbrew/perls/perl-$(PERL_VERSION)/bin/perl
 
 local/perlbrew/perls/perl-$(PERL_VERSION)/bin/perl: local/perlbrew/bin/perlbrew \
     local/perlbrew/_perlinfo/perl-$(PERL_VERSION).version
-ifeq "$(wildcard *$@)" ""
 ifeq "$(PERL_VERSION)" "latest"
 	-PERLBREW_ROOT=$(abspath local/perlbrew) local/perlbrew/bin/perlbrew \
 	    alias delete perl-latest
@@ -83,7 +82,6 @@ endif
 ifeq "$(PERL_VERSION)" "latest"
 	PERLBREW_ROOT=$(abspath local/perlbrew) local/perlbrew/bin/perlbrew \
 	    alias create perl-`cat local/perlbrew/_perlinfo/perl-$(PERL_VERSION).version` perl-latest
-endif
 endif
 
 perl-exec: config/perl/libs.txt
