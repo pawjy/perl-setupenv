@@ -23,7 +23,7 @@ CPANM_ = $(CPANM) --notest --verbose -l local/perl-$(PERL_VERSION)/carton \
     --mirror http://backpan.perl.org/
 PERL_PATH = $(abspath local/perlbrew/perls/perl-$(PERL_VERSION)/bin)
 CARTON_ENV = PERL5LIB=$(CARTON_LIB) PATH=$(PERL_PATH):$(CARTON_SUPPORT_BIN_PATH):$(PATH) PERL_CARTON_PATH=local/perl-$(PERL_VERSION)
-PERL_ENV = PATH=$(PERL_PATH):$(PATH) PERL5LIB=`cat config/perl/libs.txt`
+PERL_ENV = PATH=$(abspath local/perl-$(PERL_VERSION)/bin):$(PERL_PATH):$(PATH) PERL5LIB=`cat config/perl/libs.txt`
 SSH = ssh
 
 REMOTEDEV_HOST = develop.test
