@@ -18,7 +18,7 @@ CARTON_LIB = $(abspath local/perl-$(PERL_VERSION)/carton/lib/perl5)
 CARTON_SUPPORT_BIN_PATH = $(abspath local/perl-$(PERL_VERSION)/carton/bin)
 CPANM = $(PERL) $(CARTON_SUPPORT_BIN_PATH)/cpanm
 CPANM_ = $(CPANM) --notest --verbose -l local/perl-$(PERL_VERSION)/carton \
-    --mirror local/cache \
+    --mirror local/pmbundler/mirror \
     --mirror http://cpan.metacpan.org/ \
     --mirror http://backpan.perl.org/
 PERL_PATH = $(abspath local/perlbrew/perls/perl-$(PERL_VERSION)/bin)
@@ -177,26 +177,30 @@ carton-install-module: $(CARTON_SUPPORT_BIN_PATH)/carton
 	$(CARTON_ENV) $(PERL) $(CARTON) install \
 	    $(CARTON_INSTALL_MODULE) --cached
 
-local/bundle/Makefile.PL: \
-    config/perl/modules.txt \
-    $(wildcard config/perl/modules.txt \
-	       config/perl/modules.*.txt \
-               modules/*/config/perl/modules.txt \
-	       modules/*/config/perl/modules.*.txt \
-	       local/submodules/*/config/perl/modules.txt \
-	       local/submodules/*/config/perl/modules.*.txt)
-	mkdir -p local/bundle
-	echo "use inc::Module::Install;" > $@
-	-cat config/perl/modules.txt config/perl/modules.*.txt \
-	    modules/*/config/perl/modules.txt \
-	    modules/*/config/perl/modules.*.txt \
-	    local/submodules/*/config/perl/modules.txt \
-	    local/submodules/*/config/perl/modules.*.txt | \
-	    xargs -l1 -i% -- echo "requires '%';" >> $@
-	echo "WriteAll;" >> $@
+# ------ pmbundler - Perl package repository mirroring ------
 
-carton-bundle: carton-install local/bundle/Makefile.PL
-	cd local/bundle && $(CARTON_ENV) $(CARTON_ABS) bundle --path=../../local
+PMBUNDLER_CPANM_ = $(CPANM) --notest -l local/pmbundler/install \
+    --mirror local/pmbundler/mirror \
+    --mirror http://cpan.metacpan.org/ \
+    --mirror http://backpan.perl.org/ \
+    --save-dists local/pmbundler/mirror --reinstall
+PMBUNDLER_REPO_URL = specify-your-git-repository-as-PMBUNDLER_REPO_URL
+
+local/pmbundler/deps.txt: carton.lock
+	mkdir -p local/pmbundler
+	$(CARTON_ENV) perl -MJSON::XS -e 'local $$/ = undef; my $$json = JSON::XS->new->utf8->decode(<>); my @list; for (values %{$$json->{modules}}) { push @list, $$_->{module} . "~" . $$_->{version}; } @list = sort @list; print $$_, "\n" for @list' $< > $@
+
+pmbundler-repo-update:
+	mkdir -p local/pmbundler/mirror
+ifeq "$(PMBUNDLER_REPO_URL)" ""
+else
+	cd local/pmbundler && ((git clone $(PMBUNDLER_REPO_URL) mirror) || (cd mirror && git pull))
+endif
+
+pmbundler-install: local/pmbundler/deps.txt pmbundler-repo-update
+	mkdir -p local/pmbundler/install
+	cat local/pmbundler/deps.txt | \
+	    $(CARTON_ENV) xargs -l1 -- $(PMBUNDLER_CPANM_)
 
 # ------ remotedev - Run tests at remote host ------
 
