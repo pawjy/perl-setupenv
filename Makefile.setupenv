@@ -212,7 +212,7 @@ endif
 pmbundler-install: local/pmbundler/deps.txt pmbundler-repo-update
 	mkdir -p local/pmbundler/install
 	cat local/pmbundler/deps.txt | \
-	    $(CARTON_ENV) xargs -l1 -- $(PMBUNDLER_CPANM_)
+	    $(CARTON_ENV) xargs -l30 -- $(PMBUNDLER_CPANM_)
 
 pmbundler-install-module: pmbundler-repo-update
 	mkdir -p local/pmbundler/install
