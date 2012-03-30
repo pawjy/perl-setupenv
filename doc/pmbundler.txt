@@ -1,9 +1,12 @@
 pmbundler
 ~~~~~~~~~
 
-You have to set PMBUNDLER_REPO_URL, in your Makefile or command-line
-argument, to a git repository URL which contains the tarballs for the
-local Perl module repository.
+* Options
+
+Maybe you want to set PMBUNDLER_REPO_URL, in your Makefile or
+command-line argument, to a git repository URL which contains the
+tarballs for the local Perl module repository, such that the local
+repository directory can be shared among hosts:
 
   PMBUNDLER_REPO_URL = git://your.git.repo.example/path/to/pm-mirror.git
 
@@ -23,3 +26,9 @@ Install the modules specified in the argument to the temporary
 directory (local/pmbuilder/install) to obtain their tarballs.
 Tarballs will be placed at appropriate location in the repository
 directory (local/pmbuilder/mirror).
+
+  $ make pmbundler-repo-update
+
+Update the Perl module repository directory, using PMBUNDLER_REPO_URL
+if specified.  This rule should be executed before other rules using
+Perl module installation, such as C<make carton-instal>, is executed.
