@@ -29,7 +29,7 @@ SSH = ssh
 REMOTEDEV_HOST = develop.test
 REMOTEDEV_PERL_VERSION = latest
 
-SETUPENV_CURRENT_REVISION = 20120329
+SETUPENV_CURRENT_REVISION = 20120330
 SETUPENV_MIN_REVISION = $(SETUPENV_CURRENT_REVISION)
 
 all:
@@ -111,9 +111,9 @@ $(CARTON_SUPPORT_BIN_PATH)/carton: $(CARTON_SUPPORT_BIN_PATH)/cpanm \
 	    Dist::Metadata::Archive \
 	    inc::Module::Install Module::Install::ReadmeFromPod \
 	    Module::Install::Repository
-	git clone git://github.com/masaki/carton.git $(CARTON_SUPPORT_BIN_PATH)/../carton || (cd $(CARTON_SUPPORT_BIN_PATH)/../carton && git pull)
-	$(CARTON_ENV) $(CPANM_) --reinstall $(CARTON_SUPPORT_BIN_PATH)/../carton
-	#$(CARTON_ENV) $(CPANM_) --reinstall Carton
+	#git clone git://github.com/masaki/carton.git $(CARTON_SUPPORT_BIN_PATH)/../carton || (cd $(CARTON_SUPPORT_BIN_PATH)/../carton && git pull)
+	#$(CARTON_ENV) $(CPANM_) --reinstall $(CARTON_SUPPORT_BIN_PATH)/../carton
+	$(CARTON_ENV) $(CPANM_) --reinstall Carton
 	#ln -s $(CARTON_SUPPORT_BIN_PATH)/../carton/bin/carton $@
 	touch -c $@
 
