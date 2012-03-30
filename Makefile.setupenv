@@ -180,6 +180,8 @@ carton-install-module: $(CARTON_SUPPORT_BIN_PATH)/carton
 
 # ------ pmbundler - Perl package repository mirroring ------
 
+# Document: doc/pmbundler.txt
+
 PMBUNDLER_CPANM_ = $(CPANM) --notest -l local/pmbundler/install \
     --mirror $(abspath local/pmbundler/mirror) \
     --mirror http://search.cpan.org/CPAN \
