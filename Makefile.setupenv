@@ -19,6 +19,7 @@ CARTON_SUPPORT_BIN_PATH = $(abspath local/perl-$(PERL_VERSION)/carton/bin)
 CPANM = $(PERL) $(CARTON_SUPPORT_BIN_PATH)/cpanm
 CPANM_ = $(CPANM) --notest --verbose -l local/perl-$(PERL_VERSION)/carton \
     --mirror local/pmbundler/mirror \
+    --mirror http://search.cpan.org/CPAN \
     --mirror http://cpan.metacpan.org/ \
     --mirror http://backpan.perl.org/
 PERL_PATH = $(abspath local/perlbrew/perls/perl-$(PERL_VERSION)/bin)
@@ -180,7 +181,8 @@ carton-install-module: $(CARTON_SUPPORT_BIN_PATH)/carton
 # ------ pmbundler - Perl package repository mirroring ------
 
 PMBUNDLER_CPANM_ = $(CPANM) --notest -l local/pmbundler/install \
-    --mirror local/pmbundler/mirror \
+    --mirror $(abspath local/pmbundler/mirror) \
+    --mirror http://search.cpan.org/CPAN \
     --mirror http://cpan.metacpan.org/ \
     --mirror http://backpan.perl.org/ \
     --save-dists local/pmbundler/mirror --reinstall
@@ -201,6 +203,10 @@ pmbundler-install: local/pmbundler/deps.txt pmbundler-repo-update
 	mkdir -p local/pmbundler/install
 	cat local/pmbundler/deps.txt | \
 	    $(CARTON_ENV) xargs -l1 -- $(PMBUNDLER_CPANM_)
+
+pmbundler-install-module: pmbundler-repo-update
+	mkdir -p local/pmbundler/install
+	$(CARTON_ENV) $(PMBUNDLER_CPANM_) $(PMBUNDLER_INSTALL_MODULE)
 
 # ------ remotedev - Run tests at remote host ------
 
