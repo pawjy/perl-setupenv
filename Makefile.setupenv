@@ -17,11 +17,14 @@ CARTON_ABS = $(abspath $(CARTON))
 CARTON_LIB = $(abspath local/perl-$(PERL_VERSION)/carton/lib/perl5)
 CARTON_SUPPORT_BIN_PATH = $(abspath local/perl-$(PERL_VERSION)/carton/bin)
 CPANM = $(PERL) $(CARTON_SUPPORT_BIN_PATH)/cpanm
-CPANM_ = $(CPANM) --notest --verbose -l local/perl-$(PERL_VERSION)/carton \
+CPANM_MIRROR_OPTS = \
     --mirror $(abspath local/pmbundler/mirror) \
     --mirror http://search.cpan.org/CPAN \
     --mirror http://cpan.metacpan.org/ \
     --mirror http://backpan.perl.org/
+CPANM_ = $(CPANM) --notest --verbose -l local/perl-$(PERL_VERSION)/carton \
+    $(CPANM_MIRROR_OPTS)
+SETUPENV_CPANM_OPTS = $(CPANM_MIRROR_OPTS)
 PERL_PATH = $(abspath local/perlbrew/perls/perl-$(PERL_VERSION)/bin)
 CARTON_ENV = PERL5LIB=$(CARTON_LIB) PATH=$(PERL_PATH):$(CARTON_SUPPORT_BIN_PATH):$(PATH) PERL_CARTON_PATH=local/perl-$(PERL_VERSION)
 PERL_ENV = PATH=$(abspath local/perl-$(PERL_VERSION)/bin):$(PERL_PATH):$(PATH) PERL5LIB=`cat config/perl/libs.txt`
@@ -94,9 +97,18 @@ perl-version: config/perl/libs.txt
 
 # ------ carton - Perl module management ------
 
-$(CARTON_SUPPORT_BIN_PATH)/cpanm:
+cpanm: $(CARTON_SUPPORT_BIN_PATH)/cpanm
+
+carton: $(CARTON_SUPPORT_BIN_PATH)/carton
+
+$(CARTON_SUPPORT_BIN_PATH)/real-cpanm:
 	mkdir -p $(CARTON_SUPPORT_BIN_PATH)
 	wget -O $@ http://cpanmin.us
+	chmod u+x $@
+
+$(CARTON_SUPPORT_BIN_PATH)/cpanm: $(CARTON_SUPPORT_BIN_PATH)/real-cpanm
+	echo "#!/bin/sh" > $@
+	echo "$(CARTON_SUPPORT_BIN_PATH)/real-cpanm \$$SETUPENV_CPANM_OPTS \$$*" >> $@
 	chmod u+x $@
 
 $(CARTON_SUPPORT_BIN_PATH)/carton: $(CARTON_SUPPORT_BIN_PATH)/cpanm \
@@ -154,7 +166,7 @@ carton.lock: $(CARTON_SUPPORT_BIN_PATH)/carton \
 	    modules/*/config/perl/modules.*.txt \
 	    local/submodules/*/config/perl/modules.txt \
 	    local/submodules/*/config/perl/modules.*.txt | \
-	$(CARTON_ENV) xargs $(PERL) $(CARTON) install --cached
+	$(CARTON_ENV) xargs $(PERL) $(CARTON) install
 
 carton-update: $(CARTON_SUPPORT_BIN_PATH)/carton \
     config/perl/modules.txt \
@@ -169,25 +181,21 @@ carton-update: $(CARTON_SUPPORT_BIN_PATH)/carton \
 	    modules/*/config/perl/modules.*.txt \
 	    local/submodules/*/config/perl/modules.txt \
 	    local/submodules/*/config/perl/modules.*.txt | \
-	$(CARTON_ENV) xargs $(PERL) $(CARTON) install --cached
+	$(CARTON_ENV) xargs $(PERL) $(CARTON) install
 
 carton-install-main:
-	-$(CARTON_ENV) $(PERL) $(CARTON) install --deployment --cached
+	-$(CARTON_ENV) $(PERL) $(CARTON) install --deployment
 
 carton-install-module: $(CARTON_SUPPORT_BIN_PATH)/carton
 	$(CARTON_ENV) $(PERL) $(CARTON) install \
-	    $(CARTON_INSTALL_MODULE) --cached
+	    $(CARTON_INSTALL_MODULE)
 
 # ------ pmbundler - Perl package repository mirroring ------
 
 # Document: doc/pmbundler.txt
 
 PMBUNDLER_CPANM_ = $(CPANM) --notest -l local/pmbundler/install \
-    --mirror $(abspath local/pmbundler/mirror) \
-    --mirror http://search.cpan.org/CPAN \
-    --mirror http://cpan.metacpan.org/ \
-    --mirror http://backpan.perl.org/ \
-    --save-dists local/pmbundler/mirror --reinstall
+    $(CPANM_MIRROR_OPTS) --reinstall
 PMBUNDLER_REPO_URL = specify-your-git-repository-as-PMBUNDLER_REPO_URL
 
 local/pmbundler/deps.txt: carton.lock
