@@ -18,7 +18,7 @@ CARTON_LIB = $(abspath local/perl-$(PERL_VERSION)/carton/lib/perl5)
 CARTON_SUPPORT_BIN_PATH = $(abspath local/perl-$(PERL_VERSION)/carton/bin)
 CPANM = $(PERL) $(CARTON_SUPPORT_BIN_PATH)/cpanm
 CPANM_ = $(CPANM) --notest --verbose -l local/perl-$(PERL_VERSION)/carton \
-    --mirror local/pmbundler/mirror \
+    --mirror $(abspath local/pmbundler/mirror) \
     --mirror http://search.cpan.org/CPAN \
     --mirror http://cpan.metacpan.org/ \
     --mirror http://backpan.perl.org/
