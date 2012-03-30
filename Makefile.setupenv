@@ -33,7 +33,7 @@ SSH = ssh
 REMOTEDEV_HOST = develop.test
 REMOTEDEV_PERL_VERSION = latest
 
-SETUPENV_CURRENT_REVISION = 20120330
+SETUPENV_CURRENT_REVISION = 20120331
 SETUPENV_MIN_REVISION = $(SETUPENV_CURRENT_REVISION)
 
 all:
@@ -196,7 +196,7 @@ carton-install-module: $(CARTON_SUPPORT_BIN_PATH)/carton
 
 PMBUNDLER_CPANM_ = $(CPANM) --notest -l local/pmbundler/install \
     $(CPANM_MIRROR_OPTS) --reinstall
-PMBUNDLER_REPO_URL = specify-your-git-repository-as-PMBUNDLER_REPO_URL
+PMBUNDLER_REPO_URL = 
 
 local/pmbundler/deps.txt: carton.lock
 	mkdir -p local/pmbundler
@@ -220,6 +220,8 @@ pmbundler-install-module: pmbundler-repo-update
 
 # ------ remotedev - Run tests at remote host ------
 
+REMOTEDEV_PMBUNDLER_REPO_URL = $(PMBUNDLER_REPO_URL)
+
 local/remotedev/remote-directory-name.txt:
 	mkdir -p local/remotedev
 	$(SSH) $(REMOTEDEV_HOST) "perl -MFile::Temp=tempdir -e 'print tempdir'" > $@
@@ -235,7 +237,7 @@ remotedev-upload: local/remotedev/remote-directory-name.txt config/remotedev/get
 	$(SSH) $(REMOTEDEV_HOST) "mkdir -p $(shell cat local/remotedev/remote-directory-name.txt) && cd $(shell cat local/remotedev/remote-directory-name.txt) && ((git clone $(shell $(PERL) config/remotedev/getreponame.pl) repo && cd repo && git checkout -b $(shell git name-rev --name-only HEAD) origin/$(shell git name-rev --name-only HEAD) && git submodule update --init) || (cd repo && (git checkout -b $(shell git name-rev --name-only HEAD) origin/$(shell git name-rev --name-only HEAD) || git checkout $(shell git name-rev --name-only HEAD)) && git pull && git submodule update --init))";
 
 remotedev-setup: remotedev-upload
-	$(SSH) $(REMOTEDEV_HOST) "cd $(shell cat local/remotedev/remote-directory-name.txt)/repo && make Makefile.setupenv PERL_VERSION=$(REMOTEDEV_PERL_VERSION) && make --makefile Makefile.setupenv local-perl carton-install PERL_VERSION=$(REMOTEDEV_PERL_VERSION)";
+	$(SSH) $(REMOTEDEV_HOST) "cd $(shell cat local/remotedev/remote-directory-name.txt)/repo && make Makefile.setupenv PERL_VERSION=$(REMOTEDEV_PERL_VERSION) && make --makefile Makefile.setupenv local-perl pmbundler-repo-update carton-install PERL_VERSION=$(REMOTEDEV_PERL_VERSION) PMBUNDLER_REPO_URL=$(PMBUNDLER_REPO_URL)";
 
 remotedev-reset:
 	rm local/remotedev/remote-directory-name.txt
@@ -244,7 +246,7 @@ remotedev-reset-setupenv:
 	$(SSH) $(REMOTEDEV_HOST) "cd $(shell cat local/remotedev/remote-directory-name.txt)/repo && rm Makefile.setupenv"
 
 remotedev-test: remotedev-setup
-	$(SSH) $(REMOTEDEV_HOST) "cd $(shell cat local/remotedev/remote-directory-name.txt)/repo && make test PERL_VERSION=$(REMOTEDEV_PERL_VERSION)"
+	$(SSH) $(REMOTEDEV_HOST) "cd $(shell cat local/remotedev/remote-directory-name.txt)/repo && make test PERL_VERSION=$(REMOTEDEV_PERL_VERSION) PMBUNDLER_REPO_URL=$(REMOTEDEV_PMBUNDLER_REPO_URL)"
 
 # ------ generatepm - Generate Perl module package distributions ------
 
