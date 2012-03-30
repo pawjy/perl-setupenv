@@ -195,7 +195,7 @@ carton-install-module: $(CARTON_SUPPORT_BIN_PATH)/carton
 # Document: doc/pmbundler.txt
 
 PMBUNDLER_CPANM_ = $(CPANM) --notest -l local/pmbundler/install \
-    $(CPANM_MIRROR_OPTS) --reinstall
+    $(CPANM_MIRROR_OPTS) --reinstall --save-dists local/pmbundler/mirror
 PMBUNDLER_REPO_URL = 
 
 local/pmbundler/deps.txt: carton.lock
