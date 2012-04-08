@@ -12,20 +12,28 @@
 PERL = perl
 PERL_VERSION = latest
 PERLBREW_PARALLEL_COUNT = 1
-CARTON = $(PERL) local/perl-$(PERL_VERSION)/carton/bin/carton
+CARTON = local/perl-$(PERL_VERSION)/carton/bin/carton
+CARTON_ABS = $(abspath $(CARTON))
 CARTON_LIB = $(abspath local/perl-$(PERL_VERSION)/carton/lib/perl5)
 CARTON_SUPPORT_BIN_PATH = $(abspath local/perl-$(PERL_VERSION)/carton/bin)
 CPANM = $(PERL) $(CARTON_SUPPORT_BIN_PATH)/cpanm
-CPANM_ = $(CPANM) --notest --verbose -l local/perl-$(PERL_VERSION)/carton
+CPANM_MIRROR_OPTS = \
+    --mirror $(abspath local/pmbundler/mirror) \
+    --mirror http://search.cpan.org/CPAN \
+    --mirror http://cpan.metacpan.org/ \
+    --mirror http://backpan.perl.org/
+CPANM_ = $(CPANM) --notest --verbose -l local/perl-$(PERL_VERSION)/carton \
+    $(CPANM_MIRROR_OPTS)
+SETUPENV_CPANM_OPTS = $(CPANM_MIRROR_OPTS)
 PERL_PATH = $(abspath local/perlbrew/perls/perl-$(PERL_VERSION)/bin)
-CARTON_ENV = PERL5LIB=$(CARTON_LIB) PATH=$(PERL_PATH):$(CARTON_SUPPORT_BIN_PATH):$(PATH) PERL_CARTON_PATH=local/perl-$(PERL_VERSION)
-PERL_ENV = PATH=$(PERL_PATH):$(PATH) PERL5LIB=`cat config/perl/libs.txt`
+CARTON_ENV = PERL5LIB=$(CARTON_LIB) PATH=$(PERL_PATH):$(CARTON_SUPPORT_BIN_PATH):$(PATH) PERL_CARTON_PATH=local/perl-$(PERL_VERSION) SETUPENV_CPANM_OPTS="$(SETUPENV_CPANM_OPTS)"
+PERL_ENV = PATH=$(abspath local/perl-$(PERL_VERSION)/bin):$(PERL_PATH):$(PATH) PERL5LIB=`cat config/perl/libs.txt`
 SSH = ssh
 
 REMOTEDEV_HOST = develop.test
 REMOTEDEV_PERL_VERSION = latest
 
-SETUPENV_CURRENT_REVISION = 20120320
+SETUPENV_CURRENT_REVISION = 20120333
 SETUPENV_MIN_REVISION = $(SETUPENV_CURRENT_REVISION)
 
 all:
@@ -37,6 +45,10 @@ ifeq "$(sort $(SETUPENV_CURRENT_REVISION) $(SETUPENV_MIN_REVISION))" "$(SETUPENV
 #$(SETUPENV_CURRENT_REVISION) < $(SETUPENV_MIN_REVISION)
 	wget -O Makefile.setupenv https://raw.github.com/wakaba/perl-setupenv/master/Makefile.setupenv
 endif
+
+local/setupenv/carton.20120328:
+	mkdir -p local/setupenv
+	touch $@
 
 # ------ local-perl - Perl installation for your application ------
 
@@ -64,18 +76,16 @@ local-perl-main: local/perlbrew/perls/perl-$(PERL_VERSION)/bin/perl
 
 local/perlbrew/perls/perl-$(PERL_VERSION)/bin/perl: local/perlbrew/bin/perlbrew \
     local/perlbrew/_perlinfo/perl-$(PERL_VERSION).version
-ifeq "$(wildcard *$@)" ""
 ifeq "$(PERL_VERSION)" "latest"
 	-PERLBREW_ROOT=$(abspath local/perlbrew) local/perlbrew/bin/perlbrew \
 	    alias delete perl-latest
 endif
 	PERLBREW_ROOT=$(abspath local/perlbrew) local/perlbrew/bin/perlbrew \
 	    install `cat local/perlbrew/_perlinfo/perl-$(PERL_VERSION).version` \
-	    --notest --as perl-`cat local/perlbrew/_perlinfo/perl-$(PERL_VERSION).version` -j $(PERLBREW_PARALLEL_COUNT)
+	    --notest --as `cat local/perlbrew/_perlinfo/perl-$(PERL_VERSION).version` -j $(PERLBREW_PARALLEL_COUNT)
 ifeq "$(PERL_VERSION)" "latest"
 	PERLBREW_ROOT=$(abspath local/perlbrew) local/perlbrew/bin/perlbrew \
-	    alias create perl-`cat local/perlbrew/_perlinfo/perl-$(PERL_VERSION).version` perl-latest
-endif
+	    alias create `cat local/perlbrew/_perlinfo/perl-$(PERL_VERSION).version` perl-latest
 endif
 
 perl-exec: config/perl/libs.txt
@@ -87,16 +97,37 @@ perl-version: config/perl/libs.txt
 
 # ------ carton - Perl module management ------
 
-$(CARTON_SUPPORT_BIN_PATH)/cpanm:
+cpanm: $(CARTON_SUPPORT_BIN_PATH)/cpanm
+
+carton: $(CARTON_SUPPORT_BIN_PATH)/carton
+
+$(CARTON_SUPPORT_BIN_PATH)/real-cpanm:
 	mkdir -p $(CARTON_SUPPORT_BIN_PATH)
 	wget -O $@ http://cpanmin.us
 	chmod u+x $@
 
-$(CARTON_SUPPORT_BIN_PATH)/carton: $(CARTON_SUPPORT_BIN_PATH)/cpanm
+$(CARTON_SUPPORT_BIN_PATH)/cpanm: $(CARTON_SUPPORT_BIN_PATH)/real-cpanm
+	echo "#!/bin/sh" > $@
+	echo "$(CARTON_SUPPORT_BIN_PATH)/real-cpanm \$$SETUPENV_CPANM_OPTS \$$*" >> $@
+	chmod u+x $@
+
+$(CARTON_SUPPORT_BIN_PATH)/carton: $(CARTON_SUPPORT_BIN_PATH)/cpanm \
+    local/setupenv/carton.20120328
 	$(CARTON_ENV) $(CPANM_) --reinstall ExtUtils::ParseXS
-	$(CARTON_ENV) $(CPANM_) CPAN JSON::XS Getopt::Long \
+	$(CARTON_ENV) $(CPANM_) CPAN 
+	mkdir -p $(CARTON_SUPPORT_BIN_PATH)/../lib/perl5/CPAN/
+	echo "yes\nlocal::lib\n" | \
+	    $(CARTON_ENV) perl -MCPAN -MCPAN::HandleConfig \
+	    -e 'CPAN::HandleConfig->load; CPAN::HandleConfig->commit("$(CARTON_SUPPORT_BIN_PATH)/../lib/perl5/CPAN/MyConfig.pm")'
+	$(CARTON_ENV) $(CPANM_) JSON::XS Getopt::Long \
 	    Class::Data::Inheritable Devel::StackTrace Cwd
+#	    Dist::Metadata::Archive \
+#	    inc::Module::Install Module::Install::ReadmeFromPod \
+#	    Module::Install::Repository
+	#git clone git://github.com/masaki/carton.git $(CARTON_SUPPORT_BIN_PATH)/../carton || (cd $(CARTON_SUPPORT_BIN_PATH)/../carton && git pull)
+	#$(CARTON_ENV) $(CPANM_) --reinstall $(CARTON_SUPPORT_BIN_PATH)/../carton
 	$(CARTON_ENV) $(CPANM_) --reinstall Carton
+	#ln -s $(CARTON_SUPPORT_BIN_PATH)/../carton/bin/carton $@
 	touch -c $@
 
 config/perl/modules.txt:
@@ -117,7 +148,7 @@ local-submodules: local/submodules/Makefile
 
 config/perl/libs.txt: $(CARTON_SUPPORT_BIN_PATH)/carton local-submodules
 	mkdir -p config/perl
-	$(CARTON_ENV) $(CARTON) exec -- \
+	$(CARTON_ENV) $(PERL) $(CARTON) exec -- \
 	    $(PERL) -MCwd=abs_path -e 'push @INC, glob "local/submodules/*/lib"; print join ":", map { abs_path() . "/" . $$_ } grep /^local/, @INC' > $@
 
 carton-install: local-submodules carton.lock carton-install-main
@@ -135,7 +166,7 @@ carton.lock: $(CARTON_SUPPORT_BIN_PATH)/carton \
 	    modules/*/config/perl/modules.*.txt \
 	    local/submodules/*/config/perl/modules.txt \
 	    local/submodules/*/config/perl/modules.*.txt | \
-	$(CARTON_ENV) xargs $(CARTON) install
+	$(CARTON_ENV) xargs $(PERL) $(CARTON) install
 
 carton-update: $(CARTON_SUPPORT_BIN_PATH)/carton \
     config/perl/modules.txt \
@@ -150,15 +181,46 @@ carton-update: $(CARTON_SUPPORT_BIN_PATH)/carton \
 	    modules/*/config/perl/modules.*.txt \
 	    local/submodules/*/config/perl/modules.txt \
 	    local/submodules/*/config/perl/modules.*.txt | \
-	$(CARTON_ENV) xargs $(CARTON) install
+	$(CARTON_ENV) xargs $(PERL) $(CARTON) install
 
 carton-install-main:
-	-$(CARTON_ENV) $(CARTON) install --deployment
+	-$(CARTON_ENV) $(PERL) $(CARTON) install --deployment
 
 carton-install-module: $(CARTON_SUPPORT_BIN_PATH)/carton
-	$(CARTON_ENV) $(CARTON) install $(CARTON_INSTALL_MODULE)
+	$(CARTON_ENV) $(PERL) $(CARTON) install \
+	    $(CARTON_INSTALL_MODULE)
+
+# ------ pmbundler - Perl package repository mirroring ------
+
+# Document: doc/pmbundler.txt
+
+PMBUNDLER_CPANM_ = $(CPANM) --notest -l local/pmbundler/install \
+    $(CPANM_MIRROR_OPTS) --reinstall --save-dists local/pmbundler/mirror
+PMBUNDLER_REPO_URL = 
+
+local/pmbundler/deps.txt: carton.lock
+	mkdir -p local/pmbundler
+	$(CARTON_ENV) perl -MJSON::XS -e 'local $$/ = undef; my $$json = JSON::XS->new->utf8->decode(<>); my @list; for (values %{$$json->{modules}}) { push @list, $$_->{module} . "~" . $$_->{version}; } @list = sort @list; print $$_, "\n" for @list' $< > $@
+
+pmbundler-repo-update:
+	mkdir -p local/pmbundler/mirror
+ifeq "$(PMBUNDLER_REPO_URL)" ""
+else
+	cd local/pmbundler && ((git clone $(PMBUNDLER_REPO_URL) mirror) || (cd mirror && git pull))
+endif
+
+pmbundler-install: local/pmbundler/deps.txt pmbundler-repo-update
+	mkdir -p local/pmbundler/install
+	cat local/pmbundler/deps.txt | \
+	    $(CARTON_ENV) xargs -l30 -- $(PMBUNDLER_CPANM_)
+
+pmbundler-install-module: pmbundler-repo-update
+	mkdir -p local/pmbundler/install
+	$(CARTON_ENV) $(PMBUNDLER_CPANM_) $(PMBUNDLER_INSTALL_MODULE)
 
 # ------ remotedev - Run tests at remote host ------
+
+REMOTEDEV_PMBUNDLER_REPO_URL = $(PMBUNDLER_REPO_URL)
 
 local/remotedev/remote-directory-name.txt:
 	mkdir -p local/remotedev
@@ -167,13 +229,15 @@ local/remotedev/remote-directory-name.txt:
 config/remotedev/getreponame.pl:
 	mkdir -p config/remotedev
 	echo 'my $$repo = `git config --get remote.origin.url` or die "No origin URL";' > $@
+	echo '$$repo =~ s{git\@github.com:}{git://github.com/};' >> $@
+	echo '$$repo =~ tr/\x0D\x0A//d;' >> $@
 	echo 'print $$repo;' >> $@
 
 remotedev-upload: local/remotedev/remote-directory-name.txt config/remotedev/getreponame.pl
 	$(SSH) $(REMOTEDEV_HOST) "mkdir -p $(shell cat local/remotedev/remote-directory-name.txt) && cd $(shell cat local/remotedev/remote-directory-name.txt) && ((git clone $(shell $(PERL) config/remotedev/getreponame.pl) repo && cd repo && git checkout -b $(shell git name-rev --name-only HEAD) origin/$(shell git name-rev --name-only HEAD) && git submodule update --init) || (cd repo && (git checkout -b $(shell git name-rev --name-only HEAD) origin/$(shell git name-rev --name-only HEAD) || git checkout $(shell git name-rev --name-only HEAD)) && git pull && git submodule update --init))";
 
 remotedev-setup: remotedev-upload
-	$(SSH) $(REMOTEDEV_HOST) "cd $(shell cat local/remotedev/remote-directory-name.txt)/repo && make Makefile.setupenv PERL_VERSION=$(REMOTEDEV_PERL_VERSION) && make --makefile Makefile.setupenv local-perl carton-install PERL_VERSION=$(REMOTEDEV_PERL_VERSION)";
+	$(SSH) $(REMOTEDEV_HOST) "cd $(shell cat local/remotedev/remote-directory-name.txt)/repo && make Makefile.setupenv PERL_VERSION=$(REMOTEDEV_PERL_VERSION) && make --makefile Makefile.setupenv setupenv-update SETUPENV_MIN_REVISION=$(SETUPENV_CURRENT_REVISION) && make --makefile Makefile.setupenv local-perl pmbundler-repo-update carton-install PERL_VERSION=$(REMOTEDEV_PERL_VERSION) PMBUNDLER_REPO_URL=$(PMBUNDLER_REPO_URL)";
 
 remotedev-reset:
 	rm local/remotedev/remote-directory-name.txt
@@ -182,7 +246,7 @@ remotedev-reset-setupenv:
 	$(SSH) $(REMOTEDEV_HOST) "cd $(shell cat local/remotedev/remote-directory-name.txt)/repo && rm Makefile.setupenv"
 
 remotedev-test: remotedev-setup
-	$(SSH) $(REMOTEDEV_HOST) "cd $(shell cat local/remotedev/remote-directory-name.txt)/repo && make test PERL_VERSION=$(REMOTEDEV_PERL_VERSION)"
+	$(SSH) $(REMOTEDEV_HOST) "cd $(shell cat local/remotedev/remote-directory-name.txt)/repo && make test PERL_VERSION=$(REMOTEDEV_PERL_VERSION) PMBUNDLER_REPO_URL=$(REMOTEDEV_PMBUNDLER_REPO_URL)"
 
 # ------ generatepm - Generate Perl module package distributions ------
 
