@@ -22,7 +22,7 @@ CPANM_MIRROR_OPTS = \
     --mirror http://search.cpan.org/CPAN \
     --mirror http://cpan.metacpan.org/ \
     --mirror http://backpan.perl.org/
-CPANM_ = $(CPANM) --notest --verbose -l local/perl-$(PERL_VERSION)/carton \
+CPANM_ = $(CPANM) --notest -l local/perl-$(PERL_VERSION)/carton \
     $(CPANM_MIRROR_OPTS)
 SETUPENV_CPANM_OPTS = $(CPANM_MIRROR_OPTS)
 PERL_PATH = $(abspath local/perlbrew/perls/perl-$(PERL_VERSION)/bin)
