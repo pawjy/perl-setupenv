@@ -95,7 +95,7 @@ $(CARTON_SUPPORT_BIN_PATH)/cpanm:
 $(CARTON_SUPPORT_BIN_PATH)/carton: $(CARTON_SUPPORT_BIN_PATH)/cpanm
 	$(CARTON_ENV) $(CPANM_) --reinstall ExtUtils::ParseXS
 	$(CARTON_ENV) $(CPANM_) CPAN JSON::XS Getopt::Long \
-	    Class::Data::Inheritable Devel::StackTrace
+	    Class::Data::Inheritable Devel::StackTrace Cwd
 	$(CARTON_ENV) $(CPANM_) --reinstall Carton
 	touch -c $@
 
@@ -118,7 +118,7 @@ local-submodules: local/submodules/Makefile
 config/perl/libs.txt: $(CARTON_SUPPORT_BIN_PATH)/carton local-submodules
 	mkdir -p config/perl
 	$(CARTON_ENV) $(CARTON) exec -- \
-	    $(PERL) -e 'push @INC, glob "local/submodules/*/lib"; print join ":", grep /^local/, @INC' > $@
+	    $(PERL) -MCwd=abs_path -e 'push @INC, glob "local/submodules/*/lib"; print join ":", map { abs_path() . "/" . $$_ } grep /^local/, @INC' > $@
 
 carton-install: local-submodules carton.lock carton-install-main
 
