@@ -200,7 +200,7 @@ PMBUNDLER_REPO_URL =
 
 local/pmbundler/deps.txt: carton.lock
 	mkdir -p local/pmbundler
-	$(CARTON_ENV) perl -MJSON::XS -e 'local $$/ = undef; my $$json = JSON::XS->new->utf8->decode(<>); my @list; for (values %{$$json->{modules}}) { push @list, $$_->{module} . "~" . $$_->{version}; } @list = sort @list; print $$_, "\n" for @list' $< > $@
+	$(CARTON_ENV) perl -MJSON::XS -e 'local $$/ = undef; my $$json = JSON::XS->new->utf8->decode(<>); my @list; for (values %{$$json->{modules}}) { push @list, ($$_->{module} || $$_->{target} || $$_->{name}) . "~" . ($$_->{mymeta}->{version} || $$_->{version}); } @list = sort @list; print $$_, "\n" for @list' $< > $@
 
 pmbundler-repo-update:
 	mkdir -p local/pmbundler/mirror
