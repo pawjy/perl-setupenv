@@ -1,0 +1,200 @@
+# -*- Makefile -*-
+
+# local             $(LOCAL_DIR)
+#   pmb             $(LOCAL_PMB_DIR)
+#     bin           $(LOCAL_BIN_DIR)
+#     tmp           $(LOCAL_TEMP_DIR)
+#       install     $(LOCAL_TEMP_INSTALL_DIR)
+#         lib
+#           perl5   $(LOCAL_TEMP_PERLLIB_DIR)
+#       empty       $(LOCAL_EMPTY_INSTALL_DIR)
+#     pmpp          $(LOCAL_PP_IMAGE_DIR)
+#     pmtar         $(LOCAL_PMTAR_DIR)
+#   pm              $(LOCAL_INSTALL_DIR)
+
+LOCAL_DIR = $(abspath local)
+LOCAL_PMB_DIR = $(LOCAL_DIR)/pmb
+LOCAL_INSTALL_DIR = $(LOCAL_DIR)/pm
+LOCAL_BIN_DIR = $(LOCAL_PMB_DIR)/bin
+LOCAL_TEMP_DIR = $(LOCAL_PMB_DIR)/tmp
+LOCAL_TEMP_INSTALL_DIR = $(LOCAL_TEMP_DIR)/install
+LOCAL_TEMP_PERLLIB_DIR = $(LOCAL_TEMP_INSTALL_DIR)/lib/perl5
+LOCAL_EMPTY_INSTALL_DIR = $(LOCAL_TEMP_DIR)/empty
+LOCAL_PMPP_DIR = $(LOCAL_PMB_DIR)/pmpp
+LOCAL_PMTAR_DIR = $(LOCAL_PMB_DIR)/pmtar
+
+PERL_ENV =
+PERL = perl
+PERL_ARCHNAME = $(shell $(PERL_ENV) $(PERL) -MConfig -e 'print $$Config{archname}')
+
+all:
+
+always:
+
+# ------ cpanm ------
+
+WGET = wget
+GZIP = gzip
+CPANM = $(LOCAL_BIN_DIR)/cpanm
+CPANM_PERL_ENV = $(PERL_ENV)
+CPANM_PERL = $(PERL) -I$(LOCAL_TEMP_PERLLIB_DIR)
+_CPANM_ = $(CPANM_PERL_ENV) $(CPANM_PERL) $(CPANM) --notest
+
+CPANM_MIRROR_LOCAL_OR_REMOTE = --mirror $(abspath $(LOCAL_PMTAR_DIR)) \
+    --mirror http://search.cpan.org/CPAN \
+    --mirror http://cpan.metacpan.org/ \
+    --mirror http://backpan.perl.org/
+CPANM_MIRROR_LOCAL_ONLY = --mirror $(abspath $(LOCAL_PMTAR_DIR)) --mirror-only
+
+$(LOCAL_TEMP_INSTALL_DIR)/cpanm: $(CPANM) $(LOCAL_TEMP_INSTALL_DIR)/cpanm-deps
+	touch $@
+
+$(CPANM):
+	mkdir -p $(LOCAL_BIN_DIR)
+	$(WGET) -O $@ http://cpanmin.us
+	chmod u+x $@
+
+$(LOCAL_TEMP_INSTALL_DIR)/cpanm-deps: \
+  $(LOCAL_TEMP_INSTALL_DIR)/cpanm-Module-CoreList \
+  $(LOCAL_TEMP_INSTALL_DIR)/cpanm-common
+	touch $@
+
+$(LOCAL_TEMP_INSTALL_DIR)/cpanm-Module-CoreList:
+	$(_CPANM_) -l $(LOCAL_TEMP_INSTALL_DIR) \
+	    $(CPANM_MIRROR_LOCAL_OR_REMOTE) \
+	    --save-dists=$(LOCAL_PMTAR_DIR) --reinstall Module::CoreList
+	touch $@
+
+$(LOCAL_TEMP_INSTALL_DIR)/cpanm-common:
+	$(_CPANM_) -L $(LOCAL_TEMP_INSTALL_DIR) \
+	    $(CPANM_MIRROR_LOCAL_OR_REMOTE) \
+	    --save-dists=$(LOCAL_PMTAR_DIR) \
+	    ExtUtils::ParseXS Module::Build JSON::PP
+	touch $@
+
+$(LOCAL_EMPTY_INSTALL_DIR)/common: $(LOCAL_TEMP_INSTALL_DIR)/cpanm
+	mkdir -p $(LOCAL_EMPTY_INSTALL_DIR)
+	$(_CPANM_) -L $(LOCAL_EMPTY_INSTALL_DIR) $(CPANM_MIRROR_LOCAL_ONLY) \
+	    ExtUtils::ParseXS Module::Build
+	touch $@
+
+$(LOCAL_INSTALL_DIR)/common: $(LOCAL_TEMP_INSTALL_DIR)/cpanm
+	$(_CPANM_) -L $(LOCAL_INSTALL_DIR) $(CPANM_MIRROR_LOCAL_ONLY) \
+	    --reinstall \
+	    ExtUtils::ParseXS Module::Build
+	touch $@
+
+$(LOCAL_INSTALL_DIR)/common-local-or-remote: \
+    $(LOCAL_TEMP_INSTALL_DIR)/cpanm
+	$(_CPANM_) -L $(LOCAL_INSTALL_DIR) \
+	    $(CPANM_MIRROR_LOCAL_OR_REMOTE) \
+	    --reinstall \
+	    ExtUtils::ParseXS Module::Build
+	touch $@
+
+# ------ Perl package list generation ------
+
+CONFIG_PERL_MODULE_LIST = config/perl/modules.txt
+CONFIG_PERL_INSTALL_LIST = config/perl/pmb-install.txt
+
+pmb-update: pmb-update-install-dir pmb-update-index pmb-update-pp \
+    $(CONFIG_PERL_INSTALL_LIST)
+
+pmb-update-install-dir: $(CONFIG_PERL_MODULE_LIST) \
+    $(LOCAL_TEMP_INSTALL_DIR)/cpanm
+	cat $< | \
+	$(CPANM_PERL_ENV) xargs -l20 -r -- \
+	$(_CPANM_) -L $(LOCAL_TEMP_INSTALL_DIR) \
+	    $(CPANM_MIRROR_LOCAL_OR_REMOTE) \
+	    --save-dists=$(LOCAL_PMTAR_DIR) 
+
+pmb-update-index: $(LOCAL_PMTAR_DIR)/modules/02packages.details.txt.gz
+
+pmb-update-pp:
+	mkdir -p $(LOCAL_PMPP_DIR)
+	mkdir -p $(LOCAL_TEMP_INSTALL_DIR)/bin
+	mkdir -p $(LOCAL_TEMP_INSTALL_DIR)/lib
+	cp -r -f --update $(LOCAL_TEMP_INSTALL_DIR)/bin $(LOCAL_PMPP_DIR)
+	cp -r -f --update $(LOCAL_TEMP_INSTALL_DIR)/lib $(LOCAL_PMPP_DIR)
+	rm -fr $(LOCAL_PMPP_DIR)/lib/perl5/$(PERL_ARCHNAME)
+
+$(LOCAL_TEMP_DIR)/install.json.list: always
+	mkdir -p $(LOCAL_TEMP_DIR)
+	mkdir -p $(LOCAL_TEMP_PERLLIB_DIR)/$(PERL_ARCHNAME)/.meta
+	find $(LOCAL_TEMP_PERLLIB_DIR)/$(PERL_ARCHNAME)/.meta -name install.json > $@
+
+$(LOCAL_TEMP_DIR)/02packages.details.txt.body: \
+  $(LOCAL_TEMP_DIR)/install.json.list $(LOCAL_TEMP_INSTALL_DIR)/cpanm
+	cat $(LOCAL_TEMP_DIR)/install.json.list | xargs -l1 -r -- \
+	$(CPANM_PERL) -MJSON::PP -e ' \
+          local $$/; $$data = decode_json <>; #\
+	  exit unless -f "$(LOCAL_PMTAR_DIR)/authors/id/".$$data->{pathname}; #\
+	  for (keys %{$$data->{provides}}) { #\
+	    $$ver = $$data->{provides}->{$$_}->{version} || "undef"; #\
+	    printf "%s %s  %s\n", #\
+	      length $$_ < 32 ? $$_ . (" " x (32 - length $$_)) : $$_, #\
+	      length $$ver < 10 ? (" " x (10 - length $$ver)) . $$ver : $$ver, #\
+	      $$data->{pathname}; #\
+          } #\
+	' | sort > $@
+
+$(LOCAL_PMTAR_DIR)/modules/02packages.details.txt: \
+  $(LOCAL_TEMP_DIR)/02packages.details.txt.body
+	mkdir -p $(LOCAL_PMTAR_DIR)/modules
+	echo "File: 02packages.details.txt" > $@
+	echo "URL: http://www.perl.com/CPAN/modules/02packages.details.txt" >> $@
+	echo "Description: Package names" >> $@
+	echo "Columns: package name, version, path" >> $@
+	echo "Intended-For: Automated fetch routines, namespace documentation." >> $@
+	echo "Written-By: Makefile" >> $@
+	echo "Line-Count: $(shell wc -l < $<)" >> $@
+	echo "Last-Updated: $(shell perl -e 'print scalar localtime')" >> $@
+	echo "" >> $@
+	cat $< >> $@
+
+$(LOCAL_PMTAR_DIR)/modules/02packages.details.txt.gz: \
+  $(LOCAL_PMTAR_DIR)/modules/02packages.details.txt
+	$(GZIP) -f $<
+
+$(CONFIG_PERL_INSTALL_LIST): $(CONFIG_PERL_MODULE_LIST) \
+    $(LOCAL_EMPTY_INSTALL_DIR)/common
+	cat $< | $(CPANM_PERL_ENV) xargs -r -l20 -- \
+	$(CPANM_PERL) $(CPANM) --notest -L $(LOCAL_EMPTY_INSTALL_DIR) \
+	    $(CPANM_MIRROR_LOCAL_ONLY) \
+	    --scandeps | \
+	    sed 's/^\s*\\_\s*//; s/-\([^-]\+\)$$/~\1/; s/-/::/g;' | \
+	    uniq -u > $@
+
+# ------ Install from pmb's local copy ------
+
+pmb-install: pmb-install-pp pmb-install-common pmb-install-xs
+
+pmb-install-local-or-remote: \
+    pmb-install-pp \
+    pmb-install-common-local-or-remote \
+    pmb-install-xs-local-or-remote
+
+pmb-install-common: $(LOCAL_INSTALL_DIR)/common
+
+pmb-install-common-local-or-remote: \
+    $(LOCAL_INSTALL_DIR)/common-local-or-remote
+
+pmb-install-pp:
+	mkdir -p $(LOCAL_PMPP_DIR)/bin
+	mkdir -p $(LOCAL_PMPP_DIR)/lib
+	mkdir -p $(LOCAL_INSTALL_DIR)
+	cp -r -f --update $(LOCAL_PMPP_DIR)/bin $(LOCAL_INSTALL_DIR)
+	cp -r -f --update $(LOCAL_PMPP_DIR)/lib $(LOCAL_INSTALL_DIR)
+
+pmb-install-xs: $(LOCAL_TEMP_INSTALL_DIR)/cpanm
+	cat $(CONFIG_PERL_INSTALL_LIST) | \
+	$(CPANM_PERL_ENV) xargs -r -l120 -- \
+	$(CPANM_PERL) $(CPANM) --notest -L $(LOCAL_INSTALL_DIR) \
+	    $(CPANM_MIRROR_LOCAL_ONLY)
+
+pmb-install-xs-local-or-remote: $(LOCAL_TEMP_INSTALL_DIR)/cpanm
+	cat $(CONFIG_PERL_INSTALL_LIST) | \
+	$(CPANM_PERL_ENV) xargs -r -l120 -- \
+	$(CPANM_PERL) $(CPANM) --notest -L $(LOCAL_INSTALL_DIR) \
+	    $(CPANM_MIRROR_LOCAL_OR_REMOTE) \
+            --save-dists=$(LOCAL_PMTAR_DIR)
