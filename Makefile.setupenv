@@ -9,6 +9,7 @@
 # Document: <https://github.com/wakaba/perl-setupenv/blob/master/README>.
 # Usage: <https://raw.github.com/wakaba/perl-setupenv/master/Makefile>.
 
+WGET = wget
 PERL = perl
 PERL_VERSION = latest
 PERLBREW_PARALLEL_COUNT = 1
@@ -43,7 +44,7 @@ all:
 setupenv-update:
 ifeq "$(sort $(SETUPENV_CURRENT_REVISION) $(SETUPENV_MIN_REVISION))" "$(SETUPENV_CURRENT_REVISION) $(SETUPENV_MIN_REVISION)"
 #$(SETUPENV_CURRENT_REVISION) < $(SETUPENV_MIN_REVISION)
-	wget -O Makefile.setupenv https://raw.github.com/wakaba/perl-setupenv/master/Makefile.setupenv
+	$(WGET) -O Makefile.setupenv https://raw.github.com/wakaba/perl-setupenv/master/Makefile.setupenv
 endif
 
 local/setupenv/carton.20120328:
@@ -55,8 +56,8 @@ local/setupenv/carton.20120328:
 local/perlbrew/_perlinfo/perl-$(PERL_VERSION).version:
 	mkdir -p local/perlbrew/_perlinfo
 ifeq "$(PERL_VERSION)" "latest"
-	wget -O local/perlbrew/_perlinfo/JSON.sh https://raw.github.com/dominictarr/JSON.sh/master/JSON.sh
-	wget -O local/perlbrew/_perlinfo/perl.json http://api.metacpan.org/release/perl
+	$(WGET) -O local/perlbrew/_perlinfo/JSON.sh https://raw.github.com/dominictarr/JSON.sh/master/JSON.sh
+	$(WGET) -O local/perlbrew/_perlinfo/perl.json http://api.metacpan.org/release/perl
 	cat local/perlbrew/_perlinfo/perl.json \
 	    | sh local/perlbrew/_perlinfo/JSON.sh \
 	    | grep "\[\"name\"\]" \
@@ -67,7 +68,7 @@ endif
 
 local/perlbrew/bin/perlbrew:
 	mkdir -p local/
-	wget -O local/install.perlbrew http://install.perlbrew.pl/
+	$(WGET) -O local/install.perlbrew http://install.perlbrew.pl/
 	PERLBREW_ROOT=$(abspath local/perlbrew) sh local/install.perlbrew
 
 local-perl: local-perl-main $(CARTON_SUPPORT_BIN_PATH)/cpanm
@@ -103,7 +104,7 @@ carton: $(CARTON_SUPPORT_BIN_PATH)/carton
 
 $(CARTON_SUPPORT_BIN_PATH)/real-cpanm:
 	mkdir -p $(CARTON_SUPPORT_BIN_PATH)
-	wget -O $@ http://cpanmin.us
+	$(WGET) -O $@ http://cpanmin.us
 	chmod u+x $@
 
 $(CARTON_SUPPORT_BIN_PATH)/cpanm: $(CARTON_SUPPORT_BIN_PATH)/real-cpanm
