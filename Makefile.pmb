@@ -128,6 +128,7 @@ $(LOCAL_TEMP_DIR)/install.json.list: $(LOCAL_TEMP_INSTALL_DIR)/perl-modules
 
 $(LOCAL_TEMP_DIR)/02packages.details.txt.body: \
   $(LOCAL_TEMP_DIR)/install.json.list $(LOCAL_TEMP_INSTALL_DIR)/cpanm
+	echo > $@.tmp
 	cat $(LOCAL_TEMP_DIR)/install.json.list | xargs -l1 -r -- \
 	$(CPANM_PERL) -MJSON::PP -e ' \
           local $$/; $$data = decode_json <>; #\
@@ -139,7 +140,10 @@ $(LOCAL_TEMP_DIR)/02packages.details.txt.body: \
 	      length $$ver < 10 ? (" " x (10 - length $$ver)) . $$ver : $$ver, #\
 	      $$data->{pathname}; #\
           } #\
-	' | sort > $@
+	' | sort >> $@.tmp
+	-less $(LOCAL_PMTAR_DIR)/modules/02packages.details.txt.gz | \
+	awk 'NF==0{is_body=1}is_body>1{print}is_body{is_body++}' >> $@.tmp
+	cat $@.tmp | sort -u -k 1,1 | awk 'NF>0{print}' > $@
 
 $(LOCAL_PMTAR_DIR)/modules/02packages.details.txt: \
   $(LOCAL_TEMP_DIR)/02packages.details.txt.body
