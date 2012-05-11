@@ -312,7 +312,13 @@ $(PMB_LOCAL_INSTALL_DIR)/common-local-or-remote: \
 
 # ---- Perl package list generation ----
 
-CONFIG_PERL_MODULE_LIST = config/perl/modules.txt
+CONFIG_PERL_MODULE_LIST_FILES = \
+    $(wildcard config/perl/modules.txt \
+	       config/perl/modules.*.txt \
+               modules/*/config/perl/modules.txt \
+	       modules/*/config/perl/modules.*.txt \
+	       local/submodules/*/config/perl/modules.txt \
+	       local/submodules/*/config/perl/modules.*.txt)
 CONFIG_PERL_INSTALL_LIST = config/perl/pmb-install.txt
 
 pmb-update: pmb-update-install-dir pmb-update-index pmb-update-pp \
@@ -320,9 +326,10 @@ pmb-update: pmb-update-install-dir pmb-update-index pmb-update-pp \
 
 pmb-update-install-dir: $(PMB_LOCAL_TEMP_INSTALL_DIR)/perl-modules
 
-$(PMB_LOCAL_TEMP_INSTALL_DIR)/perl-modules: $(CONFIG_PERL_MODULE_LIST) \
+$(PMB_LOCAL_TEMP_INSTALL_DIR)/perl-modules: \
+    $(CONFIG_PERL_MODULE_LIST_FILES) \
     $(PMB_LOCAL_TEMP_INSTALL_DIR)/cpanm
-	cat $< | \
+	cat $(CONFIG_PERL_MODULE_LIST_FILES) | \
 	$(PMB_CPANM_PERL_ENV) xargs -l20 -r -- \
 	$(PMB_CPANM_PERL) $(PMB_CPANM) --notest \
 	    -L $(PMB_LOCAL_TEMP_INSTALL_DIR) \
@@ -382,7 +389,7 @@ $(PMB_LOCAL_PMTAR_DIR)/modules/02packages.details.txt.gz: \
   $(PMB_LOCAL_PMTAR_DIR)/modules/02packages.details.txt
 	$(GZIP) -f $<
 
-$(CONFIG_PERL_INSTALL_LIST): $(CONFIG_PERL_MODULE_LIST) \
+$(CONFIG_PERL_INSTALL_LIST): $(CONFIG_PERL_MODULE_LIST_FILES) \
     $(PMB_LOCAL_EMPTY_INSTALL_DIR)/common \
     $(PMB_LOCAL_TEMP_DIR)/02packages.details.txt.body
 	$(WGET) -O $(PMB_LOCAL_TEMP_DIR)/02packages.details.txt.cpan.gz \
@@ -390,7 +397,7 @@ $(CONFIG_PERL_INSTALL_LIST): $(CONFIG_PERL_MODULE_LIST) \
 	zcat $(PMB_LOCAL_TEMP_DIR)/02packages.details.txt.cpan.gz \
 	    > $(PMB_LOCAL_TEMP_DIR)/02packages.details.txt.all
 	cat $(PMB_LOCAL_TEMP_DIR)/02packages.details.txt.body >> $(PMB_LOCAL_TEMP_DIR)/02packages.details.txt.all
-	echo "ExtUtils::ParseXS Module::Build `cat $<`" | \
+	echo "ExtUtils::ParseXS Module::Build `cat $(CONFIG_PERL_MODULE_LIST_FILES)`" | \
 	$(PMB_CPANM_PERL_ENV) xargs -r -l20 -- \
 	$(PMB_CPANM_PERL) $(PMB_CPANM) --notest -L $(PMB_LOCAL_EMPTY_INSTALL_DIR) \
 	    $(PMB_CPANM_MIRROR_PMB_LOCAL_ONLY) \
