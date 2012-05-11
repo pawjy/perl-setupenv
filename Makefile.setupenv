@@ -89,10 +89,10 @@ ifeq "$(PERL_VERSION)" "latest"
 	    alias create `cat local/perlbrew/_perlinfo/perl-$(PERL_VERSION).version` perl-latest
 endif
 
-perl-exec: config/perl/libs.txt
+perl-exec:
 	$(PERL_ENV) $(PERL) $(PERL_EXEC_ARGS)
 
-perl-version: config/perl/libs.txt
+perl-version:
 	$(PERL_ENV) $(PERL) -v
 	$(PERL_ENV) $(PERL) -e 'print for map { $$_ . "\n" } @INC'
 
@@ -152,7 +152,7 @@ local-submodules: local/submodules/Makefile
 config/perl/libs.txt: $(CARTON_SUPPORT_BIN_PATH)/carton local-submodules
 	mkdir -p config/perl
 	$(CARTON_ENV) $(PERL) $(CARTON) exec -- \
-	    $(PERL) -MCwd=abs_path -e 'push @INC, glob "local/submodules/*/lib"; print join ":", map { abs_path() . "/" . $$_ } grep /^local/, @INC' > $@
+	    $(PERL) -MCwd=abs_path -e 'push @INC, glob "local/submodules/*/lib"; unshift @INC, "lib", glob "modules/*/lib"; print join ":", map { abs_path() . "/" . $$_ } grep /^(?:local|lib|modules)/, @INC' > $@
 
 carton-install: local-submodules carton.lock carton-install-main
 
@@ -403,7 +403,8 @@ $(CONFIG_PERL_INSTALL_LIST): $(CONFIG_PERL_MODULE_LIST) \
 
 # ---- Install from pmb's local copy ----
 
-pmb-install: pmb-install-pp pmb-install-common pmb-install-xs
+pmb-install: pmb-install-pp pmb-install-common pmb-install-xs \
+    pmb-perl-libs.txt
 
 pmb-install-local-or-remote: \
     pmb-install-pp \
@@ -434,6 +435,10 @@ pmb-install-xs-local-or-remote: $(PMB_LOCAL_TEMP_INSTALL_DIR)/cpanm
 	$(PMB_CPANM_PERL) $(PMB_CPANM) --notest -L $(PMB_LOCAL_INSTALL_DIR) \
 	    $(PMB_CPANM_MIRROR_PMB_LOCAL_OR_REMOTE) \
             --save-dists=$(PMB_LOCAL_PMTAR_DIR)
+
+pmb-perl-libs.txt:
+	echo $(wildcard $(abspath lib)) $(wildcard $(abspath modules/*/lib)) $(wildcard $(abspath local/submodules/*/lib)) | xargs -- perl -e 'print join "", map { $$_ . ":" } @ARGV' -- > config/perl/libs.txt
+	echo "$(PMB_LOCAL_INSTALL_DIR)/lib/perl5/$(PERL_ARCHNAME):$(PMB_LOCAL_INSTALL_DIR)/lib/perl5" >> config/perl/libs.txt
 
 # ------ remotedev - Run tests at remote host ------
 
