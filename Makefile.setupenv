@@ -10,6 +10,7 @@
 # Usage: <https://raw.github.com/wakaba/perl-setupenv/master/Makefile>.
 
 WGET = wget
+GIT = git
 PERL = perl
 PERL_VERSION = latest
 PERLBREW_PARALLEL_COUNT = 1
@@ -127,7 +128,7 @@ $(CARTON_SUPPORT_BIN_PATH)/carton: $(CARTON_SUPPORT_BIN_PATH)/cpanm \
 #	    Dist::Metadata::Archive \
 #	    inc::Module::Install Module::Install::ReadmeFromPod \
 #	    Module::Install::Repository
-	#git clone git://github.com/masaki/carton.git $(CARTON_SUPPORT_BIN_PATH)/../carton || (cd $(CARTON_SUPPORT_BIN_PATH)/../carton && git pull)
+	#$(GIT) clone git://github.com/masaki/carton.git $(CARTON_SUPPORT_BIN_PATH)/../carton || (cd $(CARTON_SUPPORT_BIN_PATH)/../carton && $(GIT) pull)
 	#$(CARTON_ENV) $(CPANM_) --reinstall $(CARTON_SUPPORT_BIN_PATH)/../carton
 	$(CARTON_ENV) $(CPANM_) --reinstall Carton
 	#ln -s $(CARTON_SUPPORT_BIN_PATH)/../carton/bin/carton $@
@@ -144,7 +145,7 @@ config/perl/submodules.txt:
 local/submodules/Makefile: config/perl/submodules.txt
 	mkdir -p local/submodules
 	echo "clone:" > $@
-	cat $< | perl -n -e 'chomp; undef $$branch; $$branch = $$1 if s{\s+(\S+)\s*$$}{}; m{([^/\s]+)$$}; $$dir = $$1; print "\t(git clone $$_ || (cd $$dir && git pull))\n"; print "\tcd $$dir && (git checkout -b $$branch origin/$$branch || git checkout $$branch)\n" if $$branch' >> $@
+	cat $< | perl -n -e 'chomp; undef $$branch; $$branch = $$1 if s{\s+(\S+)\s*$$}{}; m{([^/\s]+)$$}; $$dir = $$1; print "\t($(GIT) clone $$_ || (cd $$dir && $(GIT) pull))\n"; print "\tcd $$dir && ($(GIT) checkout -b $$branch origin/$$branch || $(GIT) checkout $$branch)\n" if $$branch' >> $@
 
 local-submodules: local/submodules/Makefile
 	cd local/submodules && $(MAKE) clone
@@ -211,7 +212,7 @@ pmbundler-repo-update:
 	mkdir -p local/pmbundler/mirror
 ifeq "$(PMBUNDLER_REPO_URL)" ""
 else
-	cd local/pmbundler && ((git clone $(PMBUNDLER_REPO_URL) mirror) || (cd mirror && git pull))
+	cd local/pmbundler && (($(GIT) clone $(PMBUNDLER_REPO_URL) mirror) || (cd mirror && $(GIT) pull))
 endif
 
 pmbundler-install: local/pmbundler/deps.txt pmbundler-repo-update
@@ -257,14 +258,14 @@ pmb-pmtar-dir:
 	mkdir -p $(PMB_LOCAL_PMB_DIR)
 ifeq "$(PMB_PMTAR_REPO_URL)" ""
 else
-	cd $(PMB_LOCAL_PMB_DIR) && ((git clone $(PMB_PMTAR_REPO_URL) pmtar) || (cd pmtar && git pull))
+	cd $(PMB_LOCAL_PMB_DIR) && (($(GIT) clone $(PMB_PMTAR_REPO_URL) pmtar) || (cd pmtar && $(GIT) pull))
 endif
 
 pmb-pmpp-dir:
 	mkdir -p $(PMB_LOCAL_PMB_DIR)
 ifeq "$(PMB_PMPP_REPO_URL)" ""
 else
-	cd $(PMB_LOCAL_PMB_DIR) && ((git clone $(PMB_PMPP_REPO_URL) pmpp) || (cd pmpp && git pull))
+	cd $(PMB_LOCAL_PMB_DIR) && (($(GIT) clone $(PMB_PMPP_REPO_URL) pmpp) || (cd pmpp && $(GIT) pull))
 endif
 
 # ---- cpanm ----
@@ -476,13 +477,13 @@ local/remotedev/remote-directory-name.txt:
 
 config/remotedev/getreponame.pl:
 	mkdir -p config/remotedev
-	echo 'my $$repo = `git config --get remote.origin.url` or die "No origin URL";' > $@
+	echo 'my $$repo = `$(GIT) config --get remote.origin.url` or die "No origin URL";' > $@
 	echo '$$repo =~ s{git\@github.com:}{git://github.com/};' >> $@
 	echo '$$repo =~ tr/\x0D\x0A//d;' >> $@
 	echo 'print $$repo;' >> $@
 
 remotedev-upload: local/remotedev/remote-directory-name.txt config/remotedev/getreponame.pl
-	$(SSH) $(REMOTEDEV_HOST) "mkdir -p $(shell cat local/remotedev/remote-directory-name.txt) && cd $(shell cat local/remotedev/remote-directory-name.txt) && ((git clone $(shell $(PERL) config/remotedev/getreponame.pl) repo && cd repo && git checkout -b $(shell git name-rev --name-only HEAD) origin/$(shell git name-rev --name-only HEAD) && git submodule update --init) || (cd repo && (git checkout -b $(shell git name-rev --name-only HEAD) origin/$(shell git name-rev --name-only HEAD) || git checkout $(shell git name-rev --name-only HEAD)) && git pull && git submodule update --init))";
+	$(SSH) $(REMOTEDEV_HOST) "mkdir -p $(shell cat local/remotedev/remote-directory-name.txt) && cd $(shell cat local/remotedev/remote-directory-name.txt) && (($(GIT) clone $(shell $(PERL) config/remotedev/getreponame.pl) repo && cd repo && $(GIT) checkout -b $(shell $(GIT) name-rev --name-only HEAD) origin/$(shell $(GIT) name-rev --name-only HEAD) && $(GIT) submodule update --init) || (cd repo && ($(GIT) checkout -b $(shell $(GIT) name-rev --name-only HEAD) origin/$(shell $(GIT) name-rev --name-only HEAD) || $(GIT) checkout $(shell $(GIT) name-rev --name-only HEAD)) && $(GIT) pull && $(GIT) submodule update --init))";
 
 remotedev-setup: remotedev-upload
 	$(SSH) $(REMOTEDEV_HOST) "cd $(shell cat local/remotedev/remote-directory-name.txt)/repo && make Makefile.setupenv PERL_VERSION=$(REMOTEDEV_PERL_VERSION) && make --makefile Makefile.setupenv setupenv-update SETUPENV_MIN_REVISION=$(SETUPENV_CURRENT_REVISION) && make --makefile Makefile.setupenv local-perl pmbundler-repo-update carton-install PERL_VERSION=$(REMOTEDEV_PERL_VERSION) PMBUNDLER_REPO_URL=$(PMBUNDLER_REPO_URL)";
@@ -502,8 +503,8 @@ generatepm: local/generatepm/bin/generate-pm-package
 
 local/generatepm/bin/generate-pm-package: always
 	mkdir -p local
-	git clone git://github.com/wakaba/generate-pm-package.git local/generatepm || (cd local/generatepm && git pull)
-	cd local/generatepm && git submodule update --init
+	$(GIT) clone git://github.com/wakaba/generate-pm-package.git local/generatepm || (cd local/generatepm && $(GIT) pull)
+	cd local/generatepm && $(GIT) submodule update --init
 	cd local/generatepm && $(MAKE) all
 
 # ------ ------
