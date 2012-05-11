@@ -20,9 +20,9 @@ local-perl perl-version perl-exec \
 local-submodules config/perl/libs.txt \
 carton-install carton-update carton-install-module \
 remotedev-test remotedev-reset remotedev-reset-setupenv \
-pmbundler-install pmbundler-install-module \
+pmb-install pmb-update \
 generatepm: %: Makefile-setupenv
-	$(MAKE) --makefile Makefile.setupenv pmbundler-repo-update $@ \
+	$(MAKE) --makefile Makefile.setupenv $@ \
             REMOTEDEV_HOST=$(REMOTEDEV_HOST) \
             REMOTEDEV_PERL_VERSION=$(REMOTEDEV_PERL_VERSION) \
 	    PMBUNDLER_REPO_URL=$(PMBUNDLER_REPO_URL)
