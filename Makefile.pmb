@@ -100,13 +100,16 @@ CONFIG_PERL_INSTALL_LIST = config/perl/pmb-install.txt
 pmb-update: pmb-update-install-dir pmb-update-index pmb-update-pp \
     $(CONFIG_PERL_INSTALL_LIST)
 
-pmb-update-install-dir: $(CONFIG_PERL_MODULE_LIST) \
+pmb-update-install-dir: $(LOCAL_TEMP_INSTALL_DIR)/perl-modules
+
+$(LOCAL_TEMP_INSTALL_DIR)/perl-modules: $(CONFIG_PERL_MODULE_LIST) \
     $(LOCAL_TEMP_INSTALL_DIR)/cpanm
 	cat $< | \
 	$(CPANM_PERL_ENV) xargs -l20 -r -- \
 	$(_CPANM_) -L $(LOCAL_TEMP_INSTALL_DIR) \
 	    $(CPANM_MIRROR_LOCAL_OR_REMOTE) \
 	    --save-dists=$(LOCAL_PMTAR_DIR) 
+	touch $@
 
 pmb-update-index: $(LOCAL_PMTAR_DIR)/modules/02packages.details.txt.gz
 
@@ -118,7 +121,7 @@ pmb-update-pp:
 	cp -r -f --update $(LOCAL_TEMP_INSTALL_DIR)/lib $(LOCAL_PMPP_DIR)
 	rm -fr $(LOCAL_PMPP_DIR)/lib/perl5/$(PERL_ARCHNAME)
 
-$(LOCAL_TEMP_DIR)/install.json.list: always
+$(LOCAL_TEMP_DIR)/install.json.list: $(LOCAL_TEMP_INSTALL_DIR)/perl-modules
 	mkdir -p $(LOCAL_TEMP_DIR)
 	mkdir -p $(LOCAL_TEMP_PERLLIB_DIR)/$(PERL_ARCHNAME)/.meta
 	find $(LOCAL_TEMP_PERLLIB_DIR)/$(PERL_ARCHNAME)/.meta -name install.json > $@
@@ -157,13 +160,16 @@ $(LOCAL_PMTAR_DIR)/modules/02packages.details.txt.gz: \
 	$(GZIP) -f $<
 
 $(CONFIG_PERL_INSTALL_LIST): $(CONFIG_PERL_MODULE_LIST) \
-    $(LOCAL_EMPTY_INSTALL_DIR)/common
-	cat $< | $(CPANM_PERL_ENV) xargs -r -l20 -- \
+    $(LOCAL_EMPTY_INSTALL_DIR)/common \
+    $(LOCAL_TEMP_DIR)/02packages.details.txt.body
+	echo "ExtUtils::ParseXS Module::Build `cat $<`" | \
+	$(CPANM_PERL_ENV) xargs -r -l20 -- \
 	$(CPANM_PERL) $(CPANM) --notest -L $(LOCAL_EMPTY_INSTALL_DIR) \
 	    $(CPANM_MIRROR_LOCAL_ONLY) \
-	    --scandeps | \
-	    sed 's/^\s*\\_\s*//; s/-\([^-]\+\)$$/~\1/; s/-/::/g;' | \
-	    uniq -u > $@
+	    --reinstall --scandeps | \
+	xargs -l1 -i% -- \
+	    grep % $(LOCAL_TEMP_DIR)/02packages.details.txt.body | \
+	sed 's/^\S\+\s\+\S\+\s\+//g;' | sort -u > $@
 
 # ------ Install from pmb's local copy ------
 
@@ -188,12 +194,14 @@ pmb-install-pp:
 
 pmb-install-xs: $(LOCAL_TEMP_INSTALL_DIR)/cpanm
 	cat $(CONFIG_PERL_INSTALL_LIST) | \
+	sed 's/^/$(subst /,\/,$(LOCAL_PMTAR_DIR))\/authors\/id\//' | \
 	$(CPANM_PERL_ENV) xargs -r -l120 -- \
 	$(CPANM_PERL) $(CPANM) --notest -L $(LOCAL_INSTALL_DIR) \
 	    $(CPANM_MIRROR_LOCAL_ONLY)
 
 pmb-install-xs-local-or-remote: $(LOCAL_TEMP_INSTALL_DIR)/cpanm
 	cat $(CONFIG_PERL_INSTALL_LIST) | \
+	sed 's/^/$(subst /,\/,$(LOCAL_PMTAR_DIR))\/authors\/id\//' | \
 	$(CPANM_PERL_ENV) xargs -r -l120 -- \
 	$(CPANM_PERL) $(CPANM) --notest -L $(LOCAL_INSTALL_DIR) \
 	    $(CPANM_MIRROR_LOCAL_OR_REMOTE) \
