@@ -233,7 +233,7 @@ pmbundler-install-module: pmbundler-repo-update
 #         lib
 #           perl5   $(PMB_LOCAL_TEMP_PERLLIB_DIR)
 #       empty       $(PMB_LOCAL_EMPTY_INSTALL_DIR)
-#     pmpp          $(PMB_LOCAL_PP_IMAGE_DIR)
+#     pmpp          $(PMB_LOCAL_PMPP_DIR)
 #     pmtar         $(PMB_LOCAL_PMTAR_DIR)
 #   pm              $(PMB_LOCAL_INSTALL_DIR)
 
@@ -249,6 +249,23 @@ PMB_LOCAL_PMPP_DIR = $(PMB_LOCAL_PMB_DIR)/pmpp
 PMB_LOCAL_PMTAR_DIR = $(PMB_LOCAL_PMB_DIR)/pmtar
 
 PERL_ARCHNAME = $(shell $(PERL_ENV) $(PERL) -MConfig -e 'print $$Config{archname}')
+
+PMB_PMTAR_REPO_URL = 
+PMB_PMPP_REPO_URL = 
+
+pmb-pmtar-dir:
+	mkdir -p $(PMB_LOCAL_PMB_DIR)
+ifeq "$(PMB_PMTAR_REPO_URL)" ""
+else
+	cd $(PMB_LOCAL_PMB_DIR) && ((git clone $(PMB_PMTAR_REPO_URL) pmtar) || (cd pmtar && git pull))
+endif
+
+pmb-pmpp-dir:
+	mkdir -p $(PMB_LOCAL_PMB_DIR)
+ifeq "$(PMB_PMPP_REPO_URL)" ""
+else
+	cd $(PMB_LOCAL_PMB_DIR) && ((git clone $(PMB_PMPP_REPO_URL) pmpp) || (cd pmpp && git pull))
+endif
 
 # ---- cpanm ----
 
@@ -321,7 +338,8 @@ CONFIG_PERL_MODULE_LIST_FILES = \
 	       local/submodules/*/config/perl/modules.*.txt)
 CONFIG_PERL_INSTALL_LIST = config/perl/pmb-install.txt
 
-pmb-update: pmb-update-install-dir pmb-update-index pmb-update-pp \
+pmb-update: pmb-pmtar-dir pmb-pmpp-dir \
+    pmb-update-install-dir pmb-update-index pmb-update-pp \
     $(CONFIG_PERL_INSTALL_LIST)
 
 pmb-update-install-dir: $(PMB_LOCAL_TEMP_INSTALL_DIR)/perl-modules
@@ -410,7 +428,8 @@ $(CONFIG_PERL_INSTALL_LIST): $(CONFIG_PERL_MODULE_LIST_FILES) \
 
 # ---- Install from pmb's local copy ----
 
-pmb-install: pmb-install-pp pmb-install-common pmb-install-xs \
+pmb-install: pmb-pmtar-dir pmb-pmpp-dir \
+    pmb-install-pp pmb-install-common pmb-install-xs \
     pmb-perl-libs.txt
 
 pmb-install-local-or-remote: \
