@@ -472,7 +472,7 @@ pmb-install-xs-local-or-remote: $(PMB_LOCAL_TEMP_INSTALL_DIR)/cpanm
 pmb-perl-libs.txt:
 	mkdir -p config/perl
 	echo $(wildcard $(abspath lib)) $(wildcard $(abspath modules/*/lib)) $(wildcard $(abspath local/submodules/*/lib)) | xargs -- perl -e 'print join "", map { $$_ . ":" } @ARGV' -- > config/perl/libs.txt
-	echo "$(PMB_LOCAL_INSTALL_DIR)/lib/perl5/$(PERL_ARCHNAME):$(PMB_LOCAL_INSTALL_DIR)/lib/perl5" >> config/perl/libs.txt
+	echo -n "$(PMB_LOCAL_INSTALL_DIR)/lib/perl5/$(PERL_ARCHNAME):$(PMB_LOCAL_INSTALL_DIR)/lib/perl5" >> config/perl/libs.txt
 
 # ------ remotedev - Run tests at remote host ------
 
