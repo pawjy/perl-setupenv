@@ -437,8 +437,14 @@ $(CONFIG_PERL_INSTALL_LIST): $(CONFIG_PERL_MODULE_LIST_FILES) \
 # ---- Install from pmb's local copy ----
 
 pmb-install: pmb-pmtar-dir pmb-pmpp-dir \
+    pmb-install-update \
     pmb-install-pp pmb-install-common pmb-install-xs \
     pmb-perl-libs.txt
+
+pmb-install-update:
+ifeq "$(wildcard $(PMB_LOCAL_PMTAR_DIR)/modules/02packages.details.txt.gz*)" ""
+	$(MAKE) pmb-update
+endif
 
 pmb-install-local-or-remote: \
     pmb-install-pp \
@@ -514,6 +520,24 @@ local/generatepm/bin/generate-pm-package: always
 	$(GIT) clone git://github.com/wakaba/generate-pm-package.git local/generatepm || (cd local/generatepm && $(GIT) pull)
 	cd local/generatepm && $(GIT) submodule update --init
 	cd local/generatepm && $(MAKE) all
+
+# ------ cinnamon - Deployment tool ------
+
+CINNAMON_GIT_REPOSITORY = git://github.com/wakaba/cinnamon.git
+
+cinnamon: cinnamon-repo cinnamon-deps cinnamon-link
+
+cinnamon-repo:
+	mkdir -p local
+	cd local && (($(GIT) clone $(CINNAMON_GIT_REPOSITORY)) || (cd cinnamon && $(GIT) pull)) && cd cinnamon && $(GIT) submodule update --init
+
+cinnamon-deps:
+	cd local/cinnamon && $(MAKE) pmb-install
+
+cinnamon-link: ./cin
+
+./cin: 
+	ln -s local/cinnamon/bin/cinnamon cin
 
 # ------ ------
 
