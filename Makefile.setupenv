@@ -332,7 +332,7 @@ $(PMB_LOCAL_INSTALL_DIR)/common-local-or-remote: \
 # ---- Perl package list generation ----
 
 CONFIG_PERL_MODULE_LIST_FILES = \
-    $(wildcard config/perl/modules.txt \
+    $(wildcard config/perl/modules*.txt \
 	       config/perl/modules.*.txt \
                modules/*/config/perl/modules.txt \
 	       modules/*/config/perl/modules.*.txt \
@@ -413,6 +413,7 @@ $(PMB_LOCAL_PMTAR_DIR)/modules/02packages.details.txt.gz: \
 $(CONFIG_PERL_INSTALL_LIST): $(CONFIG_PERL_MODULE_LIST_FILES) \
     $(PMB_LOCAL_EMPTY_INSTALL_DIR)/common \
     $(PMB_LOCAL_TEMP_DIR)/02packages.details.txt.body
+	mkdir -p config/perl
 	$(WGET) -O $(PMB_LOCAL_TEMP_DIR)/02packages.details.txt.cpan.gz \
 	    http://$(CPAN_SEARCH_HOST)/CPAN/modules/02packages.details.txt.gz
 	zcat $(PMB_LOCAL_TEMP_DIR)/02packages.details.txt.cpan.gz \
@@ -468,6 +469,7 @@ pmb-install-xs-local-or-remote: $(PMB_LOCAL_TEMP_INSTALL_DIR)/cpanm
             --save-dists=$(PMB_LOCAL_PMTAR_DIR)
 
 pmb-perl-libs.txt:
+	mkdir -p config/perl
 	echo $(wildcard $(abspath lib)) $(wildcard $(abspath modules/*/lib)) $(wildcard $(abspath local/submodules/*/lib)) | xargs -- perl -e 'print join "", map { $$_ . ":" } @ARGV' -- > config/perl/libs.txt
 	echo "$(PMB_LOCAL_INSTALL_DIR)/lib/perl5/$(PERL_ARCHNAME):$(PMB_LOCAL_INSTALL_DIR)/lib/perl5" >> config/perl/libs.txt
 
