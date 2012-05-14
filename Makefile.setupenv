@@ -443,7 +443,7 @@ pmb-install: pmb-pmtar-dir pmb-pmpp-dir \
 
 pmb-install-update:
 ifeq "$(wildcard $(PMB_LOCAL_PMTAR_DIR)/modules/02packages.details.txt.gz*)" ""
-	$(MAKE) pmb-update
+	$(MAKE) pmb-install-local-or-remote
 endif
 
 pmb-install-local-or-remote: \
