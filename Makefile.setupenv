@@ -306,7 +306,7 @@ $(PMB_LOCAL_TEMP_INSTALL_DIR)/cpanm-common:
 	$(_PMB_CPANM_) -L $(PMB_LOCAL_TEMP_INSTALL_DIR) \
 	    $(PMB_CPANM_MIRROR_PMB_LOCAL_OR_REMOTE) \
 	    --save-dists=$(PMB_LOCAL_PMTAR_DIR) \
-	    ExtUtils::ParseXS Module::Build JSON::PP
+	    ExtUtils::ParseXS Module::Build File::ShareDir::Install JSON::PP
 	touch $@
 
 $(PMB_LOCAL_EMPTY_INSTALL_DIR)/common: $(PMB_LOCAL_TEMP_INSTALL_DIR)/cpanm
