@@ -444,7 +444,6 @@ pmb-install: pmb-pmtar-dir pmb-pmpp-dir \
 pmb-install-update:
 	ls $(PMB_LOCAL_PMTAR_DIR)/modules/02packages.details.txt.gz || \
 	$(MAKE) --makefile Makefile.setupenv pmb-install-local-or-remote
-endif
 
 pmb-install-local-or-remote: \
     pmb-install-pp \
