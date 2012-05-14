@@ -18,10 +18,11 @@ CARTON = local/perl-$(PERL_VERSION)/carton/bin/carton
 CARTON_ABS = $(abspath $(CARTON))
 CARTON_LIB = $(abspath local/perl-$(PERL_VERSION)/carton/lib/perl5)
 CARTON_SUPPORT_BIN_PATH = $(abspath local/perl-$(PERL_VERSION)/carton/bin)
+CPAN_SEARCH_HOST = search.cpan.org
 CPANM = $(PERL) $(CARTON_SUPPORT_BIN_PATH)/cpanm
 CPANM_MIRROR_OPTS = \
     --mirror $(abspath local/pmbundler/mirror) \
-    --mirror http://search.cpan.org/CPAN \
+    --mirror http://$(CPAN_SEARCH_HOST)/CPAN \
     --mirror http://cpan.metacpan.org/ \
     --mirror http://backpan.perl.org/
 CPANM_ = $(CPANM) --notest -l local/perl-$(PERL_VERSION)/carton \
@@ -277,7 +278,7 @@ PMB_CPANM_PERL = $(PERL) -I$(PMB_LOCAL_TEMP_PERLLIB_DIR)
 _PMB_CPANM_ = $(PMB_CPANM_PERL_ENV) $(PMB_CPANM_PERL) $(PMB_CPANM) --notest
 
 PMB_CPANM_MIRROR_PMB_LOCAL_OR_REMOTE = --mirror $(abspath $(PMB_LOCAL_PMTAR_DIR)) \
-    --mirror http://search.cpan.org/CPAN \
+    --mirror http://$(CPAN_SEARCH_HOST)/CPAN \
     --mirror http://cpan.metacpan.org/ \
     --mirror http://backpan.perl.org/
 PMB_CPANM_MIRROR_PMB_LOCAL_ONLY = --mirror $(abspath $(PMB_LOCAL_PMTAR_DIR)) --mirror-only
@@ -412,7 +413,7 @@ $(CONFIG_PERL_INSTALL_LIST): $(CONFIG_PERL_MODULE_LIST_FILES) \
     $(PMB_LOCAL_EMPTY_INSTALL_DIR)/common \
     $(PMB_LOCAL_TEMP_DIR)/02packages.details.txt.body
 	$(WGET) -O $(PMB_LOCAL_TEMP_DIR)/02packages.details.txt.cpan.gz \
-	    http://search.cpan.org/CPAN/modules/02packages.details.txt.gz
+	    http://$(CPAN_SEARCH_HOST)/CPAN/modules/02packages.details.txt.gz
 	zcat $(PMB_LOCAL_TEMP_DIR)/02packages.details.txt.cpan.gz \
 	    > $(PMB_LOCAL_TEMP_DIR)/02packages.details.txt.all
 	cat $(PMB_LOCAL_TEMP_DIR)/02packages.details.txt.body >> $(PMB_LOCAL_TEMP_DIR)/02packages.details.txt.all
