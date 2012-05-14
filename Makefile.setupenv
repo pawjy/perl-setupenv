@@ -418,6 +418,7 @@ $(CONFIG_PERL_INSTALL_LIST): $(CONFIG_PERL_MODULE_LIST_FILES) \
 	cat $(PMB_LOCAL_TEMP_DIR)/02packages.details.txt.body >> $(PMB_LOCAL_TEMP_DIR)/02packages.details.txt.all
 	echo "ExtUtils::ParseXS Module::Build File::ShareDir::Install `cat $(CONFIG_PERL_MODULE_LIST_FILES)`" | \
 	sed 's/^POSIX$$//g;' | \
+	sort -u | \
 	$(PMB_CPANM_PERL_ENV) xargs -r -l20 -- \
 	$(PMB_CPANM_PERL) $(PMB_CPANM) --notest -L $(PMB_LOCAL_EMPTY_INSTALL_DIR) \
 	    $(PMB_CPANM_MIRROR_PMB_LOCAL_ONLY) \
