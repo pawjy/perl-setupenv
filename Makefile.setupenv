@@ -311,7 +311,7 @@ $(PMB_LOCAL_TEMP_INSTALL_DIR)/cpanm-common:
 $(PMB_LOCAL_EMPTY_INSTALL_DIR)/common: $(PMB_LOCAL_TEMP_INSTALL_DIR)/cpanm
 	mkdir -p $(PMB_LOCAL_EMPTY_INSTALL_DIR)
 	$(_PMB_CPANM_) -L $(PMB_LOCAL_EMPTY_INSTALL_DIR) $(PMB_CPANM_MIRROR_PMB_LOCAL_ONLY) \
-	    ExtUtils::ParseXS Module::Build
+	    ExtUtils::ParseXS Module::Build File::ShareDir::Install
 	touch $@
 
 $(PMB_LOCAL_INSTALL_DIR)/common: $(PMB_LOCAL_TEMP_INSTALL_DIR)/cpanm
@@ -416,8 +416,8 @@ $(CONFIG_PERL_INSTALL_LIST): $(CONFIG_PERL_MODULE_LIST_FILES) \
 	zcat $(PMB_LOCAL_TEMP_DIR)/02packages.details.txt.cpan.gz \
 	    > $(PMB_LOCAL_TEMP_DIR)/02packages.details.txt.all
 	cat $(PMB_LOCAL_TEMP_DIR)/02packages.details.txt.body >> $(PMB_LOCAL_TEMP_DIR)/02packages.details.txt.all
-	echo "ExtUtils::ParseXS Module::Build `cat $(CONFIG_PERL_MODULE_LIST_FILES)`" | \
-	grep -v "POSIX" | \
+	echo "ExtUtils::ParseXS Module::Build File::ShareDir::Install `cat $(CONFIG_PERL_MODULE_LIST_FILES)`" | \
+	sed 's/^POSIX$$//g;' | \
 	$(PMB_CPANM_PERL_ENV) xargs -r -l20 -- \
 	$(PMB_CPANM_PERL) $(PMB_CPANM) --notest -L $(PMB_LOCAL_EMPTY_INSTALL_DIR) \
 	    $(PMB_CPANM_MIRROR_PMB_LOCAL_ONLY) \
