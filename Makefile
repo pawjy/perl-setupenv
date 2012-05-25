@@ -1,5 +1,6 @@
 ## This is an example Makefile.
 
+WGET = wget
 PERL = perl
 PERL_VERSION = latest
 PERL_PATH = $(abspath local/perlbrew/perls/perl-$(PERL_VERSION)/bin)
@@ -14,7 +15,7 @@ Makefile-setupenv: Makefile.setupenv
 	    SETUPENV_MIN_REVISION=20120330
 
 Makefile.setupenv:
-	wget -O $@ https://raw.github.com/wakaba/perl-setupenv/master/Makefile.setupenv
+	$(WGET) -O $@ https://raw.github.com/wakaba/perl-setupenv/master/Makefile.setupenv
 
 local-perl perl-version perl-exec \
 local-submodules config/perl/libs.txt \
