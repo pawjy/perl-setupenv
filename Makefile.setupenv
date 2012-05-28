@@ -332,7 +332,7 @@ $(PMB_LOCAL_INSTALL_DIR)/common-local-or-remote: \
 # ---- Perl package list generation ----
 
 CONFIG_PERL_MODULE_LIST_FILES = \
-    config/perl/modules.txt
+    config/perl/modules.txt \
     $(wildcard \
 	       config/perl/modules.*.txt \
                modules/*/config/perl/modules.txt \
