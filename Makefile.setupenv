@@ -438,12 +438,19 @@ $(CONFIG_PERL_INSTALL_LIST): $(CONFIG_PERL_MODULE_LIST_FILES) \
 
 pmb-install: pmb-pmtar-dir pmb-pmpp-dir \
     pmb-install-update \
-    pmb-install-pp pmb-install-common pmb-install-xs \
+    pmb-install-install \
     pmb-perl-libs.txt
 
 pmb-install-update:
 	ls $(PMB_LOCAL_PMTAR_DIR)/modules/02packages.details.txt.gz || \
 	$(MAKE) --makefile Makefile.setupenv pmb-install-local-or-remote
+
+pmb-install-install:
+	ls $(PMB_LOCAL_PMTAR_DIR)/modules/02packages.details.txt.gz && \
+	$(MAKE) --makefile Makefile.setupenv pmb-install-local
+
+pmb-install-local: \
+    pmb-install-pp pmb-install-common pmb-install-xs
 
 pmb-install-local-or-remote: \
     pmb-install-pp \
