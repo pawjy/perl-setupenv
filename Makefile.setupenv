@@ -49,7 +49,7 @@ ifeq "$(sort $(SETUPENV_CURRENT_REVISION) $(SETUPENV_MIN_REVISION))" "$(SETUPENV
 	$(WGET) -O Makefile.setupenv https://raw.github.com/wakaba/perl-setupenv/master/Makefile.setupenv
 endif
 
-local/setupenv/carton.20120328:
+local/setupenv/carton.20120529:
 	mkdir -p local/setupenv
 	touch $@
 
