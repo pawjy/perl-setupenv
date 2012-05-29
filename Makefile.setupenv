@@ -117,7 +117,7 @@ $(CARTON_SUPPORT_BIN_PATH)/cpanm: $(CARTON_SUPPORT_BIN_PATH)/real-cpanm
 	chmod u+x $@
 
 $(CARTON_SUPPORT_BIN_PATH)/carton: $(CARTON_SUPPORT_BIN_PATH)/cpanm \
-    local/setupenv/carton.20120328
+    local/setupenv/carton.20120529
 	$(CARTON_ENV) $(CPANM_) --reinstall ExtUtils::ParseXS
 	$(CARTON_ENV) $(CPANM_) CPAN 
 	mkdir -p $(CARTON_SUPPORT_BIN_PATH)/../lib/perl5/CPAN/
