@@ -488,6 +488,12 @@ pmb-perl-libs.txt:
 	echo $(wildcard $(abspath lib)) $(wildcard $(abspath modules/*/lib)) $(wildcard $(abspath local/submodules/*/lib)) | xargs -- perl -e 'print join "", map { $$_ . ":" } @ARGV' -- > config/perl/libs.txt
 	echo -n "$(PMB_LOCAL_INSTALL_DIR)/lib/perl5/$(PERL_ARCHNAME):$(PMB_LOCAL_INSTALL_DIR)/lib/perl5" >> config/perl/libs.txt
 
+pmb-Makefile.PL:
+	echo "use inc::Module::Install; name 'Hoge';" > Makefile.PL
+	cat config/perl/pmb-install.txt | \
+	perl -n -e '($$name, $$ver) = split /[~\x0A]/, $$_; print "requires q<$$name>"; print " => q<$$ver>" if $$ver; print ";\n";' >> Makefile.PL
+	echo "auto_install; WriteAll;" >> Makefile.PL
+
 # ------ remotedev - Run tests at remote host ------
 
 REMOTEDEV_PMBUNDLER_REPO_URL = $(PMBUNDLER_REPO_URL)
