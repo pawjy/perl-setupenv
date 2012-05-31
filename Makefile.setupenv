@@ -556,7 +556,7 @@ cinnamon-link: ./cin
 
 ./cin: 
 	echo "#!/bin/sh" > $@
-	echo "perl $(abspath local/cinnamon/bin/cinnamon) $*" >> $@
+	echo "perl $(abspath local/cinnamon/bin/cinnamon) \$$*" >> $@
 	chmod ugo+x $@
 
 # ------ ------
