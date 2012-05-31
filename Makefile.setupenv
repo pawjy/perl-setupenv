@@ -537,6 +537,8 @@ local/generatepm/bin/generate-pm-package: always
 # ------ cinnamon - Deployment tool ------
 
 CINNAMON_GIT_REPOSITORY = git://github.com/wakaba/cinnamon.git
+CINNAMON_PMB_PMTAR_REPO_URL = 
+CINNAMON_PMB_PMPP_REPO_URL = 
 
 cinnamon: cinnamon-repo cinnamon-deps cinnamon-link
 
@@ -545,7 +547,10 @@ cinnamon-repo:
 	cd local && (($(GIT) clone $(CINNAMON_GIT_REPOSITORY)) || (cd cinnamon && $(GIT) pull)) && cd cinnamon && $(GIT) submodule update --init
 
 cinnamon-deps:
-	cd local/cinnamon && $(MAKE) pmb-install
+	cd local/cinnamon && \
+	$(MAKE) pmb-install \
+	    PMB_PMTAR_REPO_URL=$(CINNAMON_PMB_PMTAR_REPO_URL) \
+	    PMB_PMPP_REPO_URL=$(CINNAMON_PMB_PMPP_REPO_URL)
 
 cinnamon-link: ./cin
 
