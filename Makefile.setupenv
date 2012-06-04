@@ -492,7 +492,7 @@ pmb-Makefile.PL:
 	echo "use inc::Module::Install; name 'Hoge';" > Makefile.PL
 	cat config/perl/pmb-install.txt | \
 	perl -n -e '($$name, $$ver) = split /[~\x0A]/, $$_; print "requires q<$$name>"; print " => q<$$ver>" if $$ver; print ";\n";' >> Makefile.PL
-	echo "auto_install; WriteAll;" >> Makefile.PL
+	echo "Meta->write; Meta->write_mymeta_json;" >> Makefile.PL
 
 # ------ remotedev - Run tests at remote host ------
 
