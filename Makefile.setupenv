@@ -36,7 +36,7 @@ SSH = ssh
 REMOTEDEV_HOST = develop.test
 REMOTEDEV_PERL_VERSION = latest
 
-SETUPENV_CURRENT_REVISION = 20120336
+SETUPENV_CURRENT_REVISION = 20120337
 SETUPENV_MIN_REVISION = $(SETUPENV_CURRENT_REVISION)
 
 all:
@@ -55,13 +55,15 @@ local/setupenv/carton.20120529:
 
 # ------ local-perl - Perl installation for your application ------
 
+BASH = bash
+
 local/perlbrew/_perlinfo/perl-$(PERL_VERSION).version:
 	mkdir -p local/perlbrew/_perlinfo
 ifeq "$(PERL_VERSION)" "latest"
 	$(WGET) -O local/perlbrew/_perlinfo/JSON.sh https://raw.github.com/dominictarr/JSON.sh/master/JSON.sh
 	$(WGET) -O local/perlbrew/_perlinfo/perl.json http://api.metacpan.org/release/perl
 	cat local/perlbrew/_perlinfo/perl.json \
-	    | sh local/perlbrew/_perlinfo/JSON.sh \
+	    | $(BASH) local/perlbrew/_perlinfo/JSON.sh \
 	    | grep "\[\"name\"\]" \
 	    | sed 's/\["[^"]\+"\]\s\+"\([^"]\+\)"/\1/g' > $@
 else
