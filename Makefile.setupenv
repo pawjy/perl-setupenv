@@ -425,7 +425,7 @@ $(CONFIG_PERL_INSTALL_LIST): $(CONFIG_PERL_MODULE_LIST_FILES) \
 	    > $(PMB_LOCAL_TEMP_DIR)/02packages.details.txt.all
 	cat $(PMB_LOCAL_TEMP_DIR)/02packages.details.txt.body >> $(PMB_LOCAL_TEMP_DIR)/02packages.details.txt.all
 	echo "ExtUtils::ParseXS Module::Build File::ShareDir::Install `cat $(CONFIG_PERL_MODULE_LIST_FILES)`" | \
-	sed 's/^POSIX$$//g;' | \
+	sed 's/^POSIX$$//g' | \
 	sort -u | \
 	$(PMB_CPANM_PERL_ENV) xargs -r -l20 -- \
 	$(PMB_CPANM_PERL) $(PMB_CPANM) --notest -L $(PMB_LOCAL_EMPTY_INSTALL_DIR) \
@@ -435,7 +435,7 @@ $(CONFIG_PERL_INSTALL_LIST): $(CONFIG_PERL_MODULE_LIST_FILES) \
 	xargs -l1 -i% -- \
 	    sh -c "grep \"%\" $(PMB_LOCAL_TEMP_DIR)/02packages.details.txt.all || echo \"% undef %\"" | \
 	sort -u -k 3,3 | \
-	sed 's/^\(\S\+\)\s\+\(\S\+\).*/\1~\2/g; s/~undef//; s/~v/~/' > $@
+	sed 's/^\(\S\+\)\s\+\(\S\+\).*/\1~\2/g; s/~undef//; s/~v/~/; s/^MailTools$/Mail/' > $@
 
 # ---- Install from pmb's local copy ----
 
