@@ -435,7 +435,7 @@ $(CONFIG_PERL_INSTALL_LIST): $(CONFIG_PERL_MODULE_LIST_FILES) \
 	xargs -l1 -i% -- \
 	    sh -c "grep \"%\" $(PMB_LOCAL_TEMP_DIR)/02packages.details.txt.all || echo \"% undef %\"" | \
 	sort -u -k 3,3 | \
-	sed 's/^\(\S\+\)\s\+\(\S\+\).*/\1~\2/g; s/~undef//; s/~v/~/; s/^MailTools$/Mail/; s/^L4pResurrectable\~.\+$$/Log::Log4perl/' > $@
+	sed 's/^\(\S\+\)\s\+\(\S\+\).*/\1~\2/g; s/~undef//; s/~v/~/; s/^MailTools$/Mail/; s/^L4pResurrectable\~.\+/Log::Log4perl/' > $@
 
 # ---- Install from pmb's local copy ----
 
