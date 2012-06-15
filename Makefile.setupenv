@@ -110,7 +110,7 @@ lperl:
 
 lplackup:
 	echo "#!/bin/sh" > $(LPLACKUP_PATH)
-	echo "$(PERL_ENV) exec $(PERL) plackup \"\$$@\"" >> $(LPLACKUP_PATH)
+	echo "$(PERL_ENV) exec $(PERL) `which plackup || echo 'plackup'` \"\$$@\"" >> $(LPLACKUP_PATH)
 	chmod ugo+x $(LPLACKUP_PATH)
 
 # ------ carton - Perl module management ------
