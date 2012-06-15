@@ -101,11 +101,17 @@ perl-version:
 	$(PERL_ENV) $(PERL) -e 'print for map { $$_ . "\n" } @INC'
 
 LPERL_PATH = ./perl
+LPLACKUP_PATH = ./plackup
 
 lperl:
 	echo "#!/bin/sh" > $(LPERL_PATH)
 	echo "$(PERL_ENV) exec $(PERL) \"\$$@\"" >> $(LPERL_PATH)
 	chmod ugo+x $(LPERL_PATH)
+
+lplackup:
+	echo "#!/bin/sh" > $(LPLACKUP_PATH)
+	echo "$(PERL_ENV) exec $(PERL) plackup \"\$$@\"" >> $(LPLACKUP_PATH)
+	chmod ugo+x $(LPLACKUP_PATH)
 
 # ------ carton - Perl module management ------
 
