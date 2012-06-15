@@ -563,7 +563,7 @@ cinnamon-deps:
 
 cinnamon-link: ./cin
 
-./cin: 
+./cin: always
 	echo "#!/bin/sh" > $@
 	echo "perl $(abspath local/cinnamon/bin/cinnamon) \"\$$@\"" >> $@
 	chmod ugo+x $@
