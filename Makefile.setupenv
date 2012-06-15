@@ -100,6 +100,13 @@ perl-version:
 	$(PERL_ENV) $(PERL) -v
 	$(PERL_ENV) $(PERL) -e 'print for map { $$_ . "\n" } @INC'
 
+LPERL_PATH = ./perl
+
+lperl:
+	echo "#!/bin/sh" > $(LPERL_PATH)
+	echo "$(PERL_ENV) exec $(PERL) \"\$$@\"" >> $(LPERL_PATH)
+	chmod ugo+x $(LPERL_PATH)
+
 # ------ carton - Perl module management ------
 
 # DEPRECATED - Use pmb!
@@ -558,7 +565,7 @@ cinnamon-link: ./cin
 
 ./cin: 
 	echo "#!/bin/sh" > $@
-	echo "perl $(abspath local/cinnamon/bin/cinnamon) \$$*" >> $@
+	echo "perl $(abspath local/cinnamon/bin/cinnamon) \"\$$@\"" >> $@
 	chmod ugo+x $@
 
 # ------ ------
