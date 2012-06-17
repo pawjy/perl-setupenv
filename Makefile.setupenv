@@ -57,6 +57,7 @@ local/setupenv/carton.20120529:
 # ------ local-perl - Perl installation for your application ------
 
 BASH = bash
+PERLBREW_ENV_PATH = /usr/local/bin:/usr/bin:/bin
 
 local/perlbrew/_perlinfo/perl-$(PERL_VERSION).version:
 	mkdir -p local/perlbrew/_perlinfo
@@ -83,14 +84,15 @@ local-perl-main: local/perlbrew/perls/perl-$(PERL_VERSION)/bin/perl
 local/perlbrew/perls/perl-$(PERL_VERSION)/bin/perl: local/perlbrew/bin/perlbrew \
     local/perlbrew/_perlinfo/perl-$(PERL_VERSION).version
 ifeq "$(PERL_VERSION)" "latest"
-	-PERLBREW_ROOT=$(abspath local/perlbrew) local/perlbrew/bin/perlbrew \
+	-PERLBREW_ROOT="$(abspath local/perlbrew)" local/perlbrew/bin/perlbrew \
 	    alias delete perl-latest
 endif
-	PERLBREW_ROOT=$(abspath local/perlbrew) local/perlbrew/bin/perlbrew \
+	PATH="$(PERLBREW_ENV_PATH)" \
+	PERLBREW_ROOT="$(abspath local/perlbrew)" local/perlbrew/bin/perlbrew \
 	    install `cat local/perlbrew/_perlinfo/perl-$(PERL_VERSION).version` \
 	    --notest --as `cat local/perlbrew/_perlinfo/perl-$(PERL_VERSION).version` -j $(PERLBREW_PARALLEL_COUNT)
 ifeq "$(PERL_VERSION)" "latest"
-	PERLBREW_ROOT=$(abspath local/perlbrew) local/perlbrew/bin/perlbrew \
+	PERLBREW_ROOT="$(abspath local/perlbrew)" local/perlbrew/bin/perlbrew \
 	    alias create `cat local/perlbrew/_perlinfo/perl-$(PERL_VERSION).version` perl-latest
 endif
 
