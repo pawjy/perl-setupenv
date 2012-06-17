@@ -30,8 +30,8 @@ CPANM_ = $(CPANM) --notest -l local/perl-$(PERL_VERSION)/carton \
 SETUPENV_CPANM_OPTS = $(CPANM_MIRROR_OPTS)
 PERL_PATH = $(abspath local/perlbrew/perls/perl-$(PERL_VERSION)/bin)
 CARTON_ENV = PERL5LIB=$(CARTON_LIB) PATH=$(PERL_PATH):$(CARTON_SUPPORT_BIN_PATH):$(PATH) PERL_CARTON_PATH=local/perl-$(PERL_VERSION) SETUPENV_CPANM_OPTS="$(SETUPENV_CPANM_OPTS)"
-PERL_ENV_PATH = PATH=$(abspath local/perl-$(PERL_VERSION)/pm/bin):$(PERL_PATH):$(PATH)
-PERL_ENV = $(PERL_ENV_PATH) PERL5LIB=`cat config/perl/libs.txt`
+PERL_ENV_PATH = PATH="$(abspath local/perl-$(PERL_VERSION)/pm/bin):$(PERL_PATH):$(PATH)"
+PERL_ENV = $(PERL_ENV_PATH) PERL5LIB="`cat config/perl/libs.txt`"
 SSH = ssh
 
 REMOTEDEV_HOST = develop.test
