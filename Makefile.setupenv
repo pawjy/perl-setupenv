@@ -324,6 +324,7 @@ $(PMB_LOCAL_TEMP_INSTALL_DIR)/cpanm-common:
 	$(_PMB_CPANM_) -L $(PMB_LOCAL_TEMP_INSTALL_DIR) \
 	    $(PMB_CPANM_MIRROR_PMB_LOCAL_OR_REMOTE) \
 	    --save-dists=$(PMB_LOCAL_PMTAR_DIR) \
+	    --reinstall \
 	    ExtUtils::ParseXS Module::Build File::ShareDir::Install JSON::PP
 	touch $@
 
