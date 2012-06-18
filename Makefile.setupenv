@@ -456,7 +456,7 @@ $(CONFIG_PERL_INSTALL_LIST): $(CONFIG_PERL_MODULE_LIST_FILES) \
 
 # ---- Install from pmb's local copy ----
 
-pmb-install: pmb-pmtar-dir pmb-pmpp-dir \
+pmb-install: \
     pmb-install-update \
     pmb-install-install \
     pmb-perl-libs.txt
@@ -470,9 +470,11 @@ pmb-install-install:
 	$(MAKE) --makefile Makefile.setupenv pmb-install-local) || true
 
 pmb-install-local: \
+    pmb-pmtar-dir pmb-pmpp-dir \
     pmb-install-pp pmb-install-common pmb-install-xs
 
 pmb-install-local-or-remote: \
+    pmb-pmtar-dir pmb-pmpp-dir \
     pmb-install-pp \
     pmb-install-common-local-or-remote \
     pmb-install-xs-local-or-remote
