@@ -108,7 +108,7 @@ LPLACKUP_PATH = ./plackup
 
 lperl:
 	echo "#!/bin/sh" > $(LPERL_PATH)
-	echo "$(PERL_ENV) exec $(PERL) \"\$$@\"" >> $(LPERL_PATH)
+	echo "$(subst ",\",$(PERL_ENV)) exec $(PERL) \"\$$@\"" >> $(LPERL_PATH)
 	chmod ugo+x $(LPERL_PATH)
 
 lplackup: 
