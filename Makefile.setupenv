@@ -326,13 +326,15 @@ $(PMB_LOCAL_TEMP_INSTALL_DIR)/cpanm-common:
 	    $(PMB_CPANM_MIRROR_PMB_LOCAL_OR_REMOTE) \
 	    --save-dists=$(PMB_LOCAL_PMTAR_DIR) \
 	    --reinstall \
-	    ExtUtils::ParseXS Module::Build File::ShareDir::Install JSON::PP
+	    ExtUtils::ParseXS Module::Build File::ShareDir::Install JSON::PP \
+	    ExtUtils::MakeMaker
 	touch $@
 
 $(PMB_LOCAL_EMPTY_INSTALL_DIR)/common: $(PMB_LOCAL_TEMP_INSTALL_DIR)/cpanm
 	mkdir -p $(PMB_LOCAL_EMPTY_INSTALL_DIR)
 	$(_PMB_CPANM_) -L $(PMB_LOCAL_EMPTY_INSTALL_DIR) $(PMB_CPANM_MIRROR_PMB_LOCAL_ONLY) \
-	    ExtUtils::ParseXS Module::Build File::ShareDir::Install
+	    ExtUtils::ParseXS Module::Build File::ShareDir::Install \
+	    ExtUtils::MakeMaker
 	touch $@
 
 $(PMB_LOCAL_INSTALL_DIR)/common: $(PMB_LOCAL_TEMP_INSTALL_DIR)/cpanm
