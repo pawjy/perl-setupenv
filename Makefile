@@ -35,10 +35,10 @@ generatepm: %: Makefile-setupenv
 # ------ Examples of rules using Makefile.setup rules ------
 
 PROVE = prove
+PERL_ENV = PATH="$(abspath ./local/perl-$(PERL_VERSION)/pm/bin):$(PERL_PATH):$(PATH)" PERL5LIB="$(shell cat config/perl/libs.txt)"
 
 test: local-submodules carton-install config/perl/libs.txt
-	PATH=$(PERL_PATH):$(PATH) PERL5LIB=$(shell cat config/perl/libs.txt) \
-	    $(PROVE) t/*.t
+	$(PERL_ENV) $(PROVE) t/*.t
 
 GENERATEPM = local/generatepm/bin/generate-pm-package
 
