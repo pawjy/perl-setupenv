@@ -341,7 +341,7 @@ $(PMB_LOCAL_EMPTY_INSTALL_DIR)/common: $(PMB_LOCAL_TEMP_INSTALL_DIR)/cpanm
 $(PMB_LOCAL_INSTALL_DIR)/common: $(PMB_LOCAL_TEMP_INSTALL_DIR)/cpanm
 	$(_PMB_CPANM_) -L $(PMB_LOCAL_INSTALL_DIR) $(PMB_CPANM_MIRROR_PMB_LOCAL_ONLY) \
 	    --reinstall \
-	    ExtUtils::ParseXS Module::Build
+	    ExtUtils::ParseXS Module::Build ExtUtils::MakeMaker
 	touch $@ $(PMB_LOCAL_INSTALL_DIR)/common-local-or-remote
 
 $(PMB_LOCAL_INSTALL_DIR)/common-local-or-remote: \
@@ -349,7 +349,7 @@ $(PMB_LOCAL_INSTALL_DIR)/common-local-or-remote: \
 	$(_PMB_CPANM_) -L $(PMB_LOCAL_INSTALL_DIR) \
 	    $(PMB_CPANM_MIRROR_PMB_LOCAL_OR_REMOTE) \
 	    --reinstall \
-	    ExtUtils::ParseXS Module::Build
+	    ExtUtils::ParseXS Module::Build ExtUtils::MakeMaker
 	touch $@ $(PMB_LOCAL_INSTALL_DIR)/common
 
 # ---- Perl package list generation ----
