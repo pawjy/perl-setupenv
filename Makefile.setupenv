@@ -165,7 +165,7 @@ config/perl/submodules.txt:
 local/submodules/Makefile: config/perl/submodules.txt
 	mkdir -p local/submodules
 	echo "clone:" > $@
-	cat $< | perl -n -e 'chomp; undef $$branch; $$branch = $$1 if s{\s+(\S+)\s*$$}{}; m{([^/\s]+)$$}; $$dir = $$1; print "\t($(GIT) clone $$_ || (cd $$dir && $(GIT) pull))\n"; print "\tcd $$dir && ($(GIT) checkout -b $$branch origin/$$branch || $(GIT) checkout $$branch)\n" if $$branch' >> $@
+	cat $< | perl -n -e 'chomp; undef $$branch; $$branch = $$1 if s{\s+(\S+)\s*$$}{}; m{([^/\s]+)$$}; $$dir = $$1; print "\t($$(GIT) clone $$_ || (cd $$dir && $$(GIT) pull))\n"; print "\tcd $$dir && ($$(GIT) checkout -b $$branch origin/$$branch || $$(GIT) checkout $$branch)\n" if $$branch' >> $@
 
 local-submodules: local/submodules/Makefile
 	cd local/submodules && $(MAKE) clone
