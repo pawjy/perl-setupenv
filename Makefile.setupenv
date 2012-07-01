@@ -370,6 +370,7 @@ $(PMB_LOCAL_TEMP_INSTALL_DIR)/perl-modules: \
     $(CONFIG_PERL_MODULE_LIST_FILES) \
     $(PMB_LOCAL_TEMP_INSTALL_DIR)/cpanm
 	cat $(CONFIG_PERL_MODULE_LIST_FILES) | \
+	grep -v '^#' |
 	sort -u | \
 	$(PMB_CPANM_PERL_ENV) xargs -l20 -r -- \
 	$(PMB_CPANM_PERL) $(PMB_CPANM) --notest \
