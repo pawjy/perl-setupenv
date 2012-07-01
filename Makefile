@@ -14,7 +14,7 @@ PMB_PMPP_REPO_URL =
 
 Makefile-setupenv: Makefile.setupenv
 	$(MAKE) --makefile Makefile.setupenv setupenv-update \
-	    SETUPENV_MIN_REVISION=20120337
+	    SETUPENV_MIN_REVISION=20120338
 
 Makefile.setupenv:
 	$(WGET) -O $@ https://raw.github.com/wakaba/perl-setupenv/master/Makefile.setupenv
@@ -35,10 +35,10 @@ generatepm: %: Makefile-setupenv
 # ------ Examples of rules using Makefile.setup rules ------
 
 PROVE = prove
+PERL_ENV = PATH="$(abspath ./local/perl-$(PERL_VERSION)/pm/bin):$(PERL_PATH):$(PATH)" PERL5LIB="$(shell cat config/perl/libs.txt)"
 
 test: local-submodules carton-install config/perl/libs.txt
-	PATH=$(PERL_PATH):$(PATH) PERL5LIB=$(shell cat config/perl/libs.txt) \
-	    $(PROVE) t/*.t
+	$(PERL_ENV) $(PROVE) t/*.t
 
 GENERATEPM = local/generatepm/bin/generate-pm-package
 

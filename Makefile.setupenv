@@ -36,8 +36,9 @@ SSH = ssh
 
 REMOTEDEV_HOST = develop.test
 REMOTEDEV_PERL_VERSION = latest
+REMOTEDEV_GIT = git
 
-SETUPENV_CURRENT_REVISION = 20120337
+SETUPENV_CURRENT_REVISION = 20120338
 SETUPENV_MIN_REVISION = $(SETUPENV_CURRENT_REVISION)
 
 all:
@@ -90,7 +91,8 @@ endif
 	PATH="$(PERLBREW_ENV_PATH)" \
 	PERLBREW_ROOT="$(abspath local/perlbrew)" local/perlbrew/bin/perlbrew \
 	    install `cat local/perlbrew/_perlinfo/perl-$(PERL_VERSION).version` \
-	    --notest --as `cat local/perlbrew/_perlinfo/perl-$(PERL_VERSION).version` -j $(PERLBREW_PARALLEL_COUNT)
+	    --notest --as `cat local/perlbrew/_perlinfo/perl-$(PERL_VERSION).version` -j $(PERLBREW_PARALLEL_COUNT) || \
+	ls local/perlbrew/perls/`cat local/perlbrew/_perlinfo/perl-$(PERL_VERSION).version`/bin/perl
 ifeq "$(PERL_VERSION)" "latest"
 	PERLBREW_ROOT="$(abspath local/perlbrew)" local/perlbrew/bin/perlbrew \
 	    alias create `cat local/perlbrew/_perlinfo/perl-$(PERL_VERSION).version` perl-latest
@@ -163,8 +165,9 @@ config/perl/submodules.txt:
 
 local/submodules/Makefile: config/perl/submodules.txt
 	mkdir -p local/submodules
-	echo "clone:" > $@
-	cat $< | perl -n -e 'chomp; undef $$branch; $$branch = $$1 if s{\s+(\S+)\s*$$}{}; m{([^/\s]+)$$}; $$dir = $$1; print "\t($(GIT) clone $$_ || (cd $$dir && $(GIT) pull))\n"; print "\tcd $$dir && ($(GIT) checkout -b $$branch origin/$$branch || $(GIT) checkout $$branch)\n" if $$branch' >> $@
+	echo "GIT = git" > $@
+	echo "clone:" >> $@
+	cat $< | perl -n -e 'chomp; undef $$branch; $$branch = $$1 if s{\s+(\S+)\s*$$}{}; m{([^/\s]+)$$}; $$dir = $$1; print "\t(\$$(GIT) clone $$_ || (cd $$dir && \$$(GIT) pull))\n"; print "\tcd $$dir && (\$$(GIT) checkout -b $$branch origin/$$branch || \$$(GIT) checkout $$branch)\n" if $$branch' >> $@
 
 local-submodules: local/submodules/Makefile
 	cd local/submodules && $(MAKE) clone
@@ -325,19 +328,21 @@ $(PMB_LOCAL_TEMP_INSTALL_DIR)/cpanm-common:
 	    $(PMB_CPANM_MIRROR_PMB_LOCAL_OR_REMOTE) \
 	    --save-dists=$(PMB_LOCAL_PMTAR_DIR) \
 	    --reinstall \
-	    ExtUtils::ParseXS Module::Build File::ShareDir::Install JSON::PP
+	    ExtUtils::ParseXS Module::Build File::ShareDir::Install JSON::PP \
+	    ExtUtils::MakeMaker Archive::Zip
 	touch $@
 
 $(PMB_LOCAL_EMPTY_INSTALL_DIR)/common: $(PMB_LOCAL_TEMP_INSTALL_DIR)/cpanm
 	mkdir -p $(PMB_LOCAL_EMPTY_INSTALL_DIR)
 	$(_PMB_CPANM_) -L $(PMB_LOCAL_EMPTY_INSTALL_DIR) $(PMB_CPANM_MIRROR_PMB_LOCAL_ONLY) \
-	    ExtUtils::ParseXS Module::Build File::ShareDir::Install
+	    ExtUtils::ParseXS Module::Build File::ShareDir::Install \
+	    ExtUtils::MakeMaker Archive::Zip
 	touch $@
 
 $(PMB_LOCAL_INSTALL_DIR)/common: $(PMB_LOCAL_TEMP_INSTALL_DIR)/cpanm
 	$(_PMB_CPANM_) -L $(PMB_LOCAL_INSTALL_DIR) $(PMB_CPANM_MIRROR_PMB_LOCAL_ONLY) \
 	    --reinstall \
-	    ExtUtils::ParseXS Module::Build
+	    ExtUtils::ParseXS Module::Build ExtUtils::MakeMaker
 	touch $@ $(PMB_LOCAL_INSTALL_DIR)/common-local-or-remote
 
 $(PMB_LOCAL_INSTALL_DIR)/common-local-or-remote: \
@@ -345,7 +350,7 @@ $(PMB_LOCAL_INSTALL_DIR)/common-local-or-remote: \
 	$(_PMB_CPANM_) -L $(PMB_LOCAL_INSTALL_DIR) \
 	    $(PMB_CPANM_MIRROR_PMB_LOCAL_OR_REMOTE) \
 	    --reinstall \
-	    ExtUtils::ParseXS Module::Build
+	    ExtUtils::ParseXS Module::Build ExtUtils::MakeMaker
 	touch $@ $(PMB_LOCAL_INSTALL_DIR)/common
 
 # ---- Perl package list generation ----
@@ -453,7 +458,7 @@ $(CONFIG_PERL_INSTALL_LIST): $(CONFIG_PERL_MODULE_LIST_FILES) \
 	xargs -l1 -i% -- \
 	    sh -c "grep \"%\" $(PMB_LOCAL_TEMP_DIR)/02packages.details.txt.all || echo \"% undef %\"" | \
 	sort -u -k 3,3 | \
-	sed 's/^\(\S\+\)\s\+\(\S\+\).*/\1~\2/g; s/~undef//; s/~v/~/; s/^MailTools$$/Mail/; s/^L4pResurrectable~.\+$$/Log::Log4perl/' > $@
+	sed 's/^\(\S\+\)\s\+\(\S\+\).*/\1~\2/g; s/~undef//; s/~v/~/; s/^MailTools\?$$/Mail/; s/^charstar/version/; s/^L4pResurrectable~.\+$$/Log::Log4perl/' > $@
 
 # ---- Install from pmb's local copy ----
 
@@ -532,7 +537,7 @@ config/remotedev/getreponame.pl:
 	echo 'print $$repo;' >> $@
 
 remotedev-upload: local/remotedev/remote-directory-name.txt config/remotedev/getreponame.pl
-	$(SSH) $(REMOTEDEV_HOST) "mkdir -p $(shell cat local/remotedev/remote-directory-name.txt) && cd $(shell cat local/remotedev/remote-directory-name.txt) && (($(GIT) clone $(shell $(PERL) config/remotedev/getreponame.pl) repo && cd repo && $(GIT) checkout -b $(shell $(GIT) name-rev --name-only HEAD) origin/$(shell $(GIT) name-rev --name-only HEAD) && $(GIT) submodule update --init) || (cd repo && ($(GIT) checkout -b $(shell $(GIT) name-rev --name-only HEAD) origin/$(shell $(GIT) name-rev --name-only HEAD) || $(GIT) checkout $(shell $(GIT) name-rev --name-only HEAD)) && $(GIT) pull && $(GIT) submodule update --init))";
+	$(SSH) $(REMOTEDEV_HOST) "mkdir -p $(shell cat local/remotedev/remote-directory-name.txt) && cd $(shell cat local/remotedev/remote-directory-name.txt) && (($(REMOTEDEV_GIT) clone $(shell $(PERL) config/remotedev/getreponame.pl) repo && cd repo && $(REMOTEDEV_GIT) checkout -b $(shell $(REMOTEDEV_GIT) name-rev --name-only HEAD) origin/$(shell $(REMOTEDEV_GIT) name-rev --name-only HEAD) && $(REMOTEDEV_GIT) submodule update --init) || (cd repo && ($(REMOTEDEV_GIT) checkout -b $(shell $(REMOTEDEV_GIT) name-rev --name-only HEAD) origin/$(shell $(REMOTEDEV_GIT) name-rev --name-only HEAD) || $(REMOTEDEV_GIT) checkout $(shell $(REMOTEDEV_GIT) name-rev --name-only HEAD)) && $(REMOTEDEV_GIT) pull && $(REMOTEDEV_GIT) submodule update --init))";
 
 remotedev-setup: remotedev-upload
 	$(SSH) $(REMOTEDEV_HOST) "cd $(shell cat local/remotedev/remote-directory-name.txt)/repo && make Makefile.setupenv PERL_VERSION=$(REMOTEDEV_PERL_VERSION) && make --makefile Makefile.setupenv setupenv-update SETUPENV_MIN_REVISION=$(SETUPENV_CURRENT_REVISION) && make --makefile Makefile.setupenv local-perl PERL_VERSION=$(REMOTEDEV_PERL_VERSION) PMBUNDLER_REPO_URL=$(PMBUNDLER_REPO_URL)";
