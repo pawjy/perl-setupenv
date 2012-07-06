@@ -443,7 +443,8 @@ $(CONFIG_PERL_INSTALL_LIST): $(CONFIG_PERL_MODULE_LIST_FILES) \
 	    http://$(CPAN_SEARCH_HOST)/CPAN/modules/02packages.details.txt.gz
 	zcat $(PMB_LOCAL_TEMP_DIR)/02packages.details.txt.cpan.gz | \
 	    grep -v '^MyApp' | \
-	    grep -v '^mod_perl' \
+	    grep -v '^mod_perl' | \
+	    grep -v '^Demo' \
 	    > $(PMB_LOCAL_TEMP_DIR)/02packages.details.txt.all
 	cat $(PMB_LOCAL_TEMP_DIR)/02packages.details.txt.body >> $(PMB_LOCAL_TEMP_DIR)/02packages.details.txt.all
 	echo "ExtUtils::ParseXS Module::Build File::ShareDir::Install `cat $(CONFIG_PERL_MODULE_LIST_FILES)`" | \
