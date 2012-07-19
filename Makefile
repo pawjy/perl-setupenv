@@ -19,7 +19,7 @@ Makefile-setupenv: Makefile.setupenv
 Makefile.setupenv:
 	$(WGET) -O $@ https://raw.github.com/wakaba/perl-setupenv/master/Makefile.setupenv
 
-lperl lplackup local-perl perl-version perl-exec \
+lperl lprove lplackup local-perl perl-version perl-exec \
 local-submodules config/perl/libs.txt \
 carton-install carton-update carton-install-module \
 remotedev-test remotedev-reset remotedev-reset-setupenv \
