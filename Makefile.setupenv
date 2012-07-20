@@ -258,6 +258,7 @@ pmbundler-install-module: pmbundler-repo-update
 #   pmb             $(PMB_LOCAL_PMB_DIR)
 #     bin           $(PMB_LOCAL_BIN_DIR)
 #     tmp           $(PMB_LOCAL_TEMP_DIR)
+#       cpanm       $(PMB_LOCAL_TEMP_CPANM_DIR)
 #       install     $(PMB_LOCAL_TEMP_INSTALL_DIR)
 #         lib
 #           perl5   $(PMB_LOCAL_TEMP_PERLLIB_DIR)
@@ -271,6 +272,7 @@ PMB_LOCAL_PMB_DIR = $(PMB_LOCAL_DIR)/pmb
 PMB_LOCAL_INSTALL_DIR = $(PMB_LOCAL_DIR)/pm
 PMB_LOCAL_BIN_DIR = $(PMB_LOCAL_PMB_DIR)/bin
 PMB_LOCAL_TEMP_DIR = $(PMB_LOCAL_PMB_DIR)/tmp
+PMB_LOCAL_TEMP_CPANM_DIR = $(PMB_LOCAL_TEMP_DIR)/cpanm
 PMB_LOCAL_TEMP_INSTALL_DIR = $(PMB_LOCAL_TEMP_DIR)/install
 PMB_LOCAL_TEMP_PERLLIB_DIR = $(PMB_LOCAL_TEMP_INSTALL_DIR)/lib/perl5
 PMB_LOCAL_EMPTY_INSTALL_DIR = $(PMB_LOCAL_TEMP_DIR)/empty
@@ -300,7 +302,7 @@ endif
 
 GZIP = gzip
 PMB_CPANM = $(PMB_LOCAL_BIN_DIR)/cpanm
-PMB_CPANM_PERL_ENV = $(PERL_ENV)
+PMB_CPANM_PERL_ENV = $(PERL_ENV) PERL_CPANM_HOME="$(PMB_LOCAL_TEMP_CPANM_DIR)"
 PMB_CPANM_PERL = $(PERL) -I$(PMB_LOCAL_TEMP_PERLLIB_DIR)
 _PMB_CPANM_ = $(PMB_CPANM_PERL_ENV) $(PMB_CPANM_PERL) $(PMB_CPANM) --notest
 
@@ -373,7 +375,7 @@ CONFIG_PERL_INSTALL_LIST = config/perl/pmb-install.txt
 
 pmb-update: pmb-pmtar-dir pmb-pmpp-dir \
     pmb-update-install-dir pmb-update-index pmb-update-pp \
-    $(CONFIG_PERL_INSTALL_LIST)
+    $(CONFIG_PERL_INSTALL_LIST) pmb-delete-temp-cpanm
 
 pmb-update-install-dir: $(PMB_LOCAL_TEMP_INSTALL_DIR)/perl-modules
 
@@ -468,12 +470,16 @@ $(CONFIG_PERL_INSTALL_LIST): $(CONFIG_PERL_MODULE_LIST_FILES) \
 	sort -u -k 3,3 | \
 	sed 's/^\(\S\+\)\s\+\(\S\+\).*/\1~\2/g; s/~undef//; s/~v/~/; s/^MailTools\?$$/Mail/; s/^charstar/version/; s/^L4pResurrectable~.\+$$/Log::Log4perl/' > $@
 
+pmb-delete-temp-cpanm:
+	rm -fr $(PMB_LOCAL_TEMP_CPANM_DIR)
+
 # ---- Install from pmb's local copy ----
 
 pmb-install: \
     pmb-install-update \
     pmb-install-install \
-    pmb-perl-libs.txt
+    pmb-perl-libs.txt \
+    pmb-delete-temp-cpanm
 
 pmb-install-update:
 	ls $(PMB_LOCAL_PMTAR_DIR)/modules/02packages.details.txt.gz || \
