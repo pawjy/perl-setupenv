@@ -537,10 +537,13 @@ pmb-Makefile.PL:
 	echo "Meta->write; Meta->write_mymeta_json;" >> Makefile.PL
 
 pmb-rewrite-shebang:
-	-ls $(PERL_PATH)/perl && ( \
+	ls $(PERL_PATH)/perl && ( \
 	cd $(PMB_LOCAL_INSTALL_DIR)/bin && ls | \
-	xargs -l1 -- sed '1 s/#!\/usr\/bin\/perl/#!$(subst /,\/,$(PERL_PATH)/perl)/' -i \
-	)
+        xargs -l1 -- sed '1 s/#!.*perl/#!$(subst /,\/,$(PERL_PATH)/perl)/' -i \
+        ) || ( \
+        cd $(PMB_LOCAL_INSTALL_DIR)/bin && ls | \
+        xargs -l1 -- sed '1 s/#!.*perl/#!$(subst /,\/,$(shell which perl))/' -i \
+        )
 
 # ------ remotedev - Run tests at remote host ------
 
