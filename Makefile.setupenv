@@ -330,6 +330,7 @@ $(PMB_LOCAL_TEMP_INSTALL_DIR)/cpanm-Module-CoreList:
 	$(_PMB_CPANM_) -l $(PMB_LOCAL_TEMP_INSTALL_DIR) \
 	    $(PMB_CPANM_MIRROR_PMB_LOCAL_OR_REMOTE) \
 	    --save-dists=$(PMB_LOCAL_PMTAR_DIR) --reinstall Module::CoreList~2.70
+	mkdir -p $(PMB_LOCAL_TEMP_INSTALL_DIR)
 	touch $@
 # Module::CoreList 2.71 requires Perl 5.14...
 
