@@ -326,7 +326,7 @@ $(PMB_LOCAL_TEMP_INSTALL_DIR)/cpanm-deps: \
 	touch $@
 
 $(PMB_LOCAL_TEMP_INSTALL_DIR)/cpanm-Module-CoreList:
-	$(PERL_ENV) $(PERL) -e 'use 5.9.2' || \
+	$(PERL_ENV) $(PERL) -e 'use Module::CoreList' || \
 	$(_PMB_CPANM_) -l $(PMB_LOCAL_TEMP_INSTALL_DIR) \
 	    $(PMB_CPANM_MIRROR_PMB_LOCAL_OR_REMOTE) \
 	    --save-dists=$(PMB_LOCAL_PMTAR_DIR) --reinstall Module::CoreList~2.70
