@@ -1,0 +1,63 @@
+pmb
+~~~
+
+pmb is a tool to setup the runtime environment for Perl applications,
+built on top of Perl runtime infrastructure such as perlbrew and
+cpanm.
+
+* Design goals or requirements
+
+Perl versions.  It must support Perl 5.8 or later.  It should be
+possible to choose the "latest" version of Perl rather than some
+specific version of Perl.
+
+Platforms.  It should support various development environments on
+Unix-like platforms.  In particular, it should support CentOS, Debian
+GNU/Linux, Mac OS X, and Cygwin with common development tools
+installed (including, but not limited to, bash, sed, make, gcc, tar,
+wget, and git).  It should not depend on version or available modules
+of system perl.  It must not depend on existence of non-standard tools
+(including, but not limited to, perlbrew, cpanm, or carton).  Note
+that it may use non-standard tools by installing them by itself, if
+required.
+
+Locality.  It must not add, modify, or delete any file outside of the
+directory for the application, or the directories specified by the
+application.  It should not request the permission for files not
+accessible by the owner of the application (or the "current" user).
+
+Git submodules.  It must support Git submodules.  That is, it must be
+possible to merge the list of required Perl modules from submodules
+with ones of the application proper.
+
+Declarative list of required modules.  It must be possible to list the
+Perl modules required by the application (or submodule) in declarative
+manner.  That is, it must be possible to extract the list of required
+modules without executing application-specific scripts.  It may also
+support non-declarative formats to describe dependency.
+
+CPAN modules.  It must be able to install Perl modules from CPAN by
+their module names.  It must be able to resolve dependency of such
+Perl modules for the installation, without inferring the distribution.
+
+Git repositories.  It must be able to clone additional Git
+repositories required by application but not added as submodules.
+
+Packaging.  It must be possible to create the collection of packages
+of required Perl modules for later use in installation or deployment
+processes (so-called "bundle" feature).  It must be possible to
+incrementally update the collection when new modules are added to the
+list of required modules (without completely regenerating the
+collection).  It should be possible to create the collection of
+required pure-Perl modules that can be used without module-specific
+installation process.  It must be possible to place these collections
+outside of the application repository.  These collections should not
+depend on Perl version, or existence of non-core Perl modules.  It
+must be possible to install the required Perl modules using these
+collections without accessing CPAN sites.
+
+Automation.  It must be possible to build the runtime environment
+without user interaction.
+
+At the time of initial development of pmb, no single tool conforms to
+these requirements, which is why pmb has been developed.
