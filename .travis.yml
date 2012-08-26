@@ -1,0 +1,13 @@
+perl:
+  - "5.16"
+  - "5.10"
+before_install: git submodule update --init
+install: "make test-deps"
+script: "make test"
+notifications:
+  email:
+    - wakaba.5081@gmail.com
+  irc:
+    channels:
+      - "suika.fam.cx#mechanize"
+    use_notice: true
