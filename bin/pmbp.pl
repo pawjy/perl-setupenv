@@ -34,16 +34,22 @@ GetOptions (
   '--perl-version=s' => \$perl_version,
 
   '--install-module=s' => sub {
-    push @command, {type => 'install-module', module => $_[1]};
+    push @command, {type => 'install-module', module_name => $_[1]};
   },
   '--scandeps=s' => sub {
-    push @command, {type => 'scandeps', module => $_[1]};
+    push @command, {type => 'scandeps', module_name => $_[1]};
+  },
+  '--select-module=s' => sub {
+    push @command, {type => 'select-module', module_name => $_[1]};
   },
   '--read-package-list=s' => sub {
     push @command, {type => 'read-package-list', file_name => $_[1]};
   },
   '--write-package-list=s' => sub {
     push @command, {type => 'write-package-list', file_name => $_[1]};
+  },
+  '--write-pmb-install-list=s' => sub {
+    push @command, {type => 'write-pmb-install-list', file_name => $_[1]};
   },
   '--print-libs' => sub {
     push @command, {type => 'print-libs'};
@@ -73,7 +79,8 @@ my $packages_details_file_name = $dists_dir_name . '/modules/02packages.details.
 my $install_json_dir_name = $dists_dir_name . '/meta';
 my $deps_json_dir_name = $dists_dir_name . '/deps';
 push @cpanm_option, map { ('--mirror' => $_) } @cpan_mirror;
-my $PackageList = [];
+my $ModuleList = [];
+my $SelectedModuleList = [];
 
 sub install_modules ($);
 sub install_support_modules ($);
@@ -86,6 +93,13 @@ sub info ($) {
 sub info_writing ($$) {
   print STDERR "Writing ", $_[0], " ", File::Spec->abs2rel ($_[1]), "...\n";
 } # info_writing
+
+sub pathname2distvname ($) {
+  my $path = shift;
+  $path =~ s{^.+/}{};
+  $path =~ s{\.tar\.gz$}{};
+  return $path;
+} # pathname2distvname
 
 sub mkdir_for_file ($) {
   my $file_name = $_[0];
@@ -132,6 +146,14 @@ sub save_url ($$$) {
     return JSON->new->utf8->allow_blessed->convert_blessed->allow_nonref->pretty->canonical->decode ($_[0]);
   } # decode_json
 }
+
+sub load_json ($) {
+  open my $file, '<', $_[0] or die "$0: $_[0]: $!";
+  local $/ = undef;
+  my $json = decode_json (<$file>);
+  close $file;
+  return $json;
+} # load_json
 
 sub prepare_cpanm () {
   return if -f $cpanm;
@@ -217,10 +239,7 @@ sub cpanm ($$) {
       }
     };
     if ($args->{scandeps} and -f $json_temp_file->filename) {
-      open my $file, '<', $json_temp_file->filename
-          or die "$0: @{[$json_temp_file->filename]}: $!";
-      local $/ = undef;
-      $result->{output_json} = decode_json (<$file>);
+      $result->{output_json} = load_json $json_temp_file->filename;
     }
   } # COMMAND
   return $result;
@@ -239,11 +258,9 @@ sub scandeps ($;%) {
   my ($modules, %args) = @_;
 
   if ($args{skip_if_found} and 1 == keys %$modules) {
-    for (@$PackageList) {
+    for (@$ModuleList) {
       if (defined $modules->{$_->{name}}) {
-        my $path = $_->{path};
-        $path =~ s{^.+/}{};
-        $path =~ s{\.tar\.gz$}{};
+        my $path = pathname2distvname $_->{path};
         my $json_file_name = "$deps_json_dir_name/$path.json";
         return if -f $json_file_name;
       }
@@ -297,15 +314,12 @@ sub scandeps ($;%) {
     my $file_name = $deps_json_dir_name . '/' . $info->[2] . '.json';
     info_writing "json file", $file_name;
     if (-f $file_name) {
-      open my $file, '<', $file_name or die "$0: $file_name: $!";
-      local $/ = undef;
-      my $json = decode_json (<$file>);
+      my $json = load_json $file_name;
       if (defined $json and ref $json eq 'ARRAY' and ref $json->[2] eq 'HASH') {
         for (keys %{$json->[2]}) {
           $info->[3]->{$_} ||= $json->[2]->{$_};
         }
       }
-      close $file;
     }
     open my $file, '>', $file_name or die "$0: $file_name: $!";
     print $file encode_json $info;
@@ -315,6 +329,32 @@ sub scandeps ($;%) {
 
   return {pathname => $dist, package_list => $package_list};
 } # scandeps
+
+sub load_deps ($$) {
+  my ($module_list, $module_name) = @_;
+  
+  my $module = [grep { $_->{name} eq $module_name } @$module_list]->[0]
+      or return undef;
+
+  my $result = [];
+
+  my @path = ($module->{path});
+  my %done;
+  while (@path) {
+    my $path = shift @path;
+    next if $done{$path}++;
+    my $dist = pathname2distvname $path;
+    my $json_file_name = "$deps_json_dir_name/$dist.json";
+    unless (-f $json_file_name) {
+      info "$json_file_name not found";
+      return undef;
+    }
+    my $json = load_json $json_file_name;
+    push @path, keys %{$json->[3]};
+    unshift @$result, {name => $json->[0], version => $json->[1], path => $json->[2]};
+  }
+  return $result;
+} # load_deps
 
 sub copy_install_jsons () {
   make_path $install_json_dir_name;
@@ -377,6 +417,26 @@ sub write_package_list ($$) {
   close $details;
 } # write_package_list
 
+sub write_pmb_install_list ($$) {
+  my ($package_list => $file_name) = @_;
+  
+  my $result = [];
+  
+  for my $module (@$package_list) {
+    my $path = pathname2distvname $module->{path};
+    my $json_file_name = "$deps_json_dir_name/$path.json";
+    push @$result, [$module->{name}, $module->{version}];
+  }
+
+  info_writing "pmb-install list", $file_name;
+  mkdir_for_file $file_name;
+  open my $file, '>', $file_name or die "$0: $file_name: $!";
+  for (@$result) {
+    print $file $_->[0] . (defined $_->[1] ? '~' . $_->[1] : '') . "\n";
+  }
+  close $file;
+} # write_pmb_install_list
+
 sub destroy_cpanm_home () {
   remove_tree $cpanm_home_dir_name;
 } # destroy_cpanm_home
@@ -387,17 +447,29 @@ sub destroy () {
 
 for my $command (@command) {
   if ($command->{type} eq 'install-module') {
-    info "Install $command->{module}...";
-    install_modules {$command->{module} => ''};
+    info "Install $command->{module_name}...";
+    install_modules {$command->{module_name} => ''};
   } elsif ($command->{type} eq 'scandeps') {
-    info "Scanning dependency of $command->{module}...";
-    my $result = scandeps {$command->{module} => ''}, skip_if_found => 1;
-    push @$PackageList, @{$result->{package_list}} if $result;
+    info "Scanning dependency of $command->{module_name}...";
+    my $result = scandeps {$command->{module_name} => ''}, skip_if_found => 1;
+    push @$ModuleList, @{$result->{package_list}} if $result;
+  } elsif ($command->{type} eq 'select-module') {
+    my $mods = load_deps $ModuleList => $command->{module_name};
+    unless ($mods) {
+      info "Scanning dependency of $command->{module_name}...";
+      my $result = scandeps {$command->{module_name} => ''};
+      push @$ModuleList, @{$result->{package_list}};
+      $mods = load_deps $ModuleList => $command->{module_name};
+      die "Can't detect dependency of $command->{module_name}\n" unless $mods;
+    }
+    push @$SelectedModuleList, @$mods;
   } elsif ($command->{type} eq 'read-package-list') {
     my $list = read_package_list $command->{file_name};
-    push @$PackageList, @$list;
+    push @$ModuleList, @$list;
   } elsif ($command->{type} eq 'write-package-list') {
-    write_package_list $PackageList => $command->{file_name};
+    write_package_list $ModuleList => $command->{file_name};
+  } elsif ($command->{type} eq 'write-pmb-install-list') {
+    write_pmb_install_list $SelectedModuleList => $command->{file_name};
   } elsif ($command->{type} eq 'print-libs') {
     my @lib = grep { defined } map { abs_path $_ } map { glob $_ }
       qq{$root_dir_name/lib},
