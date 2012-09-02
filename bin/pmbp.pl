@@ -61,6 +61,7 @@ my $cpanm_dir_name = $temp_dir_name . '/cpanm';
 my $cpanm_home_dir_name = $cpanm_dir_name . '/tmp';
 my $cpanm = $cpanm_dir_name . '/bin/cpanm';
 my $cpanm_lib_dir_name = $cpanm_dir_name . '/lib/perl5';
+unshift @INC, $cpanm_lib_dir_name; ## Should not use XS modules.
 my $installed_dir_name = $local_dir_name . '/pm';
 my $log_dir_name = $temp_dir_name . '/logs';
 $dists_dir_name ||= $temp_dir_name . '/pmtar';
