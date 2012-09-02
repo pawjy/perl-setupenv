@@ -15,9 +15,7 @@ grep FCGI $json > /dev/null || (echo "not ok 2" && exit 1)
 echo "ok 2"
 
 libs=`perl $pmbp --root-dir-name="$tempdir" --print-libs`
-echo PERL5LIB=$libs
-PERL5LIB="$libs" perl -e 'use CGI::Carp' \
-    && (echo "not ok 3" && exit 1) \
-    || (echo "ok 3")
+#echo PERL5LIB=$libs
+perl -e '@INC = split /:/, shift; eval { use CGI::Carp } ? die "not ok 3\n" : print "ok 3\n"' "$libs" || exit 1
 
 rm -fr $tempdir
