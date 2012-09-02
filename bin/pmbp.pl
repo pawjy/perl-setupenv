@@ -106,7 +106,7 @@ sub copy_log_file ($$) {
 } # copy_log_file
 
 sub save_url ($$$) {
-  system "cd @{[quotemeta $_[1]]} && wget -N @{[quotemeta $_[0]]} 1>&2";
+  system "wget -O @{[quotemeta qq{$_[1]/$_[2]}]} @{[quotemeta $_[0]]} 1>&2";
   die "Failed to download <$_[0]>\n" unless -f $_[1] . '/' . $_[2];
 } # save_url
 
