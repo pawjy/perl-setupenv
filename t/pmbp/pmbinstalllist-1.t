@@ -24,7 +24,7 @@ perl $pmbp --root-dir-name="$tempdir" \
     --write-pmb-install-list "$pmbitxt"
 
 (grep Path::Class~ "$pmbitxt" > /dev/null || (echo "not ok 4" && false)) && echo "ok 4"
-(grep K/KW/KWILLIAMS/Path-Class "$pmbitxt" > /dev/null || (echo "not ok 5" && false)) && echo "ok 5"
+(grep K/KW/KWILLIAMS/Path-Class "$pmbitxt" > /dev/null || (echo "ok 5" && false)) && echo "not ok 5"
 (grep DBI~ "$pmbitxt" > /dev/null || (echo "not ok 6" && false)) && echo "ok 6"
 (grep Test::mysqld~ "$pmbitxt" > /dev/null || (echo "not ok 7" && false)) && echo "ok 7"
 (grep Test::Requires~ "$pmbitxt" > /dev/null || (echo "not ok 8" && false)) && echo "ok 8"
