@@ -51,6 +51,9 @@ GetOptions (
   '--write-pmb-install-list=s' => sub {
     push @command, {type => 'write-pmb-install-list', file_name => $_[1]};
   },
+  '--write-install-module-index=s' => sub {
+    push @command, {type => 'write-install-module-index', file_name => $_[1]};
+  },
   '--print-libs' => sub {
     push @command, {type => 'print-libs'};
   },
@@ -184,7 +187,7 @@ sub cpanm ($$) {
                ($args->{skip_satisfied} ? '--skip-satisfied' : ()),
 #XXX               '--mirror-index' => $packages_details_file_name . '.gz',
                @cpanm_option,
-               ($args->{scandeps} ? ('--scandeps', '--format=json') : ()),
+               ($args->{scandeps} ? ('--scandeps', '--format=json', '--force') : ()),
                keys %$modules);
     info join ' ', 'PERL_CPANM_HOME=' . $cpanm_home_dir_name, @cmd;
     my $json_temp_file = File::Temp->new;
@@ -351,7 +354,7 @@ sub load_deps ($$) {
     }
     my $json = load_json $json_file_name;
     push @path, keys %{$json->[3]};
-    unshift @$result, {name => $json->[0], version => $json->[1], path => $json->[2]};
+    unshift @$result, {name => $json->[0], version => $json->[1], path => $path};
   }
   return $result;
 } # load_deps
@@ -423,8 +426,6 @@ sub write_pmb_install_list ($$) {
   my $result = [];
   
   for my $module (@$module_index) {
-    my $path = pathname2distvname $module->{path};
-    my $json_file_name = "$deps_json_dir_name/$path.json";
     push @$result, [$module->{name}, $module->{version}];
   }
 
@@ -436,6 +437,11 @@ sub write_pmb_install_list ($$) {
   }
   close $file;
 } # write_pmb_install_list
+
+sub write_install_module_index ($$) {
+  my ($module_index => $file_name) = @_;
+  write_module_index $module_index => $file_name;
+} # write_install_module_index
 
 sub destroy_cpanm_home () {
   remove_tree $cpanm_home_dir_name;
@@ -470,6 +476,8 @@ for my $command (@command) {
     write_module_index $ModuleIndex => $command->{file_name};
   } elsif ($command->{type} eq 'write-pmb-install-list') {
     write_pmb_install_list $SelectedModuleIndex => $command->{file_name};
+  } elsif ($command->{type} eq 'write-install-module-index') {
+    write_install_module_index $SelectedModuleIndex => $command->{file_name};
   } elsif ($command->{type} eq 'print-libs') {
     my @lib = grep { defined } map { abs_path $_ } map { glob $_ }
       qq{$root_dir_name/lib},
