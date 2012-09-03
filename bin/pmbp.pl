@@ -42,11 +42,11 @@ GetOptions (
   '--select-module=s' => sub {
     push @command, {type => 'select-module', module_name => $_[1]};
   },
-  '--read-package-list=s' => sub {
-    push @command, {type => 'read-package-list', file_name => $_[1]};
+  '--read-module-index=s' => sub {
+    push @command, {type => 'read-module-index', file_name => $_[1]};
   },
-  '--write-package-list=s' => sub {
-    push @command, {type => 'write-package-list', file_name => $_[1]};
+  '--write-module-index=s' => sub {
+    push @command, {type => 'write-module-index', file_name => $_[1]};
   },
   '--write-pmb-install-list=s' => sub {
     push @command, {type => 'write-pmb-install-list', file_name => $_[1]};
@@ -79,8 +79,8 @@ my $packages_details_file_name = $dists_dir_name . '/modules/02packages.details.
 my $install_json_dir_name = $dists_dir_name . '/meta';
 my $deps_json_dir_name = $dists_dir_name . '/deps';
 push @cpanm_option, map { ('--mirror' => $_) } @cpan_mirror;
-my $ModuleList = [];
-my $SelectedModuleList = [];
+my $ModuleIndex = [];
+my $SelectedModuleIndex = [];
 
 sub install_modules ($);
 sub install_support_modules ($);
@@ -258,7 +258,7 @@ sub scandeps ($;%) {
   my ($modules, %args) = @_;
 
   if ($args{skip_if_found} and 1 == keys %$modules) {
-    for (@$ModuleList) {
+    for (@$ModuleIndex) {
       if (defined $modules->{$_->{name}}) {
         my $path = pathname2distvname $_->{path};
         my $json_file_name = "$deps_json_dir_name/$path.json";
@@ -306,7 +306,7 @@ sub scandeps ($;%) {
 
   $result = $convert_list->($result->{output_json} || {});
 
-  my $package_list = [];
+  my $module_index = [];
 
   make_path $deps_json_dir_name;
   for my $path (keys %$result) {
@@ -324,10 +324,10 @@ sub scandeps ($;%) {
     open my $file, '>', $file_name or die "$0: $file_name: $!";
     print $file encode_json $info;
 
-    push @$package_list, {path => $path, name => $info->[0], version => $info->[1]};
+    push @$module_index, {path => $path, name => $info->[0], version => $info->[1]};
   }
 
-  return {pathname => $dist, package_list => $package_list};
+  return {pathname => $dist, module_index => $module_index};
 } # scandeps
 
 sub load_deps ($$) {
@@ -372,7 +372,7 @@ sub copy_install_jsons () {
 # for (keys %{$data->{provides}}) {
 # $ver = $data->{provides}->{$_}->{version} || "undef";
 
-sub read_package_list ($) {
+sub read_module_index ($) {
   my $file_name = shift;
   my $result = [];
   return $result unless -f $file_name;
@@ -386,9 +386,9 @@ sub read_package_list ($) {
     }
   }
   return $result;
-} # read_package_list
+} # read_module_index
 
-sub write_package_list ($$) {
+sub write_module_index ($$) {
   my ($modules => $file_name) = @_;
   my @list;
   for my $module (@$modules) {
@@ -415,14 +415,14 @@ sub write_package_list ($$) {
   my %printed;
   print $details join '', sort { $a cmp $b } grep { not $printed{$_}++ } @list;
   close $details;
-} # write_package_list
+} # write_module_index
 
 sub write_pmb_install_list ($$) {
-  my ($package_list => $file_name) = @_;
+  my ($module_index => $file_name) = @_;
   
   my $result = [];
   
-  for my $module (@$package_list) {
+  for my $module (@$module_index) {
     my $path = pathname2distvname $module->{path};
     my $json_file_name = "$deps_json_dir_name/$path.json";
     push @$result, [$module->{name}, $module->{version}];
@@ -452,24 +452,24 @@ for my $command (@command) {
   } elsif ($command->{type} eq 'scandeps') {
     info "Scanning dependency of $command->{module_name}...";
     my $result = scandeps {$command->{module_name} => ''}, skip_if_found => 1;
-    push @$ModuleList, @{$result->{package_list}} if $result;
+    push @$ModuleIndex, @{$result->{module_index}} if $result;
   } elsif ($command->{type} eq 'select-module') {
-    my $mods = load_deps $ModuleList => $command->{module_name};
+    my $mods = load_deps $ModuleIndex => $command->{module_name};
     unless ($mods) {
       info "Scanning dependency of $command->{module_name}...";
       my $result = scandeps {$command->{module_name} => ''};
-      push @$ModuleList, @{$result->{package_list}};
-      $mods = load_deps $ModuleList => $command->{module_name};
+      push @$ModuleIndex, @{$result->{module_index}};
+      $mods = load_deps $ModuleIndex => $command->{module_name};
       die "Can't detect dependency of $command->{module_name}\n" unless $mods;
     }
-    push @$SelectedModuleList, @$mods;
-  } elsif ($command->{type} eq 'read-package-list') {
-    my $list = read_package_list $command->{file_name};
-    push @$ModuleList, @$list;
-  } elsif ($command->{type} eq 'write-package-list') {
-    write_package_list $ModuleList => $command->{file_name};
+    push @$SelectedModuleIndex, @$mods;
+  } elsif ($command->{type} eq 'read-module-index') {
+    my $list = read_module_index $command->{file_name};
+    push @$ModuleIndex, @$list;
+  } elsif ($command->{type} eq 'write-module-index') {
+    write_module_index $ModuleIndex => $command->{file_name};
   } elsif ($command->{type} eq 'write-pmb-install-list') {
-    write_pmb_install_list $SelectedModuleList => $command->{file_name};
+    write_pmb_install_list $SelectedModuleIndex => $command->{file_name};
   } elsif ($command->{type} eq 'print-libs') {
     my @lib = grep { defined } map { abs_path $_ } map { glob $_ }
       qq{$root_dir_name/lib},

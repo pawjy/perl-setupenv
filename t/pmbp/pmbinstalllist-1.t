@@ -6,9 +6,9 @@ tempdir=`perl -MFile::Temp=tempdir -e 'print tempdir'`/testapp
 pmbitxt=$tempdir/pmb-install.txt
 
 perl $pmbp --root-dir-name="$tempdir" \
-    --read-package-list "$tempdir/index.txt" \
+    --read-module-index "$tempdir/index.txt" \
     --select-module DBI --select-module Test::mysqld \
-    --write-package-list "$tempdir/index.txt" \
+    --write-module-index "$tempdir/index.txt" \
     --write-pmb-install-list "$pmbitxt"
 
 (grep DBI~ "$pmbitxt" > /dev/null || (echo "not ok 1" && false)) && echo "ok 1"
@@ -16,10 +16,10 @@ perl $pmbp --root-dir-name="$tempdir" \
 (grep Test::Requires~ "$pmbitxt" > /dev/null || (echo "not ok 3" && false)) && echo "ok 3"
 
 perl $pmbp --root-dir-name="$tempdir" \
-    --read-package-list "$tempdir/index.txt" \
+    --read-module-index "$tempdir/index.txt" \
     --select-module DBI --select-module Test::mysqld \
     --select-module Path::Class \
-    --write-package-list "$tempdir/index.txt" \
+    --write-module-index "$tempdir/index.txt" \
     --write-pmb-install-list "$pmbitxt"
 
 (grep Path::Class~ "$pmbitxt" > /dev/null || (echo "not ok 4" && false)) && echo "ok 4"
@@ -28,9 +28,9 @@ perl $pmbp --root-dir-name="$tempdir" \
 (grep Test::Requires~ "$pmbitxt" > /dev/null || (echo "not ok 7" && false)) && echo "ok 7"
 
 perl $pmbp --root-dir-name="$tempdir" \
-    --read-package-list "$tempdir/index.txt" \
+    --read-module-index "$tempdir/index.txt" \
     --select-module CGI::Carp \
-    --write-package-list "$tempdir/index.txt" \
+    --write-module-index "$tempdir/index.txt" \
     --write-pmb-install-list "$pmbitxt"
 
 (grep CGI~ "$pmbitxt" > /dev/null || (echo "not ok 8" && false)) && echo "ok 8"
