@@ -38,7 +38,7 @@ REMOTEDEV_HOST = develop.test
 REMOTEDEV_PERL_VERSION = latest
 REMOTEDEV_GIT = git
 
-SETUPENV_CURRENT_REVISION = 20120907
+SETUPENV_CURRENT_REVISION = 20120908
 SETUPENV_MIN_REVISION = $(SETUPENV_CURRENT_REVISION)
 
 all:
@@ -552,10 +552,10 @@ pmb-Makefile.PL:
 pmb-rewrite-shebang:
 	ls $(PERL_PATH)/perl && ( \
 	cd $(PMB_LOCAL_INSTALL_DIR)/bin && ls | \
-        xargs -n1 -- sed '1 s/#!.*perl/#!$(subst /,\/,$(PERL_PATH)/perl)/' -i \
+        xargs -n1 -- sed -i '1 s/#!.*perl/#!$(subst /,\/,$(PERL_PATH)/perl)/' \
         ) || ( \
         cd $(PMB_LOCAL_INSTALL_DIR)/bin && ls | \
-        xargs -n1 -- sed '1 s/#!.*perl/#!$(subst /,\/,$(shell which perl))/' -i \
+        xargs -n1 -- sed -i '1 s/#!.*perl/#!$(subst /,\/,$(shell which perl))/' \
         )
 
 # ------ remotedev - Run tests at remote host ------
