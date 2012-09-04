@@ -68,7 +68,7 @@ ifeq "$(PERL_VERSION)" "latest"
 	cat local/perlbrew/_perlinfo/perl.json \
 	    | $(BASH) local/perlbrew/_perlinfo/JSON.sh \
 	    | grep "\[\"name\"\]" \
-	    | sed 's/\["[^"]\+"\]\s\+"\([^"]\+\)"/\1/g' > $@
+	    | perl -e '<> =~ /\["[^"]+"\]\s+"([^"]+)"/ ? print $$1 : "perl-5.16.0"' > $@
 else
 	perl -e "print 'perl-$(PERL_VERSION)'" > $@
 endif
