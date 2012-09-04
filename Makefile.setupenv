@@ -398,7 +398,7 @@ $(PMB_LOCAL_TEMP_INSTALL_DIR)/perl-modules: \
 	cat $(CONFIG_PERL_MODULE_LIST_FILES) | \
 	grep -v '^#' | \
 	sort -u | \
-	$(PMB_CPANM_PERL_ENV) xargs -l20 -r -- \
+	$(PMB_CPANM_PERL_ENV) xargs -l20 -- \
 	$(PMB_CPANM_PERL) $(PMB_CPANM) --notest \
 	    -L $(PMB_LOCAL_TEMP_INSTALL_DIR) \
 	    $(PMB_CPANM_MIRROR_PMB_LOCAL_OR_REMOTE) \
@@ -423,7 +423,7 @@ $(PMB_LOCAL_TEMP_DIR)/install.json.list: $(PMB_LOCAL_TEMP_INSTALL_DIR)/perl-modu
 $(PMB_LOCAL_TEMP_DIR)/02packages.details.txt.body: \
   $(PMB_LOCAL_TEMP_DIR)/install.json.list $(PMB_LOCAL_TEMP_INSTALL_DIR)/cpanm
 	echo > $@.tmp
-	cat $(PMB_LOCAL_TEMP_DIR)/install.json.list | xargs -l1 -r -- \
+	cat $(PMB_LOCAL_TEMP_DIR)/install.json.list | xargs -l1 -- \
 	$(PMB_CPANM_PERL) -MJSON::PP -e ' \
           local $$/; $$data = decode_json <>; #\
 	  exit unless -f "$(PMB_LOCAL_PMTAR_DIR)/authors/id/".$$data->{pathname}; #\
@@ -473,7 +473,7 @@ $(CONFIG_PERL_INSTALL_LIST): $(CONFIG_PERL_MODULE_LIST_FILES) \
 	echo "ExtUtils::ParseXS Module::Build File::ShareDir::Install `cat $(CONFIG_PERL_MODULE_LIST_FILES)`" | \
 	sed 's/^POSIX$$//g' | \
 	sort -u | \
-	$(PMB_CPANM_PERL_ENV) xargs -r -l20 -- \
+	$(PMB_CPANM_PERL_ENV) xargs -l20 -- \
 	$(PMB_CPANM_PERL) $(PMB_CPANM) --notest -L $(PMB_LOCAL_EMPTY_INSTALL_DIR) \
 	    $(PMB_CPANM_MIRROR_PMB_LOCAL_ONLY) \
 	    --reinstall --scandeps | \
@@ -527,13 +527,13 @@ pmb-install-pp:
 
 pmb-install-xs: $(PMB_LOCAL_TEMP_INSTALL_DIR)/cpanm
 	cat $(CONFIG_PERL_INSTALL_LIST) | \
-	$(PMB_CPANM_PERL_ENV) xargs -r -l120 -- \
+	$(PMB_CPANM_PERL_ENV) xargs -l120 -- \
 	$(PMB_CPANM_PERL) $(PMB_CPANM) --notest -L $(PMB_LOCAL_INSTALL_DIR) \
 	    $(PMB_CPANM_MIRROR_PMB_LOCAL_ONLY)
 
 pmb-install-xs-local-or-remote: $(PMB_LOCAL_TEMP_INSTALL_DIR)/cpanm
 	cat $(CONFIG_PERL_INSTALL_LIST) | \
-	$(PMB_CPANM_PERL_ENV) xargs -r -l120 -- \
+	$(PMB_CPANM_PERL_ENV) xargs -l120 -- \
 	$(PMB_CPANM_PERL) $(PMB_CPANM) --notest -L $(PMB_LOCAL_INSTALL_DIR) \
 	    $(PMB_CPANM_MIRROR_PMB_LOCAL_OR_REMOTE) \
             --save-dists=$(PMB_LOCAL_PMTAR_DIR)
