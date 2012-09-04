@@ -38,7 +38,7 @@ REMOTEDEV_HOST = develop.test
 REMOTEDEV_PERL_VERSION = latest
 REMOTEDEV_GIT = git
 
-SETUPENV_CURRENT_REVISION = 20120904
+SETUPENV_CURRENT_REVISION = 20120905
 SETUPENV_MIN_REVISION = $(SETUPENV_CURRENT_REVISION)
 
 all:
@@ -411,8 +411,8 @@ pmb-update-pp:
 	mkdir -p $(PMB_LOCAL_PMPP_DIR)
 	mkdir -p $(PMB_LOCAL_TEMP_INSTALL_DIR)/bin
 	mkdir -p $(PMB_LOCAL_TEMP_INSTALL_DIR)/lib
-	cp -r -f --update $(PMB_LOCAL_TEMP_INSTALL_DIR)/bin $(PMB_LOCAL_PMPP_DIR)
-	cp -r -f --update $(PMB_LOCAL_TEMP_INSTALL_DIR)/lib $(PMB_LOCAL_PMPP_DIR)
+	cp -r -f $(PMB_LOCAL_TEMP_INSTALL_DIR)/bin $(PMB_LOCAL_PMPP_DIR)
+	cp -r -f $(PMB_LOCAL_TEMP_INSTALL_DIR)/lib $(PMB_LOCAL_PMPP_DIR)
 	rm -fr $(PMB_LOCAL_PMPP_DIR)/lib/perl5/$(PERL_ARCHNAME)
 
 $(PMB_LOCAL_TEMP_DIR)/install.json.list: $(PMB_LOCAL_TEMP_INSTALL_DIR)/perl-modules
@@ -522,8 +522,8 @@ pmb-install-pp:
 	mkdir -p $(PMB_LOCAL_PMPP_DIR)/bin
 	mkdir -p $(PMB_LOCAL_PMPP_DIR)/lib
 	mkdir -p $(PMB_LOCAL_INSTALL_DIR)
-	cp -r -f --update $(PMB_LOCAL_PMPP_DIR)/bin $(PMB_LOCAL_INSTALL_DIR)
-	cp -r -f --update $(PMB_LOCAL_PMPP_DIR)/lib $(PMB_LOCAL_INSTALL_DIR)
+	cp -r -f $(PMB_LOCAL_PMPP_DIR)/bin $(PMB_LOCAL_INSTALL_DIR)
+	cp -r -f $(PMB_LOCAL_PMPP_DIR)/lib $(PMB_LOCAL_INSTALL_DIR)
 
 pmb-install-xs: $(PMB_LOCAL_TEMP_INSTALL_DIR)/cpanm
 	cat $(CONFIG_PERL_INSTALL_LIST) | \
