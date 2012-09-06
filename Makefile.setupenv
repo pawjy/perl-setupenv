@@ -193,6 +193,8 @@ carton.lock: $(CARTON_SUPPORT_BIN_PATH)/carton \
 	       modules/*/config/perl/modules.*.txt \
                t/modules/*/config/perl/modules.txt \
 	       t/modules/*/config/perl/modules.*.txt \
+               t_deps/modules/*/config/perl/modules.txt \
+	       t_deps/modules/*/config/perl/modules.*.txt \
 	       local/submodules/*/config/perl/modules.txt \
 	       local/submodules/*/config/perl/modules.*.txt)
 	-cat config/perl/modules.txt config/perl/modules.*.txt \
@@ -200,6 +202,8 @@ carton.lock: $(CARTON_SUPPORT_BIN_PATH)/carton \
 	    modules/*/config/perl/modules.*.txt \
 	    t/modules/*/config/perl/modules.txt \
 	    t/modules/*/config/perl/modules.*.txt \
+	    t_deps/modules/*/config/perl/modules.txt \
+	    t_deps/modules/*/config/perl/modules.*.txt \
 	    local/submodules/*/config/perl/modules.txt \
 	    local/submodules/*/config/perl/modules.*.txt | \
 	$(CARTON_ENV) xargs $(PERL) $(CARTON) install
@@ -212,6 +216,8 @@ carton-update: $(CARTON_SUPPORT_BIN_PATH)/carton \
 	       modules/*/config/perl/modules.*.txt \
                t/modules/*/config/perl/modules.txt \
 	       t/modules/*/config/perl/modules.*.txt \
+               t_deps/modules/*/config/perl/modules.txt \
+	       t_deps/modules/*/config/perl/modules.*.txt \
 	       local/submodules/*/config/perl/modules.txt \
 	       local/submodules/*/config/perl/modules.*.txt)
 	-cat config/perl/modules.txt config/perl/modules.*.txt \
@@ -219,6 +225,8 @@ carton-update: $(CARTON_SUPPORT_BIN_PATH)/carton \
 	    modules/*/config/perl/modules.*.txt \
 	    t/modules/*/config/perl/modules.txt \
 	    t/modules/*/config/perl/modules.*.txt \
+	    t_deps/modules/*/config/perl/modules.txt \
+	    t_deps/modules/*/config/perl/modules.*.txt \
 	    local/submodules/*/config/perl/modules.txt \
 	    local/submodules/*/config/perl/modules.*.txt | \
 	$(CARTON_ENV) xargs $(PERL) $(CARTON) install
@@ -382,6 +390,8 @@ CONFIG_PERL_MODULE_LIST_FILES = \
 	       modules/*/config/perl/modules.*.txt \
                t/modules/*/config/perl/modules.txt \
 	       t/modules/*/config/perl/modules.*.txt \
+               t_deps/modules/*/config/perl/modules.txt \
+	       t_deps/modules/*/config/perl/modules.*.txt \
 	       local/submodules/*/config/perl/modules.txt \
 	       local/submodules/*/config/perl/modules.*.txt)
 CONFIG_PERL_INSTALL_LIST = config/perl/pmb-install.txt
