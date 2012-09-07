@@ -579,7 +579,7 @@ local-phantomjs-repo:
 	cd local/phantomjs && $(GIT) submodule update --init
 
 local-phantomjs-build:
-	cd local/phantomjs && ./build.sh
+	cd local/phantomjs && sh build.sh
 
 # ------ remotedev - Run tests at remote host ------
 
