@@ -567,6 +567,18 @@ pmb-rewrite-shebang:
         xargs -l1 -- sed -i '1 s/#!.*perl/#!$(subst /,\/,$(shell which perl))/' \
         ) || true
 
+# ------ PhantomJS ------
+
+local-phantomjs: local-phantomjs-repo local-phantomjs-build
+
+local-phantomjs-repo:
+	$(GIT) clone git://github.com/ariya/phantomjs.git local/phantomjs || \
+	(cd local/phantomjs && $(GIT) pull)
+	cd local/phantomjs && $(GIT) submodule update --init
+
+local-phantomjs-build:
+	cd local/phantomjs && $(MAKE)
+
 # ------ remotedev - Run tests at remote host ------
 
 REMOTEDEV_PMBUNDLER_REPO_URL = $(PMBUNDLER_REPO_URL)
