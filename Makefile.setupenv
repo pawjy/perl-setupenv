@@ -569,6 +569,8 @@ pmb-rewrite-shebang:
 
 # ------ PhantomJS ------
 
+# Document: <http://phantomjs.org/build.html>
+
 local-phantomjs: local-phantomjs-repo local-phantomjs-build
 
 local-phantomjs-repo:
@@ -577,7 +579,7 @@ local-phantomjs-repo:
 	cd local/phantomjs && $(GIT) submodule update --init
 
 local-phantomjs-build:
-	cd local/phantomjs && $(MAKE)
+	cd local/phantomjs && ./build.sh
 
 # ------ remotedev - Run tests at remote host ------
 
