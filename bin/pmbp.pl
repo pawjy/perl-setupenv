@@ -57,6 +57,9 @@ GetOptions (
   '--write-install-module-index=s' => sub {
     push @command, {type => 'write-install-module-index', file_name => $_[1]};
   },
+  '--write-libs-txt=s' => sub {
+    push @command, {type => 'write-libs-txt', file_name => $_[1]};
+  },
   '--print-libs' => sub {
     push @command, {type => 'print-libs'};
   },
@@ -124,9 +127,10 @@ sub copy_log_file ($$) {
   return <$file>;
 } # copy_log_file
 
-sub save_url ($$$) {
-  system "wget -O @{[quotemeta qq{$_[1]/$_[2]}]} @{[quotemeta $_[0]]} 1>&2";
-  die "Failed to download <$_[0]>\n" unless -f $_[1] . '/' . $_[2];
+sub save_url ($$) {
+  mkdir_for_file $_[1];
+  system "wget -O \Q$_[1]\E \Q$_[0]\E 1>&2";
+  die "Failed to download <$_[0]>\n" unless -f $_[1];
 } # save_url
 
 {
@@ -159,10 +163,23 @@ sub load_json ($) {
   return $json;
 } # load_json
 
+sub get_local_copy_if_necessary ($) {
+  my $module = shift;
+
+  my $path = $module->pathname;
+  my $url = $module->url;
+
+  if (defined $path and defined $url) {
+    $path = "$dists_dir_name/authors/id/$path";
+    if (not -f $path) {
+      save_url $url => $path;
+    }
+  }
+} # get_local_copy_if_necessary
+
 sub prepare_cpanm () {
   return if -f $cpanm;
-  mkdir_for_file $cpanm;
-  save_url $cpanm_url => $cpanm_dir_name . '/bin', 'cpanm';
+  save_url $cpanm_url => $cpanm;
 } # prepare_cpanm
 
 our $CPANMDepth = 0;
@@ -249,10 +266,12 @@ sub cpanm ($$) {
 } # cpanm
 
 sub install_module ($) {
+  get_local_copy_if_necessary $_[0];
   cpanm {perl_lib_dir_name => $installed_dir_name}, [$_[0]];
 } # install_module
 
 sub install_support_module ($) {
+  get_local_copy_if_necessary $_[0];
   cpanm {perl_lib_dir_name => $cpanm_dir_name,
          local_option => '-l', skip_satisfied => 1}, [$_[0]];
 } # install_support_module
@@ -273,6 +292,7 @@ sub scandeps ($$;%) {
 
   my $temp_dir = $args{temp_dir} || File::Temp->newdir;
 
+  get_local_copy_if_necessary $module;
   my $result = cpanm {perl_lib_dir_name => $temp_dir->dirname,
                       temp_dir => $temp_dir,
                       scandeps => {module_index => $module_index}}, [$module];
@@ -302,6 +322,10 @@ sub scandeps ($$;%) {
   }; # $convert_list;
 
   $result = [($convert_list->($result->{output_json} || {}))];
+
+  if (@$result) {
+    $result->[0]->[0]->merge_input_data ($module);
+  }
 
   make_path $deps_json_dir_name;
   for my $m (@$result) {
@@ -436,6 +460,16 @@ sub write_install_module_index ($$) {
   write_module_index $module_index => $file_name;
 } # write_install_module_index
 
+sub get_lib_dir_names () {
+  my @lib = grep { defined } map { abs_path $_ } map { glob $_ }
+      qq{$root_dir_name/lib},
+      qq{$root_dir_name/modules/*/lib},
+      qq{$root_dir_name/local/submodules/*/lib},
+      qq{$installed_dir_name/lib/perl5/$Config{archname}},
+      qq{$installed_dir_name/lib/perl5};
+  return @lib;
+} # get_lib_dir_names
+
 sub destroy_cpanm_home () {
   remove_tree $cpanm_home_dir_name;
 } # destroy_cpanm_home
@@ -471,14 +505,13 @@ for my $command (@command) {
     write_pmb_install_list $selected_module_index => $command->{file_name};
   } elsif ($command->{type} eq 'write-install-module-index') {
     write_install_module_index $selected_module_index => $command->{file_name};
+  } elsif ($command->{type} eq 'write-libs-txt') {
+    open my $file, '>', $command->{file_name}
+        or die "$0: $command->{file_name}: $!";
+    info_writing "lib paths", $command->{file_name};
+    print $file join ':', (get_lib_dir_names);
   } elsif ($command->{type} eq 'print-libs') {
-    my @lib = grep { defined } map { abs_path $_ } map { glob $_ }
-      qq{$root_dir_name/lib},
-      qq{$root_dir_name/modules/*/lib},
-      qq{$root_dir_name/local/submodules/*/lib},
-      qq{$installed_dir_name/lib/perl5/$Config{archname}},
-      qq{$installed_dir_name/lib/perl5};
-    print join ':', @lib;
+    print join ':', (get_lib_dir_names);
   } else {
     die "Command |$command->{type}| is not defined";
   }
@@ -509,9 +542,13 @@ sub new_from_module_arg ($$) {
   } elsif ($arg =~ /\A([0-9A-Za-z_:]+)~([0-9A-Za-z_.-]+)\z/) {
     return bless {package => $1, version => $2}, $class;
   } elsif ($arg =~ m{\A([0-9A-Za-z_:]+)=([Hh][Tt][Tt][Pp][Ss]?://.+)\z}) {
-    return bless {package => $1, url => $2}, $class;
+    my $self = bless {package => $1, url => $2}, $class;
+    $self->_set_distname;
+    return $self;
   } elsif ($arg =~ m{\A([0-9A-Za-z_:]+)~([0-9A-Za-z_.-]+)=([Hh][Tt][Tt][Pp][Ss]?://.+)\z}) {
-    return bless {package => $1, version => $2, url => $3}, $class;
+    my $self = bless {package => $1, version => $2, url => $3}, $class;
+    $self->_set_distname;
+    return $self;
   } else {
     croak "Module argument |$arg| is not supported";
   }
@@ -519,14 +556,10 @@ sub new_from_module_arg ($$) {
 
 sub new_from_cpanm_scandeps_json_module ($$) {
   my ($class, $json) = @_;
-  my $pathname = $json->{pathname};
-  if (defined $pathname) {
-    $pathname =~ s{^.+/authors/id/}{};
-  }
   return bless {package => $json->{module},
                 version => $json->{module_version},
                 distvname => $json->{distvname},
-                pathname => $pathname}, $class;
+                pathname => $json->{pathname}}, $class;
 } # new_from_cpanm_scandeps_json_module
 
 sub new_from_jsonable ($$) {
@@ -538,6 +571,18 @@ sub new_from_indexable ($$) {
                 version => $_[1]->[1] eq 'undef' ? undef : $_[1]->[1],
                 pathname => $_[1]->[2]}, $_[0];
 } # new_from_indexable
+
+sub _set_distname ($) {
+  my $self = shift;
+
+  if (not defined $self->{pathname} and defined $self->{url}) {
+    if ($self->{url} =~ m{/authors/id/(.+\.tar\.gz)$}) {
+      $self->{pathname} = $1;
+    } elsif ($self->{url} =~ m{([^/]+\.tar\.gz)$}) {
+      $self->{pathname} = "misc/$1";
+    }
+  }
+} # _set_distname
 
 sub package ($) {
   return $_[0]->{package};
@@ -553,11 +598,17 @@ sub pathname ($) {
 
 sub distvname ($) {
   my $self = shift;
+  return $self->{distvname} if defined $self->{distvname};
+
   if (defined $self->{pathname}) {
-    return main::pathname2distvname $self->{pathname};
+    return $self->{distvname} = main::pathname2distvname $self->{pathname};
   }
-  return undef;
+  return $self->{distvname} = undef;
 } # distvname
+
+sub url ($) {
+  return $_[0]->{url};
+} # url
 
 sub is_equal_module ($$) {
   my ($m1, $m2) = @_;
@@ -568,6 +619,17 @@ sub is_equal_module ($$) {
   return 1;
 } # is_equal_module
 
+sub merge_input_data ($$) {
+  my ($m1, $m2) = @_;
+  if (not defined $m1->{package}) {
+    $m1->{package} = $m2->{package};
+    $m1->{version} = $m2->{version};
+    $m1->{distvname} ||= $m2->{distvname} if defined $m2->{distvname};
+    $m1->{pathname} ||= $m2->{pathname} if defined $m2->{pathname};
+    $m1->{url} ||= $m2->{url} if defined $m2->{url};
+  }
+} # merge_input_data
+
 sub as_short ($) {
   my $self = shift;
   return $self->{package} . (defined $self->{version} ? '~' . $self->{version} : '');
@@ -576,7 +638,11 @@ sub as_short ($) {
 sub as_cpanm_arg ($) {
   my $self = shift;
   if ($self->{url}) {
-    return $self->{url};
+    if (defined $self->{pathname}) {
+      return $self->{pathname};
+    } else {
+      return $self->{url};
+    }
   } else {
     return $self->{package};
   }
