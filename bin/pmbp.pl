@@ -63,6 +63,9 @@ GetOptions (
   '--print-libs' => sub {
     push @command, {type => 'print-libs'};
   },
+  '--set-module-index=s' => sub {
+    push @command, {type => 'set-module-index', file_name => $_[1]};
+  },
 ) or die "Usage: $0 options... (See source for details)\n";
 
 $perl_version ||= `@{[quotemeta $perl]} -e 'print \$^V'`;
@@ -80,17 +83,16 @@ unshift @INC, $cpanm_lib_dir_name; ## Should not use XS modules.
 my $installed_dir_name = $local_dir_name . '/pm';
 my $log_dir_name = $temp_dir_name . '/logs';
 $dists_dir_name ||= $temp_dir_name . '/pmtar';
-push @cpanm_option, '--save-dists' => $dists_dir_name;
-if (-d $dists_dir_name) {
-  push @cpanm_option, '--mirror' => abs_path $dists_dir_name;
-}
+make_path $dists_dir_name;
+push @cpanm_option,
+    '--mirror' => (abs_path $dists_dir_name),
+    map { ('--mirror' => $_) } @cpan_mirror;
 my $packages_details_file_name = $dists_dir_name . '/modules/02packages.details.txt';
 my $install_json_dir_name = $dists_dir_name . '/meta';
 my $deps_json_dir_name = $dists_dir_name . '/deps';
-push @cpanm_option, map { ('--mirror' => $_) } @cpan_mirror;
 
-sub install_module ($);
-sub install_support_module ($);
+sub install_module ($;%);
+sub install_support_module ($;%);
 sub scandeps ($$;%);
 
 sub info ($) {
@@ -184,8 +186,8 @@ sub prepare_cpanm () {
 
 our $CPANMDepth = 0;
 my $cpanm_init = 0;
-sub cpanm ($$) {
-  my ($args, $modules) = @_;
+sub cpanm ($$;%) {
+  my ($args, $modules, %args) = @_;
   my $result = {};
   prepare_cpanm;
 
@@ -198,15 +200,26 @@ sub cpanm ($$) {
     my @required_install;
     my @required_install2;
 
+    my @option = ('-I' . $cpanm_lib_dir_name, $cpanm,
+                  $args->{local_option} || '-L' => $perl_lib_dir_name,
+                  ($args->{skip_satisfied} ? '--skip-satisfied' : ()),
+                  @cpanm_option,
+                  ($args->{scandeps} ? ('--scandeps', '--format=json', '--force') : ()));
+
+    my @module_arg = map { $_->as_cpanm_arg ($dists_dir_name) } @$modules;
+    if (grep { not m{/misc/[^/]+\.tar\.gz$} } @module_arg) {
+      push @option, '--save-dists' => $dists_dir_name;
+    }
+
+    if (defined $args{module_index_file_name}) {
+      push @option, '--mirror-index' => $args{module_index_file_name};
+    }
+
     local $ENV{LANG} = 'C';
     local $ENV{PERL_CPANM_HOME} = $cpanm_home_dir_name;
-    my @cmd = ($perl, '-I' . $cpanm_lib_dir_name, $cpanm,
-               $args->{local_option} || '-L' => $perl_lib_dir_name,
-               ($args->{skip_satisfied} ? '--skip-satisfied' : ()),
-#XXX               '--mirror-index' => $packages_details_file_name . '.gz',
-               @cpanm_option,
-               ($args->{scandeps} ? ('--scandeps', '--format=json', '--force') : ()),
-               map { $_->as_cpanm_arg ($dists_dir_name) } @$modules);
+    my @cmd = ($perl, 
+               @option,
+               @module_arg);
     info join ' ', 'PERL_CPANM_HOME=' . $cpanm_home_dir_name, @cmd;
     my $json_temp_file = File::Temp->new;
     open my $cmd, '-|', ((join ' ', map { quotemeta } @cmd) .
@@ -241,7 +254,7 @@ sub cpanm ($$) {
         if (@required_cpanm and $perl_lib_dir_name ne $cpanm_dir_name) {
           local $CPANMDepth = $CPANMDepth + 1;
           for my $module (@required_cpanm) {
-            install_support_module $module;
+            install_support_module $module, %args;
           }
           redo COMMAND;
         } elsif (@required_install and $perl_lib_dir_name ne $cpanm_dir_name) {
@@ -250,7 +263,7 @@ sub cpanm ($$) {
             if ($args->{scandeps}) {
               scandeps $args->{scandeps}->{module_index}, $module;
             } else {
-              install_module $module;
+              install_module $module, %args;
             }
           }
           redo COMMAND;
@@ -269,15 +282,17 @@ sub cpanm ($$) {
   return $result;
 } # cpanm
 
-sub install_module ($) {
-  get_local_copy_if_necessary $_[0];
-  cpanm {perl_lib_dir_name => $installed_dir_name}, [$_[0]];
+sub install_module ($;%) {
+  my $module = shift;
+  get_local_copy_if_necessary $module;
+  cpanm {perl_lib_dir_name => $installed_dir_name}, [$module], @_;
 } # install_module
 
-sub install_support_module ($) {
-  get_local_copy_if_necessary $_[0];
+sub install_support_module ($;%) {
+  my $module = shift;
+  get_local_copy_if_necessary $module;
   cpanm {perl_lib_dir_name => $cpanm_dir_name,
-         local_option => '-l', skip_satisfied => 1}, [$_[0]];
+         local_option => '-l', skip_satisfied => 1}, [$module], @_;
 } # install_support_module
 
 sub scandeps ($$;%) {
@@ -484,14 +499,17 @@ sub destroy () {
 
 my $global_module_index = PMBP::ModuleIndex->new_empty;
 my $selected_module_index = PMBP::ModuleIndex->new_empty;
+my $module_index_file_name;
 
 for my $command (@command) {
   if ($command->{type} eq 'install-module') {
     info "Install @{[$command->{module}->as_short]}...";
-    install_module $command->{module};
+    install_module $command->{module},
+        module_index_file_name => $module_index_file_name;
   } elsif ($command->{type} eq 'scandeps') {
     info "Scanning dependency of @{[$command->{module}->as_short]}...";
-    scandeps $global_module_index, $command->{module}, skip_if_found => 1;
+    scandeps $global_module_index, $command->{module},
+        skip_if_found => 1;
   } elsif ($command->{type} eq 'select-module') {
     my $mods = load_deps $global_module_index => $command->{module};
     unless ($mods) {
@@ -516,6 +534,8 @@ for my $command (@command) {
     print $file join ':', (get_lib_dir_names);
   } elsif ($command->{type} eq 'print-libs') {
     print join ':', (get_lib_dir_names);
+  } elsif ($command->{type} eq 'set-module-index') {
+    $module_index_file_name = $command->{file_name};
   } else {
     die "Command |$command->{type}| is not defined";
   }
