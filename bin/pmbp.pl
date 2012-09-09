@@ -206,7 +206,7 @@ sub cpanm ($$) {
 #XXX               '--mirror-index' => $packages_details_file_name . '.gz',
                @cpanm_option,
                ($args->{scandeps} ? ('--scandeps', '--format=json', '--force') : ()),
-               map { $_->as_cpanm_arg } @$modules);
+               map { $_->as_cpanm_arg ($dists_dir_name) } @$modules);
     info join ' ', 'PERL_CPANM_HOME=' . $cpanm_home_dir_name, @cmd;
     my $json_temp_file = File::Temp->new;
     open my $cmd, '-|', ((join ' ', map { quotemeta } @cmd) .
@@ -220,6 +220,10 @@ sub cpanm ($$) {
       
       if (/^Can\'t locate (\S+\.pm) in \@INC/) {
         push @required_cpanm, PMBP::Module->new_from_pm_file_name ($1);
+      } elsif (/^Building version-\S+ \.\.\. FAIL/) {
+        push @required_install,
+            map { PMBP::Module->new_from_package ($_) }
+            qw{ExtUtils::MakeMaker ExtUtils::ParseXS};
       } elsif (/^--> Working on (\S)+$/) {
         $current_module_name = $1;
       } elsif (/^! Installing (\S+) failed\. See (.+?) for details\.$/) {
@@ -635,11 +639,15 @@ sub as_short ($) {
   return $self->{package} . (defined $self->{version} ? '~' . $self->{version} : '');
 } # as_short
 
-sub as_cpanm_arg ($) {
-  my $self = shift;
+sub as_cpanm_arg ($$) {
+  my ($self, $dists_dir_name) = @_;
   if ($self->{url}) {
     if (defined $self->{pathname}) {
-      return $self->{pathname};
+      if ($self->{pathname} =~ m{^misc/}) {
+        return $dists_dir_name . '/authors/id/' . $self->{pathname};
+      } else {
+        return $self->{pathname};
+      }
     } else {
       return $self->{url};
     }
