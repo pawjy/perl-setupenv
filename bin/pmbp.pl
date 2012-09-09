@@ -40,6 +40,9 @@ GetOptions (
   '--install-modules-by-file-name=s' => sub {
     push @command, {type => 'install-modules-by-list', file_name => $_[1]};
   },
+  '--install-modules-by-list' => sub {
+    push @command, {type => 'install-modules-by-list'};
+  },
   '--scandeps=s' => sub {
     my $module = PMBP::Module->new_from_module_arg ($_[1]);
     push @command, {type => 'scandeps', module => $module};
@@ -50,6 +53,9 @@ GetOptions (
   },
   '--select-modules-by-file-name=s' => sub {
     push @command, {type => 'select-modules-by-list', file_name => $_[1]};
+  },
+  '--select-modules-by-list' => sub {
+    push @command, {type => 'select-modules-by-list'};
   },
   '--read-module-index=s' => sub {
     push @command, {type => 'read-module-index', file_name => $_[1]};
@@ -525,6 +531,27 @@ sub write_install_module_index ($$) {
   write_module_index $module_index => $file_name;
 } # write_install_module_index
 
+sub read_install_list ($) {
+  my $module_index = shift;
+
+  ## pmb install list format
+  my @file = map { (glob "$_/config/perl/modules*.txt") }
+      qq{$root_dir_name};
+  if (@file) {
+    push @file, map { (glob "$_/config/perl/modules*.txt") }
+        qq{$root_dir_name/modules/*},
+        qq{$root_dir_name/t_deps/modules/*},
+        qq{$root_dir_name/local/submodules/*};
+    
+    for (@file) {
+      read_pmb_install_list $_ => $module_index;
+    }
+  }
+
+  # XXX other formats
+
+} # read_install_list
+
 sub get_lib_dir_names () {
   my @lib = grep { defined } map { abs_path $_ } map { glob $_ }
       qq{$root_dir_name/lib},
@@ -554,7 +581,11 @@ for my $command (@command) {
         module_index_file_name => $module_index_file_name;
   } elsif ($command->{type} eq 'install-modules-by-list') {
     my $module_index = PMBP::ModuleIndex->new_empty;
-    read_pmb_install_list $command->{file_name} => $module_index;
+    if (defined $command->{file_name}) {
+      read_pmb_install_list $command->{file_name} => $module_index;
+    } else {
+      read_install_list $module_index;
+    }
     install_module $_, module_index_file_name => $module_index_file_name
         for ($module_index->to_list);
   } elsif ($command->{type} eq 'scandeps') {
@@ -565,7 +596,11 @@ for my $command (@command) {
     select_module $global_module_index => $command->{module} => $selected_module_index;
   } elsif ($command->{type} eq 'select-modules-by-list') {
     my $module_index = PMBP::ModuleIndex->new_empty;
-    read_pmb_install_list $command->{file_name} => $module_index;
+    if (defined $command->{file_name}) {
+      read_pmb_install_list $command->{file_name} => $module_index;
+    } else {
+      read_install_list $module_index;
+    }
     select_module $global_module_index => $_ => $selected_module_index
         for ($module_index->to_list);
   } elsif ($command->{type} eq 'read-module-index') {
