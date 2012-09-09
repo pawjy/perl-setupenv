@@ -380,8 +380,6 @@ sub scandeps ($$;%) {
   my $dist = $result->{output_json}->[0]
       ? $result->{output_json}->[-1]->[0]->{pathname} : undef;
 
-  #$json->{meta}->{provides}->{$mod}->{version} || $json->{meta}->{version} || $json->{version}
-
   my $convert_list;
   $convert_list = sub {
     return (
@@ -760,8 +758,8 @@ sub new_from_cpanm_scandeps_json_module ($$) {
   my ($class, $json) = @_;
   return bless {package => $json->{module},
                 version => $json->{module_version},
-                distvname => $json->{distvname},
-                pathname => $json->{pathname}}, $class;
+                distvname => $json->{distvname} || $json->{dir},
+                pathname => $json->{pathname} || (defined $json->{dir} ? 'misc/' . $json->{dir} . '.tar.gz' : undef)}, $class;
 } # new_from_cpanm_scandeps_json_module
 
 sub new_from_carton_lock_entry ($$) {
