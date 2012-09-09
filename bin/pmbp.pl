@@ -60,6 +60,9 @@ GetOptions (
   '--read-module-index=s' => sub {
     push @command, {type => 'read-module-index', file_name => $_[1]};
   },
+  '--read-carton-lock=s' => sub {
+    push @command, {type => 'read-carton-lock', file_name => $_[1]};
+  },
   '--write-module-index=s' => sub {
     push @command, {type => 'write-module-index', file_name => $_[1]};
   },
@@ -144,10 +147,15 @@ sub copy_log_file ($$) {
   return <$file>;
 } # copy_log_file
 
-sub save_url ($$) {
+sub _save_url {
   mkdir_for_file $_[1];
+  info "Downloading <$_[0]>...\n";
   system "wget -O \Q$_[1]\E \Q$_[0]\E 1>&2";
-  die "Failed to download <$_[0]>\n" unless -f $_[1];
+  return -f $_[1];
+} # _save_url
+
+sub save_url ($$) {
+  _save_url (@_) or die "Failed to download <$_[0]>\n";
 } # save_url
 
 {
@@ -194,6 +202,39 @@ sub get_local_copy_if_necessary ($) {
   }
 } # get_local_copy_if_necessary
 
+sub save_by_pathname ($$) {
+  my ($pathname => $module) = @_;
+
+  my $dest_file_name = "$dists_dir_name/authors/id/$pathname";
+  if (-f $dest_file_name) {
+    $module->{url} = 'file://' . abs_path "$dists_dir_name/authors/id/$pathname";
+    $module->{pathname} = $pathname;
+    return 1;
+  }
+
+  for (@CPANMirror) {
+    my $mirror = $_;
+    $mirror =~ s{/+$}{};
+    $mirror .= "/authors/id/$pathname";
+    if ($mirror =~ m{^[Hh][Tt][Tt][Pp][Ss]?:}) {
+      if (_save_url $mirror => $dest_file_name) {
+        $module->{url} = $mirror;
+        $module->{pathname} = $pathname;
+        return 1;
+      }
+    } else {
+      if (-f $mirror) {
+        copy $mirror => $dest_file_name or die "$0: Can't copy $mirror";
+        $module->{url} = $mirror;
+        $module->{pathname} = $pathname;
+        return 1;
+      }
+    }
+  }
+  
+  return 0;
+} # save_by_pathname
+
 sub prepare_cpanm () {
   return if -f $cpanm;
   save_url $cpanm_url => $cpanm;
@@ -231,7 +272,7 @@ sub cpanm ($$;%) {
         map { ('--mirror' => $_) } @CPANMirror;
 
     if (defined $args{module_index_file_name}) {
-      push @option, '--mirror-index' => $args{module_index_file_name};
+      push @option, '--mirror-index' => abs_path $args{module_index_file_name};
     }
 
     local $ENV{LANG} = 'C';
@@ -280,7 +321,7 @@ sub cpanm ($$;%) {
           local $CPANMDepth = $CPANMDepth + 1;
           for my $module (@required_install) {
             if ($args->{scandeps}) {
-              scandeps $args->{scandeps}->{module_index}, $module;
+              scandeps $args->{scandeps}->{module_index}, $module, %args;
             } else {
               install_module $module, %args;
             }
@@ -333,7 +374,8 @@ sub scandeps ($$;%) {
   get_local_copy_if_necessary $module;
   my $result = cpanm {perl_lib_dir_name => $temp_dir->dirname,
                       temp_dir => $temp_dir,
-                      scandeps => {module_index => $module_index}}, [$module];
+                      scandeps => {module_index => $module_index}}, [$module],
+                     %args;
 
   my $dist = $result->{output_json}->[0]
       ? $result->{output_json}->[-1]->[0]->{pathname} : undef;
@@ -361,8 +403,11 @@ sub scandeps ($$;%) {
 
   $result = [($convert_list->($result->{output_json} || {}))];
 
-  if (@$result) {
-    $result->[0]->[0]->merge_input_data ($module);
+  for (@$result) {
+    if (defined $_->[0]->{pathname} and defined $module->{pathname} and
+        $_->[0]->{pathname} eq $module->{pathname}) {
+      $_->[0]->merge_input_data ($module);
+    }
   }
 
   make_path $deps_json_dir_name;
@@ -410,15 +455,36 @@ sub load_deps ($$) {
   return $result;
 } # load_deps
 
-sub select_module ($$$) {
-  my ($src_module_index => $module => $dest_module_index) = @_;
+sub select_module ($$$;%) {
+  my ($src_module_index => $module => $dest_module_index, %args) = @_;
   
   my $mods = load_deps $src_module_index => $module;
   unless ($mods) {
     info "Scanning dependency of @{[$module->as_short]}...";
-    scandeps $src_module_index, $module;
+    scandeps $src_module_index, $module, %args;
     $mods = load_deps $src_module_index => $module;
-    die "Can't detect dependency of @{[$module->as_short]}\n" unless $mods;
+    unless ($mods) {
+      if (defined $module->pathname) {
+        if (save_by_pathname $module->pathname => $module) {
+          scandeps $src_module_index, $module, %args;
+          $mods = load_deps $src_module_index => $module;
+        }
+      } elsif (defined $module->package and defined $module->version) {
+        ## This is an unreliable heuristics...
+        my $current_module = $src_module_index->find_by_module
+            (PMBP::Module->new_from_package ($module->package));
+        if ($current_module) {
+          my $path = $current_module->pathname;
+          if (defined $path and $path =~ s{-[0-9A-Za-z.-]+\.tar\.gz$}{-@{[$module->version]}.tar.gz}) {
+            if (save_by_pathname $path => $module) {
+              scandeps $src_module_index, $module, %args;
+              $mods = load_deps $src_module_index => $module;
+            }
+          }
+        }
+      } # version
+      die "Can't detect dependency of @{[$module->as_short]}\n" unless $mods;
+    }
   }
   $dest_module_index->add_modules ($mods);
 } # select_module
@@ -531,6 +597,16 @@ sub write_install_module_index ($$) {
   write_module_index $module_index => $file_name;
 } # write_install_module_index
 
+sub read_carton_lock ($$) {
+  my ($file_name => $module_index) = @_;
+  my $json = load_json $file_name;
+  my $modules = [];
+  for (values %{$json->{modules}}) {
+    push @$modules, PMBP::Module->new_from_carton_lock_entry ($_);
+  }
+  $module_index->add_modules ($modules);
+} # read_carton_lock
+
 sub read_install_list ($) {
   my $module_index = shift;
 
@@ -546,6 +622,12 @@ sub read_install_list ($) {
     for (@file) {
       read_pmb_install_list $_ => $module_index;
     }
+  }
+
+  ## carton.lock
+  my $file_name = "$root_dir_name/carton.lock";
+  if (-f $file_name) {
+    read_carton_lock $file_name => $module_index;
   }
 
   # XXX other formats
@@ -591,9 +673,11 @@ for my $command (@command) {
   } elsif ($command->{type} eq 'scandeps') {
     info "Scanning dependency of @{[$command->{module}->as_short]}...";
     scandeps $global_module_index, $command->{module},
-        skip_if_found => 1;
+        skip_if_found => 1,
+        module_index_file_name => $module_index_file_name;
   } elsif ($command->{type} eq 'select-module') {
-    select_module $global_module_index => $command->{module} => $selected_module_index;
+    select_module $global_module_index => $command->{module} => $selected_module_index,
+        module_index_file_name => $module_index_file_name;
   } elsif ($command->{type} eq 'select-modules-by-list') {
     my $module_index = PMBP::ModuleIndex->new_empty;
     if (defined $command->{file_name}) {
@@ -601,10 +685,13 @@ for my $command (@command) {
     } else {
       read_install_list $module_index;
     }
-    select_module $global_module_index => $_ => $selected_module_index
+    select_module $global_module_index => $_ => $selected_module_index,
+        module_index_file_name => $module_index_file_name
         for ($module_index->to_list);
   } elsif ($command->{type} eq 'read-module-index') {
     read_module_index $command->{file_name} => $global_module_index;
+  } elsif ($command->{type} eq 'read-carton-lock') {
+    read_carton_lock $command->{file_name} => $global_module_index;
   } elsif ($command->{type} eq 'write-module-index') {
     write_module_index $global_module_index => $command->{file_name};
   } elsif ($command->{type} eq 'write-pmb-install-list') {
@@ -677,6 +764,13 @@ sub new_from_cpanm_scandeps_json_module ($$) {
                 pathname => $json->{pathname}}, $class;
 } # new_from_cpanm_scandeps_json_module
 
+sub new_from_carton_lock_entry ($$) {
+  my ($class, $json) = @_;
+  return bless {package => $json->{target} || $json->{name},
+                version => $json->{version},
+                pathname => $json->{pathname}}, $class;
+} # new_from_carton_lock_entry
+
 sub new_from_jsonable ($$) {
   return bless $_[1], $_[0];
 } # new_from_jsonable
@@ -727,6 +821,7 @@ sub url ($) {
 
 sub is_equal_module ($$) {
   my ($m1, $m2) = @_;
+  return 0 if not defined $m1->{package} or not defined $m2->{package};
   return 0 if $m1->{package} ne $m2->{package};
   return 0 if defined $m1->{version} and not defined $m2->{version};
   return 0 if not defined $m1->{version} and defined $m2->{version};
