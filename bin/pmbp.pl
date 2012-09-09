@@ -17,7 +17,7 @@ my $dists_dir_name;
 my @command;
 my @cpanm_option = qw(--notest --cascade-search);
 my $cpan_index_url = q<http://search.cpan.org/CPAN/modules/02packages.details.txt.gz>;
-my @cpan_mirror = qw(
+my @CPANMirror = qw(
   http://search.cpan.org/CPAN
   http://cpan.metacpan.org/
   http://backpan.perl.org/
@@ -66,6 +66,12 @@ GetOptions (
   '--set-module-index=s' => sub {
     push @command, {type => 'set-module-index', file_name => $_[1]};
   },
+  '--prepend-mirror=s' => sub {
+    push @command, {type => 'prepend-mirror', url => $_[1]};
+  },
+  '--print-pmtar-dir' => sub {
+    push @command, {type => 'print-pmtar-dir'};
+  },
 ) or die "Usage: $0 options... (See source for details)\n";
 
 $perl_version ||= `@{[quotemeta $perl]} -e 'print \$^V'`;
@@ -84,9 +90,6 @@ my $installed_dir_name = $local_dir_name . '/pm';
 my $log_dir_name = $temp_dir_name . '/logs';
 $dists_dir_name ||= $temp_dir_name . '/pmtar';
 make_path $dists_dir_name;
-push @cpanm_option,
-    '--mirror' => (abs_path $dists_dir_name),
-    map { ('--mirror' => $_) } @cpan_mirror;
 my $packages_details_file_name = $dists_dir_name . '/modules/02packages.details.txt';
 my $install_json_dir_name = $dists_dir_name . '/meta';
 my $deps_json_dir_name = $dists_dir_name . '/deps';
@@ -210,6 +213,10 @@ sub cpanm ($$;%) {
     if (grep { not m{/misc/[^/]+\.tar\.gz$} } @module_arg) {
       push @option, '--save-dists' => $dists_dir_name;
     }
+
+    push @option,
+        '--mirror' => (abs_path $dists_dir_name),
+        map { ('--mirror' => $_) } @CPANMirror;
 
     if (defined $args{module_index_file_name}) {
       push @option, '--mirror-index' => $args{module_index_file_name};
@@ -536,6 +543,10 @@ for my $command (@command) {
     print join ':', (get_lib_dir_names);
   } elsif ($command->{type} eq 'set-module-index') {
     $module_index_file_name = $command->{file_name};
+  } elsif ($command->{type} eq 'prepend-mirror') {
+    unshift @CPANMirror, $command->{url};
+  } elsif ($command->{type} eq 'print-pmtar-dir') {
+    print $dists_dir_name;
   } else {
     die "Command |$command->{type}| is not defined";
   }
