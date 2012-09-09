@@ -11,7 +11,7 @@ perl $pmbp --root-dir-name="$tempdir" \
     --write-libs-txt "$tempdir/libs.txt" \
     --write-module-index "$tempdir/index.txt"
 
-mirrordir=`perl $pmbp --root-dir-name="$tempdir" --print-pmtar-dir`
+mirrordir=`perl $pmbp --root-dir-name="$tempdir" --print-pmtar-dir-name`
 
 perl $pmbp --root-dir-name="$tempdir2" \
     --prepend-mirror "$mirrordir" \

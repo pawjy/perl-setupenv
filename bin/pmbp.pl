@@ -37,6 +37,9 @@ GetOptions (
     my $module = PMBP::Module->new_from_module_arg ($_[1]);
     push @command, {type => 'install-module', module => $module};
   },
+  '--install-modules-by-file-name=s' => sub {
+    push @command, {type => 'install-modules-by-list', file_name => $_[1]};
+  },
   '--scandeps=s' => sub {
     my $module = PMBP::Module->new_from_module_arg ($_[1]);
     push @command, {type => 'scandeps', module => $module};
@@ -44,6 +47,9 @@ GetOptions (
   '--select-module=s' => sub {
     my $module = PMBP::Module->new_from_module_arg ($_[1]);
     push @command, {type => 'select-module', module => $module};
+  },
+  '--select-modules-by-file-name=s' => sub {
+    push @command, {type => 'select-modules-by-list', file_name => $_[1]};
   },
   '--read-module-index=s' => sub {
     push @command, {type => 'read-module-index', file_name => $_[1]};
@@ -69,8 +75,8 @@ GetOptions (
   '--prepend-mirror=s' => sub {
     push @command, {type => 'prepend-mirror', url => $_[1]};
   },
-  '--print-pmtar-dir' => sub {
-    push @command, {type => 'print-pmtar-dir'};
+  '--print-pmtar-dir-name' => sub {
+    push @command, {type => 'print-pmtar-dir-name'};
   },
 ) or die "Usage: $0 options... (See source for details)\n";
 
@@ -398,6 +404,19 @@ sub load_deps ($$) {
   return $result;
 } # load_deps
 
+sub select_module ($$$) {
+  my ($src_module_index => $module => $dest_module_index) = @_;
+  
+  my $mods = load_deps $src_module_index => $module;
+  unless ($mods) {
+    info "Scanning dependency of @{[$module->as_short]}...";
+    scandeps $src_module_index, $module;
+    $mods = load_deps $src_module_index => $module;
+    die "Can't detect dependency of @{[$module->as_short]}\n" unless $mods;
+  }
+  $dest_module_index->add_modules ($mods);
+} # select_module
+
 sub copy_install_jsons () {
   make_path $install_json_dir_name;
   for (glob "$installed_dir_name/lib/perl5/$Config{archname}/.meta/*/install.json") {
@@ -463,6 +482,26 @@ sub write_module_index ($$) {
   close $details;
 } # write_module_index
 
+sub read_pmb_install_list ($$) {
+  my ($file_name => $module_index) = @_;
+  unless (-f $file_name) {
+    info "$file_name not found; skipped\n";
+    return;
+  }
+  open my $file, '<', $file_name or die "$0: $file_name: $!";
+  my $modules = [];
+  while (<$file>) {
+    if (/^\s*\#/ or /^\*$/) {
+      #
+    } else {
+      s/^\s+//;
+      s/\s+$//;
+      push @$modules, PMBP::Module->new_from_module_arg ($_);
+    }
+  }
+  $module_index->add_modules ($modules);
+} # read_pmb_install_list
+
 sub write_pmb_install_list ($$) {
   my ($module_index => $file_name) = @_;
   
@@ -513,19 +552,22 @@ for my $command (@command) {
     info "Install @{[$command->{module}->as_short]}...";
     install_module $command->{module},
         module_index_file_name => $module_index_file_name;
+  } elsif ($command->{type} eq 'install-modules-by-list') {
+    my $module_index = PMBP::ModuleIndex->new_empty;
+    read_pmb_install_list $command->{file_name} => $module_index;
+    install_module $_, module_index_file_name => $module_index_file_name
+        for ($module_index->to_list);
   } elsif ($command->{type} eq 'scandeps') {
     info "Scanning dependency of @{[$command->{module}->as_short]}...";
     scandeps $global_module_index, $command->{module},
         skip_if_found => 1;
   } elsif ($command->{type} eq 'select-module') {
-    my $mods = load_deps $global_module_index => $command->{module};
-    unless ($mods) {
-      info "Scanning dependency of @{[$command->{module}->as_short]}...";
-      scandeps $global_module_index, $command->{module};
-      $mods = load_deps $global_module_index => $command->{module};
-      die "Can't detect dependency of @{[$command->{module}->as_short]}\n" unless $mods;
-    }
-    $selected_module_index->add_modules ($mods);
+    select_module $global_module_index => $command->{module} => $selected_module_index;
+  } elsif ($command->{type} eq 'select-modules-by-list') {
+    my $module_index = PMBP::ModuleIndex->new_empty;
+    read_pmb_install_list $command->{file_name} => $module_index;
+    select_module $global_module_index => $_ => $selected_module_index
+        for ($module_index->to_list);
   } elsif ($command->{type} eq 'read-module-index') {
     read_module_index $command->{file_name} => $global_module_index;
   } elsif ($command->{type} eq 'write-module-index') {
@@ -544,8 +586,11 @@ for my $command (@command) {
   } elsif ($command->{type} eq 'set-module-index') {
     $module_index_file_name = $command->{file_name};
   } elsif ($command->{type} eq 'prepend-mirror') {
+    if ($command =~ m{^[^/]}) {
+      $command->{url} = abs_path $command->{url};
+    }
     unshift @CPANMirror, $command->{url};
-  } elsif ($command->{type} eq 'print-pmtar-dir') {
+  } elsif ($command->{type} eq 'print-pmtar-dir-name') {
     print $dists_dir_name;
   } else {
     die "Command |$command->{type}| is not defined";
