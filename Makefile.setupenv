@@ -576,6 +576,7 @@ local-phantomjs: local-phantomjs-repo local-phantomjs-build
 local-phantomjs-repo:
 	$(GIT) clone git://github.com/ariya/phantomjs.git local/phantomjs || \
 	(cd local/phantomjs && $(GIT) pull)
+	cd local/phantomjs && ($(GIT) checkout 1.6 || $(GIT) checkout -b 1.6)
 	cd local/phantomjs && $(GIT) submodule update --init
 
 local-phantomjs-build:

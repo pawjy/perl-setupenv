@@ -17,7 +17,7 @@ my $dists_dir_name;
 my @command;
 my @cpanm_option = qw(--notest --cascade-search);
 my $cpan_index_url = q<http://search.cpan.org/CPAN/modules/02packages.details.txt.gz>;
-my @cpan_mirror = qw(
+my @CPANMirror = qw(
   http://search.cpan.org/CPAN
   http://cpan.metacpan.org/
   http://backpan.perl.org/
@@ -34,16 +34,34 @@ GetOptions (
   '--perl-version=s' => \$perl_version,
 
   '--install-module=s' => sub {
-    push @command, {type => 'install-module', module_name => $_[1]};
+    my $module = PMBP::Module->new_from_module_arg ($_[1]);
+    push @command, {type => 'install-module', module => $module};
+  },
+  '--install-modules-by-file-name=s' => sub {
+    push @command, {type => 'install-modules-by-list', file_name => $_[1]};
+  },
+  '--install-modules-by-list' => sub {
+    push @command, {type => 'install-modules-by-list'};
   },
   '--scandeps=s' => sub {
-    push @command, {type => 'scandeps', module_name => $_[1]};
+    my $module = PMBP::Module->new_from_module_arg ($_[1]);
+    push @command, {type => 'scandeps', module => $module};
   },
   '--select-module=s' => sub {
-    push @command, {type => 'select-module', module_name => $_[1]};
+    my $module = PMBP::Module->new_from_module_arg ($_[1]);
+    push @command, {type => 'select-module', module => $module};
+  },
+  '--select-modules-by-file-name=s' => sub {
+    push @command, {type => 'select-modules-by-list', file_name => $_[1]};
+  },
+  '--select-modules-by-list' => sub {
+    push @command, {type => 'select-modules-by-list'};
   },
   '--read-module-index=s' => sub {
     push @command, {type => 'read-module-index', file_name => $_[1]};
+  },
+  '--read-carton-lock=s' => sub {
+    push @command, {type => 'read-carton-lock', file_name => $_[1]};
   },
   '--write-module-index=s' => sub {
     push @command, {type => 'write-module-index', file_name => $_[1]};
@@ -54,8 +72,20 @@ GetOptions (
   '--write-install-module-index=s' => sub {
     push @command, {type => 'write-install-module-index', file_name => $_[1]};
   },
+  '--write-libs-txt=s' => sub {
+    push @command, {type => 'write-libs-txt', file_name => $_[1]};
+  },
   '--print-libs' => sub {
     push @command, {type => 'print-libs'};
+  },
+  '--set-module-index=s' => sub {
+    push @command, {type => 'set-module-index', file_name => $_[1]};
+  },
+  '--prepend-mirror=s' => sub {
+    push @command, {type => 'prepend-mirror', url => $_[1]};
+  },
+  '--print-pmtar-dir-name' => sub {
+    push @command, {type => 'print-pmtar-dir-name'};
   },
 ) or die "Usage: $0 options... (See source for details)\n";
 
@@ -74,20 +104,14 @@ unshift @INC, $cpanm_lib_dir_name; ## Should not use XS modules.
 my $installed_dir_name = $local_dir_name . '/pm';
 my $log_dir_name = $temp_dir_name . '/logs';
 $dists_dir_name ||= $temp_dir_name . '/pmtar';
-push @cpanm_option, '--save-dists' => $dists_dir_name;
-if (-d $dists_dir_name) {
-  push @cpanm_option, '--mirror' => abs_path $dists_dir_name;
-}
+make_path $dists_dir_name;
 my $packages_details_file_name = $dists_dir_name . '/modules/02packages.details.txt';
 my $install_json_dir_name = $dists_dir_name . '/meta';
 my $deps_json_dir_name = $dists_dir_name . '/deps';
-push @cpanm_option, map { ('--mirror' => $_) } @cpan_mirror;
-my $ModuleIndex = [];
-my $SelectedModuleIndex = [];
 
-sub install_modules ($);
-sub install_support_modules ($);
-sub scandeps ($;%);
+sub install_module ($;%);
+sub install_support_module ($;%);
+sub scandeps ($$;%);
 
 sub info ($) {
   print STDERR $_[0], $_[0] =~ /\n\z/ ? "" : "\n";
@@ -123,9 +147,15 @@ sub copy_log_file ($$) {
   return <$file>;
 } # copy_log_file
 
-sub save_url ($$$) {
-  system "wget -O @{[quotemeta qq{$_[1]/$_[2]}]} @{[quotemeta $_[0]]} 1>&2";
-  die "Failed to download <$_[0]>\n" unless -f $_[1] . '/' . $_[2];
+sub _save_url {
+  mkdir_for_file $_[1];
+  info "Downloading <$_[0]>...\n";
+  system "wget -O \Q$_[1]\E \Q$_[0]\E 1>&2";
+  return -f $_[1];
+} # _save_url
+
+sub save_url ($$) {
+  _save_url (@_) or die "Failed to download <$_[0]>\n";
 } # save_url
 
 {
@@ -134,7 +164,7 @@ sub save_url ($$$) {
   sub encode_json ($) {
     unless ($json_installed) {
       $json_installed = 1;
-      install_support_modules {'JSON' => ''};
+      install_support_module PMBP::Module->new_from_package ('JSON');
     }
     require JSON;
     return JSON->new->utf8->allow_blessed->convert_blessed->allow_nonref->pretty->canonical->encode ($_[0]);
@@ -143,7 +173,7 @@ sub save_url ($$$) {
   sub decode_json ($) {
     unless ($json_installed) {
       $json_installed = 1;
-      install_support_modules {'JSON' => ''};
+      install_support_module PMBP::Module->new_from_package ('JSON');
     }
     require JSON;
     return JSON->new->utf8->allow_blessed->convert_blessed->allow_nonref->pretty->canonical->decode ($_[0]);
@@ -158,16 +188,62 @@ sub load_json ($) {
   return $json;
 } # load_json
 
+sub get_local_copy_if_necessary ($) {
+  my $module = shift;
+
+  my $path = $module->pathname;
+  my $url = $module->url;
+
+  if (defined $path and defined $url) {
+    $path = "$dists_dir_name/authors/id/$path";
+    if (not -f $path) {
+      save_url $url => $path;
+    }
+  }
+} # get_local_copy_if_necessary
+
+sub save_by_pathname ($$) {
+  my ($pathname => $module) = @_;
+
+  my $dest_file_name = "$dists_dir_name/authors/id/$pathname";
+  if (-f $dest_file_name) {
+    $module->{url} = 'file://' . abs_path "$dists_dir_name/authors/id/$pathname";
+    $module->{pathname} = $pathname;
+    return 1;
+  }
+
+  for (@CPANMirror) {
+    my $mirror = $_;
+    $mirror =~ s{/+$}{};
+    $mirror .= "/authors/id/$pathname";
+    if ($mirror =~ m{^[Hh][Tt][Tt][Pp][Ss]?:}) {
+      if (_save_url $mirror => $dest_file_name) {
+        $module->{url} = $mirror;
+        $module->{pathname} = $pathname;
+        return 1;
+      }
+    } else {
+      if (-f $mirror) {
+        copy $mirror => $dest_file_name or die "$0: Can't copy $mirror";
+        $module->{url} = $mirror;
+        $module->{pathname} = $pathname;
+        return 1;
+      }
+    }
+  }
+  
+  return 0;
+} # save_by_pathname
+
 sub prepare_cpanm () {
   return if -f $cpanm;
-  mkdir_for_file $cpanm;
-  save_url $cpanm_url => $cpanm_dir_name . '/bin', 'cpanm';
+  save_url $cpanm_url => $cpanm;
 } # prepare_cpanm
 
 our $CPANMDepth = 0;
 my $cpanm_init = 0;
-sub cpanm ($$) {
-  my ($args, $modules) = @_;
+sub cpanm ($$;%) {
+  my ($args, $modules, %args) = @_;
   my $result = {};
   prepare_cpanm;
 
@@ -180,15 +256,30 @@ sub cpanm ($$) {
     my @required_install;
     my @required_install2;
 
+    my @option = ('-I' . $cpanm_lib_dir_name, $cpanm,
+                  $args->{local_option} || '-L' => $perl_lib_dir_name,
+                  ($args->{skip_satisfied} ? '--skip-satisfied' : ()),
+                  @cpanm_option,
+                  ($args->{scandeps} ? ('--scandeps', '--format=json', '--force') : ()));
+
+    my @module_arg = map { $_->as_cpanm_arg ($dists_dir_name) } @$modules;
+    if (grep { not m{/misc/[^/]+\.tar\.gz$} } @module_arg) {
+      push @option, '--save-dists' => $dists_dir_name;
+    }
+
+    push @option,
+        '--mirror' => (abs_path $dists_dir_name),
+        map { ('--mirror' => $_) } @CPANMirror;
+
+    if (defined $args{module_index_file_name}) {
+      push @option, '--mirror-index' => abs_path $args{module_index_file_name};
+    }
+
     local $ENV{LANG} = 'C';
     local $ENV{PERL_CPANM_HOME} = $cpanm_home_dir_name;
-    my @cmd = ($perl, '-I' . $cpanm_lib_dir_name, $cpanm,
-               $args->{local_option} || '-L' => $perl_lib_dir_name,
-               ($args->{skip_satisfied} ? '--skip-satisfied' : ()),
-#XXX               '--mirror-index' => $packages_details_file_name . '.gz',
-               @cpanm_option,
-               ($args->{scandeps} ? ('--scandeps', '--format=json', '--force') : ()),
-               keys %$modules);
+    my @cmd = ($perl, 
+               @option,
+               @module_arg);
     info join ' ', 'PERL_CPANM_HOME=' . $cpanm_home_dir_name, @cmd;
     my $json_temp_file = File::Temp->new;
     open my $cmd, '-|', ((join ' ', map { quotemeta } @cmd) .
@@ -200,17 +291,21 @@ sub cpanm ($$) {
     while (<$cmd>) {
       info "cpanm($CPANMDepth/$redo): $_";
       
-      if (/^Can\'t locate (\S+)\.pm in \@INC/) {
-        my $module = $1;
-        $module =~ s{/}{::}g;
-        push @required_cpanm, $module;
+      if (/^Can\'t locate (\S+\.pm) in \@INC/) {
+        push @required_cpanm, PMBP::Module->new_from_pm_file_name ($1);
+      } elsif (/^Building version-\S+ \.\.\. FAIL/) {
+        push @required_install,
+            map { PMBP::Module->new_from_package ($_) }
+            qw{ExtUtils::MakeMaker ExtUtils::ParseXS};
       } elsif (/^--> Working on (\S)+$/) {
         $current_module_name = $1;
       } elsif (/^! Installing (\S+) failed\. See (.+?) for details\.$/) {
         my $log = copy_log_file $2 => $1;
         if ($log =~ m{^make: .+?ExtUtils/xsubpp}m or
             $log =~ m{^Can\'t open perl script "ExtUtils/xsubpp"}m) {
-          push @required_install, qw{ExtUtils::MakeMaker ExtUtils::ParseXS};
+          push @required_install,
+              map { PMBP::Module->new_from_package ($_) }
+              qw{ExtUtils::MakeMaker ExtUtils::ParseXS};
         }
       }
     }
@@ -219,26 +314,25 @@ sub cpanm ($$) {
         if (@required_cpanm and $perl_lib_dir_name ne $cpanm_dir_name) {
           local $CPANMDepth = $CPANMDepth + 1;
           for my $module (@required_cpanm) {
-            install_support_modules {$module => ''};
+            install_support_module $module, %args;
           }
           redo COMMAND;
         } elsif (@required_install and $perl_lib_dir_name ne $cpanm_dir_name) {
           local $CPANMDepth = $CPANMDepth + 1;
           for my $module (@required_install) {
             if ($args->{scandeps}) {
-              my $r = scandeps {$module => ''};
-              # XXX merge $r->{output_json} with parent's output_json...
+              scandeps $args->{scandeps}->{module_index}, $module, %args;
             } else {
-              install_modules {$module => ''};
+              install_module $module, %args;
             }
           }
           redo COMMAND;
         }
       }
       if ($args->{ignore_errors}) {
-        info "cpanm($CPANMDepth): Installing @{[join ' ', keys %$modules]} failed (@{[$? >> 8]}) (Ignored)";
+        info "cpanm($CPANMDepth): Installing @{[join ' ', map { $_->as_short } @$modules]} failed (@{[$? >> 8]}) (Ignored)";
       } else {
-        die "cpanm($CPANMDepth): Installing @{[join ' ', keys %$modules]} failed (@{[$? >> 8]})\n";
+        die "cpanm($CPANMDepth): Installing @{[join ' ', map { $_->as_short } @$modules]} failed (@{[$? >> 8]})\n";
       }
     };
     if ($args->{scandeps} and -f $json_temp_file->filename) {
@@ -248,23 +342,28 @@ sub cpanm ($$) {
   return $result;
 } # cpanm
 
-sub install_modules ($) {
-  cpanm {perl_lib_dir_name => $installed_dir_name}, $_[0];
-} # install_modules
+sub install_module ($;%) {
+  my $module = shift;
+  get_local_copy_if_necessary $module;
+  cpanm {perl_lib_dir_name => $installed_dir_name}, [$module], @_;
+} # install_module
 
-sub install_support_modules ($) {
+sub install_support_module ($;%) {
+  my $module = shift;
+  get_local_copy_if_necessary $module;
   cpanm {perl_lib_dir_name => $cpanm_dir_name,
-         local_option => '-l', skip_satisfied => 1}, $_[0];
-} # install_support_modules
+         local_option => '-l', skip_satisfied => 1}, [$module], @_;
+} # install_support_module
 
-sub scandeps ($;%) {
-  my ($modules, %args) = @_;
+sub scandeps ($$;%) {
+  my ($module_index, $module, %args) = @_;
 
-  if ($args{skip_if_found} and 1 == keys %$modules) {
-    for (@$ModuleIndex) {
-      if (defined $modules->{$_->{name}}) {
-        my $path = pathname2distvname $_->{path};
-        my $json_file_name = "$deps_json_dir_name/$path.json";
+  if ($args{skip_if_found}) {
+    my $module_in_index = $module_index->find_by_module ($module);
+    if ($module_in_index) {
+      my $name = $module_in_index->distvname;
+      if (defined $name) {
+        my $json_file_name = "$deps_json_dir_name/$name.json";
         return if -f $json_file_name;
       }
     }
@@ -272,92 +371,121 @@ sub scandeps ($;%) {
 
   my $temp_dir = $args{temp_dir} || File::Temp->newdir;
 
+  get_local_copy_if_necessary $module;
   my $result = cpanm {perl_lib_dir_name => $temp_dir->dirname,
                       temp_dir => $temp_dir,
-                      scandeps => 1}, $modules;
+                      scandeps => {module_index => $module_index}}, [$module],
+                     %args;
 
   my $dist = $result->{output_json}->[0]
       ? $result->{output_json}->[-1]->[0]->{pathname} : undef;
 
   my $convert_list;
   $convert_list = sub {
-    return {
+    return (
       map {
         (
-          $_->[0]->{pathname} =>
           [
-            $_->[0]->{module},
-            $_->[0]->{module_version},
-            $_->[0]->{distvname},
-            {
+            PMBP::Module->new_from_cpanm_scandeps_json_module ($_->[0]),
+            PMBP::ModuleIndex->new_from_arrayref ([
               map {
-                (
-                  $_->[0]->{pathname} => [
-                    $_->[0]->{module},
-                    $_->[0]->{module_version},
-                    $_->[0]->{distvname},
-                  ],
-                );
+                PMBP::Module->new_from_cpanm_scandeps_json_module ($_->[0]);
               } @{$_->[1]}
-            },
+            ]),
           ],
-          %{$convert_list->($_->[1])},
+          ($convert_list->($_->[1])),
         );
       } @{$_[0]},
-    };
+    );
   }; # $convert_list;
 
-  $result = $convert_list->($result->{output_json} || {});
+  $result = [($convert_list->($result->{output_json} || {}))];
 
-  my $module_index = [];
+  for (@$result) {
+    if (defined $_->[0]->{pathname} and defined $module->{pathname} and
+        $_->[0]->{pathname} eq $module->{pathname}) {
+      $_->[0]->merge_input_data ($module);
+    }
+  }
 
   make_path $deps_json_dir_name;
-  for my $path (keys %$result) {
-    my $info = $result->{$path};
-    my $file_name = $deps_json_dir_name . '/' . $info->[2] . '.json';
+  for my $m (@$result) {
+    next unless defined $m->[0]->distvname;
+    my $file_name = $deps_json_dir_name . '/' . $m->[0]->distvname . '.json';
     info_writing "json file", $file_name;
     if (-f $file_name) {
       my $json = load_json $file_name;
-      if (defined $json and ref $json eq 'ARRAY' and ref $json->[2] eq 'HASH') {
-        for (keys %{$json->[2]}) {
-          $info->[3]->{$_} ||= $json->[2]->{$_};
-        }
+      if (defined $json and ref $json eq 'ARRAY' and ref $json->[1] eq 'ARRAY') {
+        my $mi = PMBP::ModuleIndex->new_from_arrayref ($json->[1]);
+        $m->[1]->merge_module_index ($mi);
       }
     }
     open my $file, '>', $file_name or die "$0: $file_name: $!";
-    print $file encode_json $info;
-
-    push @$module_index, {path => $path, name => $info->[0], version => $info->[1]};
+    print $file encode_json $m;
   }
-
-  return {pathname => $dist, module_index => $module_index};
+  $module_index->add_modules ([map { $_->[0] } @$result]);
 } # scandeps
 
 sub load_deps ($$) {
-  my ($module_list, $module_name) = @_;
-  
-  my $module = [grep { $_->{name} eq $module_name } @$module_list]->[0]
-      or return undef;
+  my ($module_index, $input_module) = @_;
+  my $module = $module_index->find_by_module ($input_module) or return undef;
 
   my $result = [];
 
-  my @path = ($module->{path});
+  my @module = ($module);
   my %done;
-  while (@path) {
-    my $path = shift @path;
-    next if $done{$path}++;
-    my $dist = pathname2distvname $path;
+  while (@module) {
+    my $module = shift @module;
+    my $dist = $module->distvname;
+    next if not defined $dist;
+    next if $done{$dist}++;
     my $json_file_name = "$deps_json_dir_name/$dist.json";
     unless (-f $json_file_name) {
       info "$json_file_name not found";
       return undef;
     }
     my $json = load_json $json_file_name;
-    push @path, keys %{$json->[3]};
-    unshift @$result, {name => $json->[0], version => $json->[1], path => $path};
+    if (defined $json and ref $json eq 'ARRAY') {
+      push @module, (PMBP::ModuleIndex->new_from_arrayref ($json->[1])->to_list);
+      unshift @$result, PMBP::Module->new_from_jsonable ($json->[0]);
+    }
   }
   return $result;
 } # load_deps
+
+sub select_module ($$$;%) {
+  my ($src_module_index => $module => $dest_module_index, %args) = @_;
+  
+  my $mods = load_deps $src_module_index => $module;
+  unless ($mods) {
+    info "Scanning dependency of @{[$module->as_short]}...";
+    scandeps $src_module_index, $module, %args;
+    $mods = load_deps $src_module_index => $module;
+    unless ($mods) {
+      if (defined $module->pathname) {
+        if (save_by_pathname $module->pathname => $module) {
+          scandeps $src_module_index, $module, %args;
+          $mods = load_deps $src_module_index => $module;
+        }
+      } elsif (defined $module->package and defined $module->version) {
+        ## This is an unreliable heuristics...
+        my $current_module = $src_module_index->find_by_module
+            (PMBP::Module->new_from_package ($module->package));
+        if ($current_module) {
+          my $path = $current_module->pathname;
+          if (defined $path and $path =~ s{-[0-9A-Za-z.-]+\.tar\.gz$}{-@{[$module->version]}.tar.gz}) {
+            if (save_by_pathname $path => $module) {
+              scandeps $src_module_index, $module, %args;
+              $mods = load_deps $src_module_index => $module;
+            }
+          }
+        }
+      } # version
+      die "Can't detect dependency of @{[$module->as_short]}\n" unless $mods;
+    }
+  }
+  $dest_module_index->add_modules ($mods);
+} # select_module
 
 sub copy_install_jsons () {
   make_path $install_json_dir_name;
@@ -375,32 +503,36 @@ sub copy_install_jsons () {
 # for (keys %{$data->{provides}}) {
 # $ver = $data->{provides}->{$_}->{version} || "undef";
 
-sub read_module_index ($) {
-  my $file_name = shift;
-  my $result = [];
-  return $result unless -f $file_name;
+sub read_module_index ($$) {
+  my ($file_name => $module_index) = @_;
+  unless (-f $file_name) {
+    info "$file_name not found; skipped\n";
+    return;
+  }
   open my $file, '<', $file_name or die "$0: $file_name: $!";
   my $has_blank_line;
+  my $modules = [];
   while (<$file>) {
     if ($has_blank_line and /^(\S+)\s+(\S+)\s+(\S+)/) {
-      push @$result, {path => $3, name => $1, version => $2 eq 'undef' ? undef : $2};
+      push @$modules, PMBP::Module->new_from_indexable ([$1, $2, $3]);
     } elsif (/^$/) {
       $has_blank_line = 1;
     }
   }
-  return $result;
+  $module_index->add_modules ($modules);
 } # read_module_index
 
 sub write_module_index ($$) {
-  my ($modules => $file_name) = @_;
+  my ($module_index => $file_name) = @_;
   my @list;
-  for my $module (@$modules) {
-    my $mod = $module->{name};
-    my $ver = $module->{version} || 'undef';
+  for my $module (($module_index->to_list)) {
+    my $mod = $module->package;
+    my $ver = $module->version;
+    $ver = 'undef' if not defined $ver;
     push @list, sprintf "%s %s  %s\n",
         length $mod < 32 ? $mod . (" " x (32 - length $mod)) : $mod,
         length $ver < 10 ? (" " x (10 - length $ver)) . $ver : $ver,
-        $module->{path};
+        $module->pathname;
   }
 
   info_writing "package list", $file_name;
@@ -420,13 +552,33 @@ sub write_module_index ($$) {
   close $details;
 } # write_module_index
 
+sub read_pmb_install_list ($$) {
+  my ($file_name => $module_index) = @_;
+  unless (-f $file_name) {
+    info "$file_name not found; skipped\n";
+    return;
+  }
+  open my $file, '<', $file_name or die "$0: $file_name: $!";
+  my $modules = [];
+  while (<$file>) {
+    if (/^\s*\#/ or /^\*$/) {
+      #
+    } else {
+      s/^\s+//;
+      s/\s+$//;
+      push @$modules, PMBP::Module->new_from_module_arg ($_);
+    }
+  }
+  $module_index->add_modules ($modules);
+} # read_pmb_install_list
+
 sub write_pmb_install_list ($$) {
   my ($module_index => $file_name) = @_;
   
   my $result = [];
   
-  for my $module (@$module_index) {
-    push @$result, [$module->{name}, $module->{version}];
+  for my $module (($module_index->to_list)) {
+    push @$result, [$module->package, $module->version];
   }
 
   info_writing "pmb-install list", $file_name;
@@ -443,6 +595,53 @@ sub write_install_module_index ($$) {
   write_module_index $module_index => $file_name;
 } # write_install_module_index
 
+sub read_carton_lock ($$) {
+  my ($file_name => $module_index) = @_;
+  my $json = load_json $file_name;
+  my $modules = [];
+  for (values %{$json->{modules}}) {
+    push @$modules, PMBP::Module->new_from_carton_lock_entry ($_);
+  }
+  $module_index->add_modules ($modules);
+} # read_carton_lock
+
+sub read_install_list ($) {
+  my $module_index = shift;
+
+  ## pmb install list format
+  my @file = map { (glob "$_/config/perl/modules*.txt") }
+      qq{$root_dir_name};
+  if (@file) {
+    push @file, map { (glob "$_/config/perl/modules*.txt") }
+        qq{$root_dir_name/modules/*},
+        qq{$root_dir_name/t_deps/modules/*},
+        qq{$root_dir_name/local/submodules/*};
+    
+    for (@file) {
+      read_pmb_install_list $_ => $module_index;
+    }
+  }
+
+  ## carton.lock
+  my $file_name = "$root_dir_name/carton.lock";
+  if (-f $file_name) {
+    read_carton_lock $file_name => $module_index;
+  }
+
+  # XXX other formats
+
+} # read_install_list
+
+sub get_lib_dir_names () {
+  my @lib = grep { defined } map { abs_path $_ } map { glob $_ }
+      qq{$root_dir_name/lib},
+      qq{$root_dir_name/modules/*/lib},
+      qq{$root_dir_name/local/submodules/*/lib},
+      qq{$installed_dir_name/lib/perl5/$Config{archname}},
+      qq{$installed_dir_name/lib/perl5};
+  return @lib;
+} # get_lib_dir_names
+
 sub destroy_cpanm_home () {
   remove_tree $cpanm_home_dir_name;
 } # destroy_cpanm_home
@@ -451,47 +650,262 @@ sub destroy () {
   destroy_cpanm_home;
 } # destroy
 
+my $global_module_index = PMBP::ModuleIndex->new_empty;
+my $selected_module_index = PMBP::ModuleIndex->new_empty;
+my $module_index_file_name;
+
 for my $command (@command) {
   if ($command->{type} eq 'install-module') {
-    info "Install $command->{module_name}...";
-    install_modules {$command->{module_name} => ''};
-  } elsif ($command->{type} eq 'scandeps') {
-    info "Scanning dependency of $command->{module_name}...";
-    my $result = scandeps {$command->{module_name} => ''}, skip_if_found => 1;
-    push @$ModuleIndex, @{$result->{module_index}} if $result;
-  } elsif ($command->{type} eq 'select-module') {
-    my $mods = load_deps $ModuleIndex => $command->{module_name};
-    unless ($mods) {
-      info "Scanning dependency of $command->{module_name}...";
-      my $result = scandeps {$command->{module_name} => ''};
-      push @$ModuleIndex, @{$result->{module_index}};
-      $mods = load_deps $ModuleIndex => $command->{module_name};
-      die "Can't detect dependency of $command->{module_name}\n" unless $mods;
+    info "Install @{[$command->{module}->as_short]}...";
+    install_module $command->{module},
+        module_index_file_name => $module_index_file_name;
+  } elsif ($command->{type} eq 'install-modules-by-list') {
+    my $module_index = PMBP::ModuleIndex->new_empty;
+    if (defined $command->{file_name}) {
+      read_pmb_install_list $command->{file_name} => $module_index;
+    } else {
+      read_install_list $module_index;
     }
-    push @$SelectedModuleIndex, @$mods;
+    install_module $_, module_index_file_name => $module_index_file_name
+        for ($module_index->to_list);
+  } elsif ($command->{type} eq 'scandeps') {
+    info "Scanning dependency of @{[$command->{module}->as_short]}...";
+    scandeps $global_module_index, $command->{module},
+        skip_if_found => 1,
+        module_index_file_name => $module_index_file_name;
+  } elsif ($command->{type} eq 'select-module') {
+    select_module $global_module_index => $command->{module} => $selected_module_index,
+        module_index_file_name => $module_index_file_name;
+  } elsif ($command->{type} eq 'select-modules-by-list') {
+    my $module_index = PMBP::ModuleIndex->new_empty;
+    if (defined $command->{file_name}) {
+      read_pmb_install_list $command->{file_name} => $module_index;
+    } else {
+      read_install_list $module_index;
+    }
+    select_module $global_module_index => $_ => $selected_module_index,
+        module_index_file_name => $module_index_file_name
+        for ($module_index->to_list);
   } elsif ($command->{type} eq 'read-module-index') {
-    my $list = read_module_index $command->{file_name};
-    push @$ModuleIndex, @$list;
+    read_module_index $command->{file_name} => $global_module_index;
+  } elsif ($command->{type} eq 'read-carton-lock') {
+    read_carton_lock $command->{file_name} => $global_module_index;
   } elsif ($command->{type} eq 'write-module-index') {
-    write_module_index $ModuleIndex => $command->{file_name};
+    write_module_index $global_module_index => $command->{file_name};
   } elsif ($command->{type} eq 'write-pmb-install-list') {
-    write_pmb_install_list $SelectedModuleIndex => $command->{file_name};
+    write_pmb_install_list $selected_module_index => $command->{file_name};
   } elsif ($command->{type} eq 'write-install-module-index') {
-    write_install_module_index $SelectedModuleIndex => $command->{file_name};
+    write_install_module_index $selected_module_index => $command->{file_name};
+  } elsif ($command->{type} eq 'write-libs-txt') {
+    open my $file, '>', $command->{file_name}
+        or die "$0: $command->{file_name}: $!";
+    info_writing "lib paths", $command->{file_name};
+    print $file join ':', (get_lib_dir_names);
   } elsif ($command->{type} eq 'print-libs') {
-    my @lib = grep { defined } map { abs_path $_ } map { glob $_ }
-      qq{$root_dir_name/lib},
-      qq{$root_dir_name/modules/*/lib},
-      qq{$root_dir_name/local/submodules/*/lib},
-      qq{$installed_dir_name/lib/perl5/$Config{archname}},
-      qq{$installed_dir_name/lib/perl5};
-    print join ':', @lib;
+    print join ':', (get_lib_dir_names);
+  } elsif ($command->{type} eq 'set-module-index') {
+    $module_index_file_name = $command->{file_name};
+  } elsif ($command->{type} eq 'prepend-mirror') {
+    if ($command =~ m{^[^/]}) {
+      $command->{url} = abs_path $command->{url};
+    }
+    unshift @CPANMirror, $command->{url};
+  } elsif ($command->{type} eq 'print-pmtar-dir-name') {
+    print $dists_dir_name;
   } else {
     die "Command |$command->{type}| is not defined";
   }
 }
 
 destroy;
+
+package PMBP::Module;
+use Carp;
+
+sub new_from_package ($$) {
+  return bless {package => $_[1]}, $_[0];
+} # new_from_package
+
+sub new_from_pm_file_name ($$) {
+  my $m = $_[1];
+  $m =~ s/\.pm$//;
+  $m =~ s{[/\\]+}{::};
+  return bless {package => $m}, $_[0];
+} # new_from_pm_file_name
+
+sub new_from_module_arg ($$) {
+  my ($class, $arg) = @_;
+  if (not defined $arg) {
+    croak "Module argument is not specified";
+  } elsif ($arg =~ /\A([0-9A-Za-z_:]+)\z/) {
+    return bless {package => $1}, $class;
+  } elsif ($arg =~ /\A([0-9A-Za-z_:]+)~([0-9A-Za-z_.-]+)\z/) {
+    return bless {package => $1, version => $2}, $class;
+  } elsif ($arg =~ m{\A([0-9A-Za-z_:]+)=([Hh][Tt][Tt][Pp][Ss]?://.+)\z}) {
+    my $self = bless {package => $1, url => $2}, $class;
+    $self->_set_distname;
+    return $self;
+  } elsif ($arg =~ m{\A([0-9A-Za-z_:]+)~([0-9A-Za-z_.-]+)=([Hh][Tt][Tt][Pp][Ss]?://.+)\z}) {
+    my $self = bless {package => $1, version => $2, url => $3}, $class;
+    $self->_set_distname;
+    return $self;
+  } else {
+    croak "Module argument |$arg| is not supported";
+  }
+} # new_from_module_arg
+
+sub new_from_cpanm_scandeps_json_module ($$) {
+  my ($class, $json) = @_;
+  return bless {package => $json->{module},
+                version => $json->{module_version},
+                distvname => $json->{distvname} || $json->{dir},
+                pathname => $json->{pathname} || (defined $json->{dir} ? 'misc/' . $json->{dir} . '.tar.gz' : undef)}, $class;
+} # new_from_cpanm_scandeps_json_module
+
+sub new_from_carton_lock_entry ($$) {
+  my ($class, $json) = @_;
+  return bless {package => $json->{target} || $json->{name},
+                version => $json->{version},
+                pathname => $json->{pathname}}, $class;
+} # new_from_carton_lock_entry
+
+sub new_from_jsonable ($$) {
+  return bless $_[1], $_[0];
+} # new_from_jsonable
+
+sub new_from_indexable ($$) {
+  return bless {package => $_[1]->[0],
+                version => $_[1]->[1] eq 'undef' ? undef : $_[1]->[1],
+                pathname => $_[1]->[2]}, $_[0];
+} # new_from_indexable
+
+sub _set_distname ($) {
+  my $self = shift;
+
+  if (not defined $self->{pathname} and defined $self->{url}) {
+    if ($self->{url} =~ m{/authors/id/(.+\.tar\.gz)$}) {
+      $self->{pathname} = $1;
+    } elsif ($self->{url} =~ m{([^/]+\.tar\.gz)$}) {
+      $self->{pathname} = "misc/$1";
+    }
+  }
+} # _set_distname
+
+sub package ($) {
+  return $_[0]->{package};
+} # package
+
+sub version ($) {
+  return $_[0]->{version};
+} # version
+
+sub pathname ($) {
+  return $_[0]->{pathname};
+} # pathname
+
+sub distvname ($) {
+  my $self = shift;
+  return $self->{distvname} if defined $self->{distvname};
+
+  if (defined $self->{pathname}) {
+    return $self->{distvname} = main::pathname2distvname $self->{pathname};
+  }
+  return $self->{distvname} = undef;
+} # distvname
+
+sub url ($) {
+  return $_[0]->{url};
+} # url
+
+sub is_equal_module ($$) {
+  my ($m1, $m2) = @_;
+  return 0 if not defined $m1->{package} or not defined $m2->{package};
+  return 0 if $m1->{package} ne $m2->{package};
+  return 0 if defined $m1->{version} and not defined $m2->{version};
+  return 0 if not defined $m1->{version} and defined $m2->{version};
+  return 0 if $m1->{version} ne $m2->{version};
+  return 1;
+} # is_equal_module
+
+sub merge_input_data ($$) {
+  my ($m1, $m2) = @_;
+  if (not defined $m1->{package}) {
+    $m1->{package} = $m2->{package};
+    $m1->{version} = $m2->{version};
+    $m1->{distvname} ||= $m2->{distvname} if defined $m2->{distvname};
+    $m1->{pathname} ||= $m2->{pathname} if defined $m2->{pathname};
+    $m1->{url} ||= $m2->{url} if defined $m2->{url};
+  }
+} # merge_input_data
+
+sub as_short ($) {
+  my $self = shift;
+  return $self->{package} . (defined $self->{version} ? '~' . $self->{version} : '');
+} # as_short
+
+sub as_cpanm_arg ($$) {
+  my ($self, $dists_dir_name) = @_;
+  if ($self->{url}) {
+    if (defined $self->{pathname}) {
+      if ($self->{pathname} =~ m{^misc/}) {
+        return $dists_dir_name . '/authors/id/' . $self->{pathname};
+      } else {
+        return $self->{pathname};
+      }
+    } else {
+      return $self->{url};
+    }
+  } else {
+    return $self->{package};
+  }
+} # as_cpanm_arg
+
+sub TO_JSON ($) {
+  return {%{$_[0]}};
+} # TO_JSON
+
+package PMBP::ModuleIndex;
+
+sub new_empty ($) {
+  return bless {list => []}, $_[0];
+} # new_empty
+
+sub new_from_arrayref ($$) {
+  return bless {list => [map { ref $_ eq 'HASH' ? PMBP::Module->new_from_jsonable ($_) : $_ } @{$_[1]}]}, $_[0];
+} # new_from_arrayref
+
+sub find_by_module ($$) {
+  for (@{$_[0]->{list}}) {
+    if ($_->is_equal_module ($_[1]) or
+        (not defined $_[1]->version and $_->package eq $_[1]->package)) {
+      return $_;
+    }
+  }
+  return undef;
+} # find_by_module
+
+sub add_modules ($$) {
+  push @{$_[0]->{list}}, @{$_[1]};
+} # add_modules
+
+sub merge_module_index {
+  my ($i1, $i2) = @_;
+  my @m;
+  for my $m (($i2->to_list)) {
+    unless ($i1->find_by_module ($m)) {
+      push @m, $m;
+    }
+  }
+  $i1->add_modules (\@m);
+} # merge_module_index
+
+sub to_list ($) {
+  return @{$_[0]->{list}};
+} # to_list
+
+sub TO_JSON ($) {
+  return $_[0]->{list};
+} # TO_JSON
 
 =head1 LICENSE
 
