@@ -87,6 +87,9 @@ GetOptions (
   '--print-pmtar-dir-name' => sub {
     push @command, {type => 'print-pmtar-dir-name'};
   },
+  '--print-scanned-dependency=s' => sub {
+    push @command, {type => 'print-scanned-dependency', dir_name => $_[1]};
+  },
 ) or die "Usage: $0 options... (See source for details)\n";
 
 $perl_version ||= `@{[quotemeta $perl]} -e 'print \$^V'`;
@@ -663,6 +666,45 @@ sub read_install_list ($) {
 
 } # read_install_list
 
+sub scan_dependency_from_directory ($) {
+  my $dir_name = abs_path shift;
+
+  my $modules = {};
+
+  my @include_dir_name = qw(bin lib script t t_deps);
+  my @exclude_pattern = map { "$dir_name/$_" } qw(modules t_deps/modules t_deps/projects);
+  for (split /\n/, qx{cd \Q$dir_name\E && find @{[join ' ', grep quotemeta, @include_dir_name]} @{[join ' ', map { "| grep -v $_" } grep quotemeta, @exclude_pattern]} | grep "\\.\\(pm\\|pl\\|t\\)\$" | xargs grep "\\(use\\|require\\) " --no-filename}) {
+    s/\#.*$//;
+    if (/(?:use|require)\s*(?:base|parent)\s*(.+)/) {
+      my $base = $1;
+      while ($base =~ /([0-9A-Za-z_:]+)/g) {
+        $modules->{$1} = 1;
+      }
+    } elsif (/(?:use|require)\s*([0-9A-Za-z_:]+)/) {
+      my $name = $1;
+      next if $name =~ /["']/;
+      $modules->{$name} = 1;
+    }
+  }
+
+  @include_dir_name = map { glob "$dir_name/$_" } qw(lib t/lib modules/*/lib t_deps/modules/*/lib);
+  for (split /\n/, qx{cd \Q$dir_name\E && find @{[join ' ', grep quotemeta, @include_dir_name]} | grep "\\.\\(pm\\|pl\\)\$" | xargs grep "package " --no-filename}) {
+    if (/package\s*([0-9A-Za-z_:]+)/) {
+      delete $modules->{$1};
+    }
+  }
+
+  delete $modules->{$_} for qw(
+    q qw qq
+    strict warnings base lib encoding utf8 overload
+  );
+  for (keys %$modules) {
+    delete $modules->{$_} unless /\A[0-9A-Za-z_]+(?:::[0-9A-Za-z_]+)*\z/;
+  }
+
+  return $modules;
+} # scan_dependency_from_directory
+
 sub get_lib_dir_names () {
   my @lib = grep { defined } map { abs_path $_ } map { glob $_ }
       qq{$root_dir_name/lib},
@@ -743,6 +785,9 @@ for my $command (@command) {
     unshift @CPANMirror, $command->{url};
   } elsif ($command->{type} eq 'print-pmtar-dir-name') {
     print $dists_dir_name;
+  } elsif ($command->{type} eq 'print-scanned-dependency') {
+    my $mod_names = scan_dependency_from_directory $command->{dir_name};
+    print map { $_ . "\n" } sort { $a cmp $b } keys %$mod_names;
   } else {
     die "Command |$command->{type}| is not defined";
   }
