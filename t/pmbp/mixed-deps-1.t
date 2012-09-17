@@ -19,4 +19,4 @@ perl $pmbp --root-dir-name="$tempdir" \
 (grep JSON::PP "$tempdir/pmb-install.txt" > /dev/null && echo "ok 6") || echo "not ok 6"
 (grep Exception::Class "$tempdir/pmb-install.txt" > /dev/null && echo "ok 7") || echo "not ok 7"
 
-#rm -fr $tempdir
+rm -fr $tempdir

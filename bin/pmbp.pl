@@ -22,6 +22,7 @@ my @CPANMirror = qw(
   http://cpan.metacpan.org/
   http://backpan.perl.org/
 );
+my $Verbose = 0;
 
 GetOptions (
   '--perl-command=s' => \$perl,
@@ -32,6 +33,7 @@ GetOptions (
   '--root-dir-name=s' => \$root_dir_name,
   '--dists-dir-name=s' => \$dists_dir_name,
   '--perl-version=s' => \$perl_version,
+  '--verbose' => sub { $Verbose++ },
 
   '--install-module=s' => sub {
     my $module = PMBP::Module->new_from_module_arg ($_[1]);
@@ -296,7 +298,7 @@ sub cpanm ($$;%) {
     my $current_module_name = '';
     my $failed;
     while (<$cmd>) {
-      info "cpanm($CPANMDepth/$redo): $_";
+      info "cpanm($CPANMDepth/$redo): $_" if $Verbose > 0;
       
       if (/^Can\'t locate (\S+\.pm) in \@INC/) {
         push @required_cpanm, PMBP::Module->new_from_pm_file_name ($1);
