@@ -321,22 +321,30 @@ sub cpanm ($$;%) {
     }
     (close $cmd and not $failed) or do {
       unless ($CPANMDepth > 100 or $redo++ > 10) {
-        if (@required_cpanm and $perl_lib_dir_name ne $cpanm_dir_name) {
+        if (@required_cpanm) {
           local $CPANMDepth = $CPANMDepth + 1;
           for my $module (@required_cpanm) {
             install_support_module $module, %args;
           }
           redo COMMAND;
-        } elsif (@required_install and $perl_lib_dir_name ne $cpanm_dir_name) {
-          local $CPANMDepth = $CPANMDepth + 1;
-          for my $module (@required_install) {
-            if ($args->{scandeps}) {
-              scandeps $args->{scandeps}->{module_index}, $module, %args;
+        } elsif (@required_install) {
+          if ($perl_lib_dir_name ne $cpanm_dir_name) {
+            local $CPANMDepth = $CPANMDepth + 1;
+            for my $module (@required_install) {
+              if ($args->{scandeps}) {
+                scandeps $args->{scandeps}->{module_index}, $module, %args;
+              }
+              cpanm {perl_lib_dir_name => $perl_lib_dir_name}, [$module], %args
+                  unless $args->{no_install};
             }
-            cpanm {perl_lib_dir_name => $perl_lib_dir_name}, [$module], %args
-                unless $args->{no_install};
+            redo COMMAND unless $args->{no_install};
+          } else {
+            local $CPANMDepth = $CPANMDepth + 1;
+            for my $module (@required_install) {
+              cpanm {perl_lib_dir_name => $perl_lib_dir_name}, [$module], %args;
+            }
+            redo COMMAND;
           }
-          redo COMMAND unless $args->{no_install};
         }
       }
       if ($args->{ignore_errors}) {
@@ -627,44 +635,86 @@ sub read_carton_lock ($$) {
   $module_index->add_modules ($modules);
 } # read_carton_lock
 
-sub read_install_list ($) {
-  my $module_index = shift;
+sub read_install_list ($$);
+sub read_install_list ($$) {
+  my ($dir_name => $module_index) = @_;
 
-  ## pmb install list format
-  my @file = map { (glob "$_/config/perl/modules*.txt") }
-      qq{$root_dir_name};
-  if (@file) {
-    push @file, map { (glob "$_/config/perl/modules*.txt") }
-        qq{$root_dir_name/modules/*},
-        qq{$root_dir_name/t_deps/modules/*},
-        qq{$root_dir_name/local/submodules/*};
-    
-    for (@file) {
-      read_pmb_install_list $_ => $module_index;
+  THIS: {
+    ## pmb install list format
+    my @file = map { (glob "$_/config/perl/modules*.txt") } $dir_name;
+    if (@file) {
+      read_pmb_install_list $_ => $module_index for @file;
+      last THIS;
     }
+
+    ## carton.lock
+    my $file_name = "$dir_name/carton.lock";
+    if (-f $file_name) {
+      read_carton_lock $file_name => $module_index;
+      last THIS;
+    }
+
+    ## cpanfile
+    if (-f "$dir_name/cpanfile") {
+      ## At the time of writing, cpanm can't be used to obtain list of
+      ## required modules from cpanfile (though it does support
+      ## cpanfile for module installation).
+      get_dependency_from_cpanfile ("$dir_name/cpanfile" => $module_index);
+      last THIS;
+    }
+    
+    ## CPAN package configuration scripts
+    if (-f "$dir_name/Build.PL" or -f "$dir_name/Makefile.PL") {
+      my $temp_dir = File::Temp->newdir;
+      my $result = cpanm {perl_lib_dir_name => $temp_dir->dirname,
+                          temp_dir => $temp_dir,
+                          scandeps => {module_index => $module_index}},
+                         [$dir_name];
+      _scandeps_write_result ($result, undef, $module_index);
+      last THIS;
+    }
+
+    ## From *.pm, *.pl, and *.t
+    my $mod_names = scan_dependency_from_directory ($dir_name);
+    my $modules = [];
+    for (keys %$mod_names) {
+      push @$modules, PMBP::Module->new_from_package ($_);
+    }
+    $module_index->add_modules ($modules);
+    last THIS;
+  } # THIS
+
+  ## Submodules
+  for my $dir_name (map { glob "$dir_name/$_" } qw(
+    modules/* t_deps/modules/* local/submodules/*
+  )) {
+    read_install_list $dir_name => $module_index;
   }
-
-  ## carton.lock
-  my $file_name = "$root_dir_name/carton.lock";
-  if (-f $file_name) {
-    read_carton_lock $file_name => $module_index;
-  }
-
-  ## CPAN package configuration scripts
-  if (-f "$root_dir_name/cpanfile" or
-      -f "$root_dir_name/Build.PL" or
-      -f "$root_dir_name/Makefile.PL") {
-    my $temp_dir = File::Temp->newdir;
-    my $result = cpanm {perl_lib_dir_name => $temp_dir->dirname,
-                        temp_dir => $temp_dir,
-                        scandeps => {module_index => $module_index}},
-                        [$root_dir_name];
-    _scandeps_write_result ($result, undef, $module_index);
-  }
-
-  # XXX other formats
-
 } # read_install_list
+
+sub get_dependency_from_cpanfile ($$) {
+  my ($file_name => $module_index) = @_;
+
+  install_support_module PMBP::Module->new_from_package ('Module::CPANfile');
+  install_support_module PMBP::Module->new_from_package ('CPAN::Meta::Prereqs'); # loaded by Module::CPANfile
+  install_support_module PMBP::Module->new_from_package ('CPAN::Meta::Requirements');
+
+  require Module::CPANfile;
+  my $cpanfile = Module::CPANfile->load ($file_name);
+  my $prereq = $cpanfile->prereq;
+
+  require CPAN::Meta::Requirements;
+  my $req = CPAN::Meta::Requirements->new;
+  $req->add_requirements ($prereq->requirements_for ('build', 'requires'));
+  $req->add_requirements ($prereq->requirements_for ('runtime', 'requires'));
+  $req->add_requirements ($prereq->requirements_for ('test', 'requires'));
+
+  my $modules = [];
+  for (keys %{$req->as_string_hash}) {
+    push @$modules, PMBP::Module->new_from_package ($_);
+  }
+  $module_index->add_modules ($modules);
+} # get_dependency_from_cpanfile
 
 sub scan_dependency_from_directory ($) {
   my $dir_name = abs_path shift;
@@ -737,7 +787,7 @@ for my $command (@command) {
     if (defined $command->{file_name}) {
       read_pmb_install_list $command->{file_name} => $module_index;
     } else {
-      read_install_list $module_index;
+      read_install_list $root_dir_name => $module_index;
     }
     install_module $_, module_index_file_name => $module_index_file_name
         for ($module_index->to_list);
@@ -754,7 +804,7 @@ for my $command (@command) {
     if (defined $command->{file_name}) {
       read_pmb_install_list $command->{file_name} => $module_index;
     } else {
-      read_install_list $module_index;
+      read_install_list $root_dir_name => $module_index;
     }
     select_module $global_module_index => $_ => $selected_module_index,
         module_index_file_name => $module_index_file_name
