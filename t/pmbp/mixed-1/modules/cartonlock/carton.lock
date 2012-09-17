@@ -1,0 +1,18 @@
+{
+   "modules" : {
+      "Scalar::Util::Instance" : {
+         "dist" : "Scalar-Util-Instance-0.001",
+         "module" : "Scalar-Util-Instance",
+         "name" : "Scalar::Util::Instance",
+         "pathname" : "G/GF/GFUJI/Scalar-Util-Instance-0.001.tar.gz",
+         "provides" : {
+            "Scalar::Util::Instance" : {
+               "file" : "Scalar/Util/Instance.pm",
+               "version" : "0.001"
+            }
+         },
+         "version" : "0.001"
+      }
+   },
+   "version" : "0.9"
+}

@@ -1,5 +1,5 @@
 *~
-.carton
-config/perl
-local/
-carton.lock
+/.carton
+/config/perl
+/local/
+/carton.lock
