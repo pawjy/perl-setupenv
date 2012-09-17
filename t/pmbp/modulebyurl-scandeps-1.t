@@ -8,7 +8,7 @@ packstxt=$tempdir/list.txt
 perl $pmbp --root-dir-name="$tempdir" \
     --scandeps Test::Differences~0.49_02=http://backpan.perl.org/authors/id/O/OV/OVID/Test-Differences-0.49_02.tar.gz
 
-(ls $tempdir/local/perl-*/pmbp/tmp/pmtar/authors/id/O/OV/OVID/Test-Differences-0.49_02.tar.gz && echo "ok 1") || echo "not ok 1"
+(ls $tempdir/deps/pmtar/authors/id/O/OV/OVID/Test-Differences-0.49_02.tar.gz && echo "ok 1") || echo "not ok 1"
 
 (
 PERL5LIB="`cat $tempdir/libs.txt`" perl -MTest::Differences \
@@ -16,7 +16,7 @@ PERL5LIB="`cat $tempdir/libs.txt`" perl -MTest::Differences \
     echo "not ok 2"
 ) || echo "ok 2"
 
-depsjson=`ls $tempdir/local/perl-*/pmbp/tmp/pmtar/deps/Test-Differences-0.49_02.json`
+depsjson=`ls $tempdir/deps/pmtar/deps/Test-Differences-0.49_02.json`
 (grep "\"distvname\" : \"Test-Differences-0.49_02\"" "$depsjson" > /dev/null \
     && echo "ok 3") || echo "not ok 3"
 (grep "\"package\" : \"Test::Differences\"" "$depsjson" > /dev/null \

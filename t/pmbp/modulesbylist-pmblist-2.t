@@ -36,12 +36,10 @@ echo Class::Registry > $tempdir2/config/perl/modules.txt
 echo Exporter::Lite >> $tempdir2/config/perl/modules.txt
 echo Test::Differences > $tempdir2/config/perl/modules.tests.txt
 
-pmtardir=`perl $pmbp --root-dir-name "$tempdir" --print-pmtar-dir-name`
-
 perl $pmbp --root-dir-name "$tempdir2" \
     --read-module-index "$packstxt" \
     --set-module-index "$packstxt" \
-    --prepend-mirror "$pmtardir" \
+    --prepend-mirror "$tempdir/deps/pmtar" \
     --install-modules-by-list \
     --write-libs-txt "$tempdir2/libs.txt"
 

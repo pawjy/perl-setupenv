@@ -30,12 +30,10 @@ echo CGI::Carp > $inputtxt2
 echo Test::Differences >> $inputtxt2
 echo Class::Registry >> $inputtxt2
 
-pmtardir=`perl $pmbp --root-dir-name "$tempdir" --print-pmtar-dir-name`
-
 perl $pmbp --root-dir-name "$tempdir2" \
     --read-module-index "$packstxt" \
     --set-module-index "$packstxt" \
-    --prepend-mirror "$pmtardir" \
+    --prepend-mirror "$tempdir/deps/pmtar" \
     --install-modules-by-file-name "$inputtxt2" \
     --write-libs-txt "$tempdir2/libs.txt"
 

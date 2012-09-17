@@ -8,7 +8,7 @@ packstxt=$tempdir/list.txt
 perl $pmbp --root-dir-name="$tempdir" \
     --scandeps Class::Registry~3.0=http://wakaba.github.com/packages/perl/Class-Registry-3.0.tar.gz
 
-(ls $tempdir/local/perl-*/pmbp/tmp/pmtar/authors/id/misc/Class-Registry-3.0.tar.gz && echo "ok 1") || echo "not ok 1"
+(ls $tempdir/deps/pmtar/authors/id/misc/Class-Registry-3.0.tar.gz && echo "ok 1") || echo "not ok 1"
 
 (
 PERL5LIB="`cat $tempdir/libs.txt`" perl -MClass::Registry \
@@ -16,7 +16,7 @@ PERL5LIB="`cat $tempdir/libs.txt`" perl -MClass::Registry \
     echo "not ok 2"
 ) || echo "ok 2"
 
-depsjson=`ls $tempdir/local/perl-*/pmbp/tmp/pmtar/deps/Class-Registry-3.0.json`
+depsjson=`ls $tempdir/deps/pmtar/deps/Class-Registry-3.0.json`
 (grep "\"distvname\" : \"Class-Registry-3.0\"" "$depsjson" > /dev/null \
     && echo "ok 3") || echo "not ok 3"
 (grep "\"package\" : \"Class::Registry\"" "$depsjson" > /dev/null \

@@ -11,10 +11,8 @@ perl $pmbp --root-dir-name="$tempdir" \
     --write-libs-txt "$tempdir/libs.txt" \
     --write-module-index "$tempdir/index.txt"
 
-mirrordir=`perl $pmbp --root-dir-name="$tempdir" --print-pmtar-dir-name`
-
 perl $pmbp --root-dir-name="$tempdir2" \
-    --prepend-mirror "$mirrordir" \
+    --prepend-mirror "$tempdir/deps/pmtar" \
     --set-module-index "$tempdir/index.txt" \
     --install-module Class::Registry \
     --write-libs-txt "$tempdir2/libs.txt"
@@ -25,6 +23,6 @@ PERL5LIB="`cat $tempdir2/libs.txt`" perl -MClass::Registry \
     echo "ok 1"
 ) || echo "not ok 1"
 
-(ls $tempdir2/local/perl-*/pmbp/tmp/pmtar/authors/id/misc/Class-Registry-3.0.tar.gz && echo "ok 2") || echo "not ok 2"
+(ls $tempdir2/deps/pmtar/authors/id/misc/Class-Registry-3.0.tar.gz && echo "ok 2") || echo "not ok 2"
 
 #rm -fr $tempdir $tempdir2

@@ -13,7 +13,8 @@ my $perl_version;
 my $wget = 'wget';
 my $cpanm_url = q<http://cpanmin.us>;
 my $root_dir_name = '.';
-my $dists_dir_name;
+my $pmtar_dir_name;
+my $pmpp_dir_name;
 my @command;
 my @cpanm_option = qw(--notest --cascade-search);
 my @CPANMirror = qw(
@@ -28,7 +29,8 @@ GetOptions (
   '--wget-command=s' => \$wget,
   '--cpanm-url=s' => \$cpanm_url,
   '--root-dir-name=s' => \$root_dir_name,
-  '--dists-dir-name=s' => \$dists_dir_name,
+  '--pmtar-dir-name=s' => \$pmtar_dir_name,
+  '--pmpp-dir-name=s' => \$pmpp_dir_name,
   '--perl-version=s' => \$perl_version,
   '--verbose' => sub { $Verbose++ },
 
@@ -41,6 +43,12 @@ GetOptions (
   },
   '--install-modules-by-list' => sub {
     push @command, {type => 'install-modules-by-list'};
+  },
+  '--update-pmpp-by-file-name=s' => sub {
+    push @command, {type => 'update-pmpp-by-list', file_name => $_[1]};
+  },
+  '--update-pmpp-by-list' => sub {
+    push @command, {type => 'update-pmpp-by-list'};
   },
   '--scandeps=s' => sub {
     my $module = PMBP::Module->new_from_module_arg ($_[1]);
@@ -80,6 +88,9 @@ GetOptions (
   '--print-libs' => sub {
     push @command, {type => 'print-libs'};
   },
+  '--print-perl-core-version=s' => sub {
+    push @command, {type => 'print-perl-core-version', module_name => $_[1]};
+  },
   '--set-module-index=s' => sub {
     push @command, {type => 'set-module-index', file_name => $_[1]};
   },
@@ -109,13 +120,14 @@ unshift @INC, $cpanm_lib_dir_name; ## Should not use XS modules.
 push @cpanm_option, '--verbose' if $Verbose > 1;
 my $installed_dir_name = $local_dir_name . '/pm';
 my $log_dir_name = $temp_dir_name . '/logs';
-$dists_dir_name ||= $temp_dir_name . '/pmtar';
-make_path $dists_dir_name;
-my $packages_details_file_name = $dists_dir_name . '/modules/02packages.details.txt';
-my $install_json_dir_name = $dists_dir_name . '/meta';
-my $deps_json_dir_name = $dists_dir_name . '/deps';
+$pmtar_dir_name ||= $root_dir_name . '/deps/pmtar';
+$pmpp_dir_name ||= $root_dir_name . '/deps/pmpp';
+make_path $pmtar_dir_name;
+make_path $pmpp_dir_name;
+my $packages_details_file_name = $pmtar_dir_name . '/modules/02packages.details.txt';
+my $install_json_dir_name = $pmtar_dir_name . '/meta';
+my $deps_json_dir_name = $pmtar_dir_name . '/deps';
 
-sub install_module ($;%);
 sub install_support_module ($;%);
 sub scandeps ($$;%);
 sub cpanm ($$;%);
@@ -202,7 +214,7 @@ sub get_local_copy_if_necessary ($) {
   my $url = $module->url;
 
   if (defined $path and defined $url) {
-    $path = "$dists_dir_name/authors/id/$path";
+    $path = "$pmtar_dir_name/authors/id/$path";
     if (not -f $path) {
       save_url $url => $path;
     }
@@ -212,9 +224,9 @@ sub get_local_copy_if_necessary ($) {
 sub save_by_pathname ($$) {
   my ($pathname => $module) = @_;
 
-  my $dest_file_name = "$dists_dir_name/authors/id/$pathname";
+  my $dest_file_name = "$pmtar_dir_name/authors/id/$pathname";
   if (-f $dest_file_name) {
-    $module->{url} = 'file://' . abs_path "$dists_dir_name/authors/id/$pathname";
+    $module->{url} = 'file://' . abs_path "$pmtar_dir_name/authors/id/$pathname";
     $module->{pathname} = $pathname;
     return 1;
   }
@@ -270,14 +282,14 @@ sub cpanm ($$;%) {
                   ($args->{scandeps} ? ('--scandeps', '--format=json', '--force') : ()));
 
     my @module_arg = map {
-      ref $_ ? $_->as_cpanm_arg ($dists_dir_name) : $_;
+      ref $_ ? $_->as_cpanm_arg ($pmtar_dir_name) : $_;
     } @$modules;
     if (grep { not m{/misc/[^/]+\.tar\.gz$} } @module_arg) {
-      push @option, '--save-dists' => $dists_dir_name;
+      push @option, '--save-dists' => $pmtar_dir_name;
     }
 
     push @option,
-        '--mirror' => (abs_path $dists_dir_name),
+        '--mirror' => (abs_path $pmtar_dir_name),
         map { ('--mirror' => $_) } @CPANMirror;
 
     if (defined $args{module_index_file_name}) {
@@ -366,7 +378,7 @@ sub cpanm ($$;%) {
 sub install_module ($;%) {
   my ($module, %args) = @_;
   get_local_copy_if_necessary $module;
-  cpanm {perl_lib_dir_name => $installed_dir_name}, [$module], %args;
+  cpanm {perl_lib_dir_name => $args{pmpp} ? $pmpp_dir_name : $installed_dir_name}, [$module], %args;
 } # install_module
 
 sub install_support_module ($;%) {
@@ -529,7 +541,7 @@ sub copy_install_jsons () {
 # XXX
 #copy_install_jsons;
 # for (glob "$installed_dir_name/lib/perl5/$Config{archname}/.meta/*/install.json") {
-# exit unless -f "}.$dists_dir_name.q{/authors/id/".$data->{pathname};
+# exit unless -f "}.$pmtar_dir_name.q{/authors/id/".$data->{pathname};
 # for (keys %{$data->{provides}}) {
 # $ver = $data->{provides}->{$_}->{version} || "undef";
 
@@ -768,6 +780,10 @@ sub get_lib_dir_names () {
   return @lib;
 } # get_lib_dir_names
 
+sub delete_pmpp_arch_dir () {
+  remove_tree "$pmpp_dir_name/lib/perl5/$Config{archname}";
+} # delete_pmpp_arch_dir
+
 sub destroy_cpanm_home () {
   remove_tree $cpanm_home_dir_name;
 } # destroy_cpanm_home
@@ -794,6 +810,16 @@ for my $command (@command) {
     }
     install_module $_, module_index_file_name => $module_index_file_name
         for ($module_index->to_list);
+  } elsif ($command->{type} eq 'update-pmpp-by-list') {
+    my $module_index = PMBP::ModuleIndex->new_empty;
+    if (defined $command->{file_name}) {
+      read_pmb_install_list $command->{file_name} => $module_index;
+    } else {
+      read_install_list $root_dir_name => $module_index;
+    }
+    install_module $_, module_index_file_name => $module_index_file_name, pmpp => 1
+        for ($module_index->to_list);
+    delete_pmpp_arch_dir;
   } elsif ($command->{type} eq 'scandeps') {
     info "Scanning dependency of @{[$command->{module}->as_short]}...";
     scandeps $global_module_index, $command->{module},
@@ -854,10 +880,14 @@ for my $command (@command) {
     }
     unshift @CPANMirror, $command->{url};
   } elsif ($command->{type} eq 'print-pmtar-dir-name') {
-    print $dists_dir_name;
+    print $pmtar_dir_name;
   } elsif ($command->{type} eq 'print-scanned-dependency') {
     my $mod_names = scan_dependency_from_directory $command->{dir_name};
     print map { $_ . "\n" } sort { $a cmp $b } keys %$mod_names;
+  } elsif ($command->{type} eq 'print-perl-core-version') {
+    install_support_module PMBP::Module->new_from_package ('Module::CoreList');
+    require Module::CoreList;
+    print Module::CoreList->first_release ($command->{module_name});
   } else {
     die "Command |$command->{type}| is not defined";
   }
@@ -990,11 +1020,11 @@ sub as_short ($) {
 } # as_short
 
 sub as_cpanm_arg ($$) {
-  my ($self, $dists_dir_name) = @_;
+  my ($self, $pmtar_dir_name) = @_;
   if ($self->{url}) {
     if (defined $self->{pathname}) {
       if ($self->{pathname} =~ m{^misc/}) {
-        return $dists_dir_name . '/authors/id/' . $self->{pathname};
+        return $pmtar_dir_name . '/authors/id/' . $self->{pathname};
       } else {
         return $self->{pathname};
       }

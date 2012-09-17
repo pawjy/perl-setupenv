@@ -25,6 +25,6 @@ PERL5LIB="`cat $tempdir/libs.txt`" perl -MTest::Differences \
     echo "ok 2"
 ) || echo "not ok 2"
 
-(ls $tempdir/local/perl-*/pmbp/tmp/pmtar/authors/id/O/OV/OVID/Test-Differences-0.49_02.tar.gz && echo "ok 3") || echo "not ok 3"
+(ls $tempdir/deps/pmtar/authors/id/O/OV/OVID/Test-Differences-0.49_02.tar.gz && echo "ok 3") || echo "not ok 3"
 
 rm -fr $tempdir

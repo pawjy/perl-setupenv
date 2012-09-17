@@ -3,7 +3,7 @@ echo "1..1"
 basedir=`dirname $0`/../..
 pmbp=$basedir/bin/pmbp.pl
 tempdir=`perl -MFile::Temp=tempdir -e 'print tempdir'`/testapp
-json=`echo $tempdir/local/perl-*/pmbp/tmp/pmtar/deps/CGI.pm-*.json`
+json=`echo $tempdir/deps/pmtar/deps/CGI.pm-*.json`
 
 perl $pmbp --root-dir-name="$tempdir" \
     --install-module=CGI::Carp \
