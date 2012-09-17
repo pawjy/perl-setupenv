@@ -16,7 +16,6 @@ my $root_dir_name = '.';
 my $dists_dir_name;
 my @command;
 my @cpanm_option = qw(--notest --cascade-search);
-my $cpan_index_url = q<http://search.cpan.org/CPAN/modules/02packages.details.txt.gz>;
 my @CPANMirror = qw(
   http://search.cpan.org/CPAN
   http://cpan.metacpan.org/
@@ -28,8 +27,6 @@ GetOptions (
   '--perl-command=s' => \$perl,
   '--wget-command=s' => \$wget,
   '--cpanm-url=s' => \$cpanm_url,
-  '--cpan-index-url=s' => \$cpan_index_url,
-  '--cpanm-verbose' => sub { push @cpanm_option, '--verbose' },
   '--root-dir-name=s' => \$root_dir_name,
   '--dists-dir-name=s' => \$dists_dir_name,
   '--perl-version=s' => \$perl_version,
@@ -77,6 +74,9 @@ GetOptions (
   '--write-libs-txt=s' => sub {
     push @command, {type => 'write-libs-txt', file_name => $_[1]};
   },
+  '--write-makefile-pl=s' => sub {
+    push @command, {type => 'write-makefile-pl', file_name => $_[1]};
+  },
   '--print-libs' => sub {
     push @command, {type => 'print-libs'};
   },
@@ -106,6 +106,7 @@ my $cpanm_home_dir_name = $cpanm_dir_name . '/tmp';
 my $cpanm = $cpanm_dir_name . '/bin/cpanm';
 my $cpanm_lib_dir_name = $cpanm_dir_name . '/lib/perl5';
 unshift @INC, $cpanm_lib_dir_name; ## Should not use XS modules.
+push @cpanm_option, '--verbose' if $Verbose > 1;
 my $installed_dir_name = $local_dir_name . '/pm';
 my $log_dir_name = $temp_dir_name . '/logs';
 $dists_dir_name ||= $temp_dir_name . '/pmtar';
@@ -826,6 +827,23 @@ for my $command (@command) {
         or die "$0: $command->{file_name}: $!";
     info_writing "lib paths", $command->{file_name};
     print $file join ':', (get_lib_dir_names);
+  } elsif ($command->{type} eq 'write-makefile-pl') {
+    open my $file, '>', $command->{file_name}
+        or die "$0: $command->{file_name}: $!";
+    info_writing "dummy Makefile.PL", $command->{file_name};
+    print $file q{
+      use inc::Module::Install;
+      name "Dummy";
+      open my $file, "<", "config/perl/pmb-install.txt"
+          or die "$0: config/perl/pmb-install.txt: $!";
+      while (<$file>) {
+        if (/^([0-9A-Za-z_:]+)/) {
+          requires $1;
+        }
+      }
+      Meta->write;
+      Meta->write_mymeta_json;
+    };
   } elsif ($command->{type} eq 'print-libs') {
     print join ':', (get_lib_dir_names);
   } elsif ($command->{type} eq 'set-module-index') {
