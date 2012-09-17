@@ -112,6 +112,7 @@ my $deps_json_dir_name = $dists_dir_name . '/deps';
 sub install_module ($;%);
 sub install_support_module ($;%);
 sub scandeps ($$;%);
+sub cpanm ($$;%);
 
 sub info ($) {
   print STDERR $_[0], $_[0] =~ /\n\z/ ? "" : "\n";
@@ -262,7 +263,9 @@ sub cpanm ($$;%) {
                   @cpanm_option,
                   ($args->{scandeps} ? ('--scandeps', '--format=json', '--force') : ()));
 
-    my @module_arg = map { $_->as_cpanm_arg ($dists_dir_name) } @$modules;
+    my @module_arg = map {
+      ref $_ ? $_->as_cpanm_arg ($dists_dir_name) : $_;
+    } @$modules;
     if (grep { not m{/misc/[^/]+\.tar\.gz$} } @module_arg) {
       push @option, '--save-dists' => $dists_dir_name;
     }
@@ -288,6 +291,7 @@ sub cpanm ($$;%) {
                          '')
         or die "Failed to execute @cmd - $!\n";
     my $current_module_name = '';
+    my $failed;
     while (<$cmd>) {
       info "cpanm($CPANMDepth/$redo): $_";
       
@@ -299,17 +303,20 @@ sub cpanm ($$;%) {
             qw{ExtUtils::MakeMaker ExtUtils::ParseXS};
       } elsif (/^--> Working on (\S)+$/) {
         $current_module_name = $1;
-      } elsif (/^! Installing (\S+) failed\. See (.+?) for details\.$/) {
+      } elsif (/^! (?:Installing|Configuring) (\S+) failed\. See (.+?) for details\.$/) {
         my $log = copy_log_file $2 => $1;
-        if ($log =~ m{^make: .+?ExtUtils/xsubpp}m or
+        if ($log =~ m{^make(?:\[[0-9]+\])?: .+?ExtUtils/xsubpp}m or
             $log =~ m{^Can\'t open perl script "ExtUtils/xsubpp"}m) {
           push @required_install,
               map { PMBP::Module->new_from_package ($_) }
               qw{ExtUtils::MakeMaker ExtUtils::ParseXS};
+        } elsif ($log =~ /^Can\'t locate (\S+\.pm) in \@INC/m) {
+          push @required_install, PMBP::Module->new_from_pm_file_name ($1);
         }
+        $failed = 1;
       }
     }
-    close $cmd or do {
+    (close $cmd and not $failed) or do {
       unless ($CPANMDepth > 100 or $redo++ > 10) {
         if (@required_cpanm and $perl_lib_dir_name ne $cpanm_dir_name) {
           local $CPANMDepth = $CPANMDepth + 1;
@@ -322,19 +329,19 @@ sub cpanm ($$;%) {
           for my $module (@required_install) {
             if ($args->{scandeps}) {
               scandeps $args->{scandeps}->{module_index}, $module, %args;
-            } else {
-              install_module $module, %args;
             }
+            cpanm {perl_lib_dir_name => $perl_lib_dir_name}, [$module], %args
+                unless $args->{no_install};
           }
-          redo COMMAND;
+          redo COMMAND unless $args->{no_install};
         }
       }
       if ($args->{ignore_errors}) {
-        info "cpanm($CPANMDepth): Installing @{[join ' ', map { $_->as_short } @$modules]} failed (@{[$? >> 8]}) (Ignored)";
+        info "cpanm($CPANMDepth): Installing @{[join ' ', map { ref $_ ? $_->as_short : $_ } @$modules]} failed (@{[$? >> 8]}) (Ignored)";
       } else {
-        die "cpanm($CPANMDepth): Installing @{[join ' ', map { $_->as_short } @$modules]} failed (@{[$? >> 8]})\n";
+        die "cpanm($CPANMDepth): Installing @{[join ' ', map { ref $_ ? $_->as_short : $_ } @$modules]} failed (@{[$? >> 8]})\n";
       }
-    };
+    }; # close or do
     if ($args->{scandeps} and -f $json_temp_file->filename) {
       $result->{output_json} = load_json $json_temp_file->filename;
     }
@@ -343,9 +350,9 @@ sub cpanm ($$;%) {
 } # cpanm
 
 sub install_module ($;%) {
-  my $module = shift;
+  my ($module, %args) = @_;
   get_local_copy_if_necessary $module;
-  cpanm {perl_lib_dir_name => $installed_dir_name}, [$module], @_;
+  cpanm {perl_lib_dir_name => $installed_dir_name}, [$module], %args;
 } # install_module
 
 sub install_support_module ($;%) {
@@ -377,8 +384,11 @@ sub scandeps ($$;%) {
                       scandeps => {module_index => $module_index}}, [$module],
                      %args;
 
-  my $dist = $result->{output_json}->[0]
-      ? $result->{output_json}->[-1]->[0]->{pathname} : undef;
+  _scandeps_write_result ($result, $module, $module_index);
+} # scandeps
+
+sub _scandeps_write_result ($$$) {
+  my ($result, $module, $module_index) = @_;
 
   my $convert_list;
   $convert_list = sub {
@@ -401,11 +411,17 @@ sub scandeps ($$;%) {
 
   $result = [($convert_list->($result->{output_json} || {}))];
 
-  for (@$result) {
-    if (defined $_->[0]->{pathname} and defined $module->{pathname} and
-        $_->[0]->{pathname} eq $module->{pathname}) {
-      $_->[0]->merge_input_data ($module);
+  if ($module) {
+    for (@$result) {
+      if (defined $_->[0]->{pathname} and defined $module->{pathname} and
+          $_->[0]->{pathname} eq $module->{pathname}) {
+        $_->[0]->merge_input_data ($module);
+      }
     }
+  } else {
+    @$result = grep {
+      my $v = $_->[0]->distvname; not (defined $v and $v =~ m{/});
+    } @$result;
   }
 
   make_path $deps_json_dir_name;
@@ -584,8 +600,11 @@ sub write_pmb_install_list ($$) {
   info_writing "pmb-install list", $file_name;
   mkdir_for_file $file_name;
   open my $file, '>', $file_name or die "$0: $file_name: $!";
+  my $found = {};
   for (@$result) {
-    print $file $_->[0] . (defined $_->[1] ? '~' . $_->[1] : '') . "\n";
+    my $v = $_->[0] . (defined $_->[1] ? '~' . $_->[1] : '');
+    next if $found->{$v}++;
+    print $file $v . "\n";
   }
   close $file;
 } # write_pmb_install_list
@@ -626,6 +645,18 @@ sub read_install_list ($) {
   my $file_name = "$root_dir_name/carton.lock";
   if (-f $file_name) {
     read_carton_lock $file_name => $module_index;
+  }
+
+  ## CPAN package configuration scripts
+  if (-f "$root_dir_name/cpanfile" or
+      -f "$root_dir_name/Build.PL" or
+      -f "$root_dir_name/Makefile.PL") {
+    my $temp_dir = File::Temp->newdir;
+    my $result = cpanm {perl_lib_dir_name => $temp_dir->dirname,
+                        temp_dir => $temp_dir,
+                        scandeps => {module_index => $module_index}},
+                        [$root_dir_name];
+    _scandeps_write_result ($result, undef, $module_index);
   }
 
   # XXX other formats
@@ -729,7 +760,7 @@ sub new_from_package ($$) {
 sub new_from_pm_file_name ($$) {
   my $m = $_[1];
   $m =~ s/\.pm$//;
-  $m =~ s{[/\\]+}{::};
+  $m =~ s{[/\\]+}{::}g;
   return bless {package => $m}, $_[0];
 } # new_from_pm_file_name
 
@@ -856,7 +887,13 @@ sub as_cpanm_arg ($$) {
       return $self->{url};
     }
   } else {
-    return $self->{package};
+    if ($self->{package} =~ /^inc::Module::Install::/) {
+      my $p = $self->{package};
+      $p =~ s/^inc:://;
+      return $p;
+    } else {
+      return $self->{package};
+    }
   }
 } # as_cpanm_arg
 
