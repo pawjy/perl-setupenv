@@ -636,7 +636,7 @@ cinnamon-repo:
 
 cinnamon-deps:
 	cd local/cinnamon && \
-	$(MAKE) pmb-install \
+	$(MAKE) pmb-install lperl \
 	    PMB_PMTAR_REPO_URL=$(CINNAMON_PMB_PMTAR_REPO_URL) \
 	    PMB_PMPP_REPO_URL=$(CINNAMON_PMB_PMPP_REPO_URL)
 
