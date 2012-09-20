@@ -629,7 +629,7 @@ sub read_pmb_install_list ($$) {
   open my $file, '<', $file_name or die "$0: $file_name: $!";
   my $modules = [];
   while (<$file>) {
-    if (/^\s*\#/ or /^\*$/) {
+    if (/^\s*\#/ or /^\s*$/) {
       #
     } else {
       s/^\s+//;
