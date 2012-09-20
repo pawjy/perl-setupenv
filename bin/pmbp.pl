@@ -884,11 +884,13 @@ for my $command (@command) {
   } elsif ($command->{type} eq 'write-install-module-index') {
     write_install_module_index $selected_module_index => $command->{file_name};
   } elsif ($command->{type} eq 'write-libs-txt') {
+    mkdir_for_file $command->{file_name};
     open my $file, '>', $command->{file_name}
         or die "$0: $command->{file_name}: $!";
     info_writing "lib paths", $command->{file_name};
     print $file join ':', (get_lib_dir_names);
   } elsif ($command->{type} eq 'write-makefile-pl') {
+    mkdir_for_file $command->{file_name};
     open my $file, '>', $command->{file_name}
         or die "$0: $command->{file_name}: $!";
     info_writing "dummy Makefile.PL", $command->{file_name};
