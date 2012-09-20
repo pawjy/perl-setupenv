@@ -322,6 +322,13 @@ sub cpanm ($$;%) {
             qw{ExtUtils::MakeMaker ExtUtils::ParseXS};
       } elsif (/^--> Working on (\S)+$/) {
         $current_module_name = $1;
+      } elsif (/^skipping .+\/perl-/) {
+          if (@module_arg and ref $module_arg[0] and
+              $module_arg[0]->package and
+              $module_arg[0]->package eq 'Module::Metadata') {
+            push @required_install, PMBP::Module->new_from_module_arg
+                ('Module-Metadata=http://search.cpan.org/CPAN/authors/id/A/AP/APEIRON/Module-Metadata-1.000011.tar.gz');
+        }
       } elsif (/^! (?:Installing|Configuring) (\S+) failed\. See (.+?) for details\.$/ or
                /^! Configure failed for (\S+). See (.+?) for details\.$/) {
         my $log = copy_log_file $2 => $1;
