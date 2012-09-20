@@ -327,7 +327,7 @@ sub cpanm ($$;%) {
               $module_arg[0]->package and
               $module_arg[0]->package eq 'Module::Metadata') {
             push @required_install, PMBP::Module->new_from_module_arg
-                ('Module-Metadata=http://search.cpan.org/CPAN/authors/id/A/AP/APEIRON/Module-Metadata-1.000011.tar.gz');
+                ('Module::Metadata=http://search.cpan.org/CPAN/authors/id/A/AP/APEIRON/Module-Metadata-1.000011.tar.gz');
         }
       } elsif (/^! (?:Installing|Configuring) (\S+) failed\. See (.+?) for details\.$/ or
                /^! Configure failed for (\S+). See (.+?) for details\.$/) {
