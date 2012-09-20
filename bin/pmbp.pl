@@ -500,7 +500,7 @@ sub _scandeps_write_result ($$$) {
     open my $file, '>', $file_name or die "$0: $file_name: $!";
     print $file encode_json $m;
   }
-  $module_index->add_modules ([map { $_->[0] } @$result]);
+  $module_index->merge_modules ([map { $_->[0] } @$result]);
 } # scandeps
 
 sub load_deps ($$) {
@@ -561,7 +561,7 @@ sub select_module ($$$;%) {
       die "Can't detect dependency of @{[$module->as_short]}\n" unless $mods;
     }
   }
-  $dest_module_index->add_modules ($mods);
+  $dest_module_index->merge_modules ($mods);
 } # select_module
 
 sub copy_install_jsons () {
@@ -596,7 +596,7 @@ sub read_module_index ($$) {
       $has_blank_line = 1;
     }
   }
-  $module_index->add_modules ($modules);
+  $module_index->merge_modules ($modules);
 } # read_module_index
 
 sub write_module_index ($$) {
@@ -646,7 +646,7 @@ sub read_pmb_install_list ($$) {
       push @$modules, PMBP::Module->new_from_module_arg ($_);
     }
   }
-  $module_index->add_modules ($modules);
+  $module_index->merge_modules ($modules);
 } # read_pmb_install_list
 
 sub write_pmb_install_list ($$) {
@@ -682,7 +682,7 @@ sub read_carton_lock ($$) {
   for (values %{$json->{modules}}) {
     push @$modules, PMBP::Module->new_from_carton_lock_entry ($_);
   }
-  $module_index->add_modules ($modules);
+  $module_index->merge_modules ($modules);
 } # read_carton_lock
 
 sub read_install_list ($$);
@@ -730,7 +730,7 @@ sub read_install_list ($$) {
     for (keys %$mod_names) {
       push @$modules, PMBP::Module->new_from_package ($_);
     }
-    $module_index->add_modules ($modules);
+    $module_index->merge_modules ($modules);
     last THIS;
   } # THIS
 
@@ -763,7 +763,7 @@ sub get_dependency_from_cpanfile ($$) {
   for (keys %{$req->as_string_hash}) {
     push @$modules, PMBP::Module->new_from_package ($_);
   }
-  $module_index->add_modules ($modules);
+  $module_index->merge_modules ($modules);
 } # get_dependency_from_cpanfile
 
 sub scan_dependency_from_directory ($) {
@@ -1106,6 +1106,17 @@ sub find_by_module ($$) {
 sub add_modules ($$) {
   push @{$_[0]->{list}}, @{$_[1]};
 } # add_modules
+
+sub merge_modules {
+  my ($i1, $i2) = @_;
+  my @m;
+  for my $m (@$i2) {
+    unless ($i1->find_by_module ($m)) {
+      push @m, $m;
+    }
+  }
+  $i1->add_modules (\@m);
+} # merge_modules
 
 sub merge_module_index {
   my ($i1, $i2) = @_;
