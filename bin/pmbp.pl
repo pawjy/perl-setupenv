@@ -310,6 +310,7 @@ sub cpanm ($$;%) {
         or die "Failed to execute @cmd - $!\n";
     my $current_module_name = '';
     my $failed;
+    my $remove_inc;
     while (<$cmd>) {
       info "cpanm($CPANMDepth/$redo): $_" if $Verbose > 0;
       
@@ -330,18 +331,42 @@ sub cpanm ($$;%) {
               qw{ExtUtils::MakeMaker ExtUtils::ParseXS};
         } elsif ($log =~ /^Can\'t locate (\S+\.pm) in \@INC/m) {
           push @required_install, PMBP::Module->new_from_pm_file_name ($1);
+        } elsif ($log =~ /^String found where operator expected at Makefile.PL line [0-9]+, near \"([0-9A-Za-z_]+)/m) {
+          my $module_name = {
+              author_tests => 'Module::Install::AuthorTests',
+              readme_from => 'Module::Install::ReadmeFromPod',
+              readme_markdown_from => 'Module::Install::ReadmeMarkdownFromPod',
+          }->{$1};
+          push @required_install, PMBP::Module->new_from_package ($module_name)
+              if $module_name;
+        } elsif ($log =~ /^Bareword "([0-9A-Za-z_]+)" not allowed while "strict subs" in use at Makefile.PL /m) {
+          my $module_name = {
+              auto_set_repository => 'Module::Install::Repository',
+              githubmeta => 'Module::Install::GithubMeta',
+          }->{$1};
+          push @required_install, PMBP::Module->new_from_package ($module_name)
+              if $module_name;
+        } elsif ($log =~ /^Can\'t call method "load_all_extensions" on an undefined value at inc\/Module\/Install.pm /m) {
+          $remove_inc = 1;
         }
         $failed = 1;
       }
     }
     (close $cmd and not $failed) or do {
       unless ($CPANMDepth > 100 or $redo++ > 10) {
+        my $redo;
+        if ($remove_inc and
+            @module_arg and $module_arg[0] =~ m{/} and
+            -d "$module_arg[0]/inc") {
+          remove_tree "$module_arg[0]/inc";
+          $redo = 1;
+        }
         if (@required_cpanm) {
           local $CPANMDepth = $CPANMDepth + 1;
           for my $module (@required_cpanm) {
             install_support_module $module, %args;
           }
-          redo COMMAND;
+          $redo = 1;
         } elsif (@required_install) {
           if ($perl_lib_dir_name ne $cpanm_dir_name) {
             local $CPANMDepth = $CPANMDepth + 1;
@@ -352,15 +377,16 @@ sub cpanm ($$;%) {
               cpanm {perl_lib_dir_name => $perl_lib_dir_name}, [$module], %args
                   unless $args->{no_install};
             }
-            redo COMMAND unless $args->{no_install};
+            $redo = 1 unless $args->{no_install};
           } else {
             local $CPANMDepth = $CPANMDepth + 1;
             for my $module (@required_install) {
               cpanm {perl_lib_dir_name => $perl_lib_dir_name}, [$module], %args;
             }
-            redo COMMAND;
+            $redo = 1;
           }
         }
+        redo COMMAND if $redo;
       }
       if ($args->{ignore_errors}) {
         info "cpanm($CPANMDepth): Installing @{[join ' ', map { ref $_ ? $_->as_short : $_ } @$modules]} failed (@{[$? >> 8]}) (Ignored)";
