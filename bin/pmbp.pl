@@ -322,13 +322,16 @@ sub cpanm ($$;%) {
             qw{ExtUtils::MakeMaker ExtUtils::ParseXS};
       } elsif (/^--> Working on (\S)+$/) {
         $current_module_name = $1;
-      } elsif (/^! (?:Installing|Configuring) (\S+) failed\. See (.+?) for details\.$/) {
+      } elsif (/^! (?:Installing|Configuring) (\S+) failed\. See (.+?) for details\.$/ or
+               /^! Configure failed for (\S+). See (.+?) for details\.$/) {
         my $log = copy_log_file $2 => $1;
         if ($log =~ m{^make(?:\[[0-9]+\])?: .+?ExtUtils/xsubpp}m or
             $log =~ m{^Can\'t open perl script "ExtUtils/xsubpp"}m) {
           push @required_install,
               map { PMBP::Module->new_from_package ($_) }
               qw{ExtUtils::MakeMaker ExtUtils::ParseXS};
+        } elsif ($log =~ /^only nested arrays of non-refs are supported at .*?\/ExtUtils\/MakeMaker.pm/m) {
+          push @required_install, PMBP::Module->new_from_package ('ExtUtils::MakeMaker');
         } elsif ($log =~ /^Can\'t locate (\S+\.pm) in \@INC/m) {
           push @required_install, PMBP::Module->new_from_pm_file_name ($1);
         } elsif ($log =~ /^String found where operator expected at Makefile.PL line [0-9]+, near \"([0-9A-Za-z_]+)/m) {
