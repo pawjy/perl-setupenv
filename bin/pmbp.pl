@@ -133,7 +133,6 @@ my $cpanm_home_dir_name = $cpanm_dir_name . '/tmp';
 my $cpanm = $cpanm_dir_name . '/bin/cpanm';
 my $cpanm_lib_dir_name = $cpanm_dir_name . '/lib/perl5';
 unshift @INC, $cpanm_lib_dir_name; ## Should not use XS modules.
-push @cpanm_option, '--verbose' if $Verbose > 1;
 my $installed_dir_name = $local_dir_name . '/pm';
 my $log_dir_name = $temp_dir_name . '/logs';
 $pmtar_dir_name ||= $root_dir_name . '/deps/pmtar';
@@ -314,6 +313,8 @@ sub cpanm ($$;%) {
                   ($args->{scandeps} ? ('--scandeps', '--format=json', '--force') : ()),
                   ($args->{showdeps} ? ('--showdeps') : ()));
     push @option, '--info' if $args->{info};
+    push @option, '--verbose' if $Verbose > 1 and
+        not ($args->{showdeps} or $args->{scandeps} or $args->{info});
 
     my @module_arg = map {
       ref $_ ? $_->as_cpanm_arg ($pmtar_dir_name) : $_;
@@ -446,7 +447,9 @@ sub cpanm ($$;%) {
         }
         redo COMMAND if $redo;
       }
-      if ($args->{ignore_errors}) {
+      if ($args->{info}) {
+        #
+      } elsif ($args->{ignore_errors}) {
         info "cpanm($CPANMDepth): Installing @{[join ' ', map { ref $_ ? $_->as_short : $_ } @$modules]} failed (@{[$? >> 8]}) (Ignored)";
       } else {
         die "cpanm($CPANMDepth): Installing @{[join ' ', map { ref $_ ? $_->as_short : $_ } @$modules]} failed (@{[$? >> 8]})\n";
