@@ -44,6 +44,13 @@ GetOptions (
   '--install-modules-by-list' => sub {
     push @command, {type => 'install-modules-by-list'};
   },
+  '--install-to-pmpp=s' => sub {
+    my $module = PMBP::Module->new_from_module_arg ($_[1]);
+    push @command, {type => 'install-to-pmpp', module => $module};
+  },
+  '--install-by-pmpp' => sub {
+    push @command, {type => 'install-by-pmpp'};
+  },
   '--update-pmpp-by-file-name=s' => sub {
     push @command, {type => 'update-pmpp-by-list', file_name => $_[1]};
   },
@@ -275,8 +282,12 @@ sub cpanm ($$;%) {
     my @required_install;
     my @required_install2;
 
-    my @option = ('-I' . $cpanm_lib_dir_name, $cpanm,
-                  $args->{local_option} || '-L' => $perl_lib_dir_name,
+    my @perl_option = ('-I' . $cpanm_lib_dir_name);
+    if ($args{pmpp}) {
+      push @perl_option, ('-I' . $pmpp_dir_name);
+    }
+
+    my @option = ($args->{local_option} || '-L' => $perl_lib_dir_name,
                   ($args->{skip_satisfied} ? '--skip-satisfied' : ()),
                   @cpanm_option,
                   ($args->{scandeps} ? ('--scandeps', '--format=json', '--force') : ()));
@@ -299,6 +310,8 @@ sub cpanm ($$;%) {
     local $ENV{LANG} = 'C';
     local $ENV{PERL_CPANM_HOME} = $cpanm_home_dir_name;
     my @cmd = ($perl, 
+               @perl_option,
+               $cpanm,
                @option,
                @module_arg);
     info join ' ', 'PERL_CPANM_HOME=' . $cpanm_home_dir_name, @cmd;
@@ -378,15 +391,36 @@ sub cpanm ($$;%) {
 sub install_module ($;%) {
   my ($module, %args) = @_;
   get_local_copy_if_necessary $module;
-  cpanm {perl_lib_dir_name => $args{pmpp} ? $pmpp_dir_name : $installed_dir_name}, [$module], %args;
+  cpanm {perl_lib_dir_name => $args{pmpp} ? $pmpp_dir_name : $installed_dir_name,
+         use_pmpp => 1}, [$module], %args;
 } # install_module
 
 sub install_support_module ($;%) {
   my $module = shift;
   get_local_copy_if_necessary $module;
   cpanm {perl_lib_dir_name => $cpanm_dir_name,
+         use_pmpp => 1,
          local_option => '-l', skip_satisfied => 1}, [$module], @_;
 } # install_support_module
+
+sub copy_pmpp_modules () {
+  delete_pmpp_arch_dir ();
+  require File::Find;
+  my $from_base_path = abs_path $pmpp_dir_name;
+  my $to_base_path = abs_path $installed_dir_name;
+  File::Find::find (sub {
+    my $rel = File::Spec->abs2rel ((abs_path $_), $from_base_path);
+    my $dest = File::Spec->rel2abs ($rel, $to_base_path);
+    if (-f $_) {
+      info "Copying file $rel...";
+      unlink $dest if -f $dest;
+      copy $_ => $dest or die "$0: $dest: $!";
+    } elsif (-d $_) {
+      info "Copying directory $rel...";
+      make_path $dest;
+    }
+  }, $pmpp_dir_name);
+} # copy_pmpp_modules
 
 sub scandeps ($$;%) {
   my ($module_index, $module, %args) = @_;
@@ -781,6 +815,7 @@ sub get_lib_dir_names () {
 } # get_lib_dir_names
 
 sub delete_pmpp_arch_dir () {
+  info "rm -fr $pmpp_dir_name/lib/perl5/$Config{archname}";
   remove_tree "$pmpp_dir_name/lib/perl5/$Config{archname}";
 } # delete_pmpp_arch_dir
 
@@ -795,13 +830,16 @@ sub destroy () {
 my $global_module_index = PMBP::ModuleIndex->new_empty;
 my $selected_module_index = PMBP::ModuleIndex->new_empty;
 my $module_index_file_name;
+my $pmpp_touched;
 
 for my $command (@command) {
   if ($command->{type} eq 'install-module') {
+    delete_pmpp_arch_dir if $pmpp_touched;
     info "Install @{[$command->{module}->as_short]}...";
     install_module $command->{module},
         module_index_file_name => $module_index_file_name;
   } elsif ($command->{type} eq 'install-modules-by-list') {
+    delete_pmpp_arch_dir if $pmpp_touched;
     my $module_index = PMBP::ModuleIndex->new_empty;
     if (defined $command->{file_name}) {
       read_pmb_install_list $command->{file_name} => $module_index;
@@ -810,6 +848,14 @@ for my $command (@command) {
     }
     install_module $_, module_index_file_name => $module_index_file_name
         for ($module_index->to_list);
+  } elsif ($command->{type} eq 'install-to-pmpp') {
+    info "Install @{[$command->{module}->as_short]} to pmpp...";
+    install_module $command->{module},
+        module_index_file_name => $module_index_file_name, pmpp => 1;
+    $pmpp_touched = 1;
+  } elsif ($command->{type} eq 'install-by-pmpp') {
+    info "Copying pmpp modules...";
+    copy_pmpp_modules;
   } elsif ($command->{type} eq 'update-pmpp-by-list') {
     my $module_index = PMBP::ModuleIndex->new_empty;
     if (defined $command->{file_name}) {
@@ -819,7 +865,7 @@ for my $command (@command) {
     }
     install_module $_, module_index_file_name => $module_index_file_name, pmpp => 1
         for ($module_index->to_list);
-    delete_pmpp_arch_dir;
+    $pmpp_touched = 1;
   } elsif ($command->{type} eq 'scandeps') {
     info "Scanning dependency of @{[$command->{module}->as_short]}...";
     scandeps $global_module_index, $command->{module},
@@ -893,6 +939,7 @@ for my $command (@command) {
   }
 }
 
+delete_pmpp_arch_dir if $pmpp_touched;
 destroy;
 
 package PMBP::Module;
