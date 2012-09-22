@@ -194,6 +194,16 @@ sub save_url ($$) {
   _save_url (@_) or die "Failed to download <$_[0]>\n";
 } # save_url
 
+sub get_default_mirror_file_name () {
+  my $file_name = qq<$cpanm_dir_name/modules/02packages.details.txt.gz>;
+  if (not -f $file_name or
+      [stat $file_name]->[9] + 24 * 60 * 60 < time) {
+    save_url q<http://ftp.jaist.ac.jp/pub/CPAN/modules/02packages.details.txt.gz> => $file_name;
+    utime time, time, $file_name;
+  }
+  return abs_path $file_name;
+} # get_default_mirror_file_name
+
 {
   my $json_installed;
   
@@ -318,7 +328,12 @@ sub cpanm ($$;%) {
 
     if (defined $args{module_index_file_name}) {
       push @option, '--mirror-index' => abs_path $args{module_index_file_name};
+    } else {
+      get_default_mirror_file_name;
+      unshift @option, '--mirror' => abs_path $cpanm_dir_name;
     }
+    ## Let cpanm not use Web API, as it slows down operations.
+    push @option, '--mirror-only';
 
     local $ENV{LANG} = 'C';
     local $ENV{PERL_CPANM_HOME} = $cpanm_home_dir_name;
