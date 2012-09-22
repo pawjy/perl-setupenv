@@ -323,6 +323,7 @@ sub cpanm ($$;%) {
         or die "Failed to execute @cmd - $!\n";
     my $current_module_name = '';
     my $failed;
+    my $remove_inc;
     while (<$cmd>) {
       info "cpanm($CPANMDepth/$redo): $_" if $Verbose > 0;
       
@@ -334,27 +335,60 @@ sub cpanm ($$;%) {
             qw{ExtUtils::MakeMaker ExtUtils::ParseXS};
       } elsif (/^--> Working on (\S)+$/) {
         $current_module_name = $1;
-      } elsif (/^! (?:Installing|Configuring) (\S+) failed\. See (.+?) for details\.$/) {
+      } elsif (/^skipping .+\/perl-/) {
+          if (@module_arg and $module_arg[0] eq 'Module::Metadata') {
+            push @required_install, PMBP::Module->new_from_module_arg
+                ('Module::Metadata=http://search.cpan.org/CPAN/authors/id/A/AP/APEIRON/Module-Metadata-1.000011.tar.gz');
+            $failed = 1;
+        }
+      } elsif (/^! (?:Installing|Configuring) (\S+) failed\. See (.+?) for details\.$/ or
+               /^! Configure failed for (\S+). See (.+?) for details\.$/) {
         my $log = copy_log_file $2 => $1;
         if ($log =~ m{^make(?:\[[0-9]+\])?: .+?ExtUtils/xsubpp}m or
             $log =~ m{^Can\'t open perl script "ExtUtils/xsubpp"}m) {
           push @required_install,
               map { PMBP::Module->new_from_package ($_) }
               qw{ExtUtils::MakeMaker ExtUtils::ParseXS};
+        } elsif ($log =~ /^only nested arrays of non-refs are supported at .*?\/ExtUtils\/MakeMaker.pm/m) {
+          push @required_install, PMBP::Module->new_from_package ('ExtUtils::MakeMaker');
         } elsif ($log =~ /^Can\'t locate (\S+\.pm) in \@INC/m) {
           push @required_install, PMBP::Module->new_from_pm_file_name ($1);
+        } elsif ($log =~ /^String found where operator expected at Makefile.PL line [0-9]+, near \"([0-9A-Za-z_]+)/m) {
+          my $module_name = {
+              author_tests => 'Module::Install::AuthorTests',
+              readme_from => 'Module::Install::ReadmeFromPod',
+              readme_markdown_from => 'Module::Install::ReadmeMarkdownFromPod',
+          }->{$1};
+          push @required_install, PMBP::Module->new_from_package ($module_name)
+              if $module_name;
+        } elsif ($log =~ /^Bareword "([0-9A-Za-z_]+)" not allowed while "strict subs" in use at Makefile.PL /m) {
+          my $module_name = {
+              auto_set_repository => 'Module::Install::Repository',
+              githubmeta => 'Module::Install::GithubMeta',
+          }->{$1};
+          push @required_install, PMBP::Module->new_from_package ($module_name)
+              if $module_name;
+        } elsif ($log =~ /^Can\'t call method "load_all_extensions" on an undefined value at inc\/Module\/Install.pm /m) {
+          $remove_inc = 1;
         }
         $failed = 1;
       }
     }
     (close $cmd and not $failed) or do {
       unless ($CPANMDepth > 100 or $redo++ > 10) {
+        my $redo;
+        if ($remove_inc and
+            @module_arg and $module_arg[0] =~ m{/} and
+            -d "$module_arg[0]/inc") {
+          remove_tree "$module_arg[0]/inc";
+          $redo = 1;
+        }
         if (@required_cpanm) {
           local $CPANMDepth = $CPANMDepth + 1;
           for my $module (@required_cpanm) {
             install_support_module $module, %args;
           }
-          redo COMMAND;
+          $redo = 1;
         } elsif (@required_install) {
           if ($perl_lib_dir_name ne $cpanm_dir_name) {
             local $CPANMDepth = $CPANMDepth + 1;
@@ -365,15 +399,16 @@ sub cpanm ($$;%) {
               cpanm {perl_lib_dir_name => $perl_lib_dir_name}, [$module], %args
                   unless $args->{no_install};
             }
-            redo COMMAND unless $args->{no_install};
+            $redo = 1 unless $args->{no_install};
           } else {
             local $CPANMDepth = $CPANMDepth + 1;
             for my $module (@required_install) {
               cpanm {perl_lib_dir_name => $perl_lib_dir_name}, [$module], %args;
             }
-            redo COMMAND;
+            $redo = 1;
           }
         }
+        redo COMMAND if $redo;
       }
       if ($args->{ignore_errors}) {
         info "cpanm($CPANMDepth): Installing @{[join ' ', map { ref $_ ? $_->as_short : $_ } @$modules]} failed (@{[$? >> 8]}) (Ignored)";
@@ -499,7 +534,7 @@ sub _scandeps_write_result ($$$) {
     open my $file, '>', $file_name or die "$0: $file_name: $!";
     print $file encode_json $m;
   }
-  $module_index->add_modules ([map { $_->[0] } @$result]);
+  $module_index->merge_modules ([map { $_->[0] } @$result]);
 } # scandeps
 
 sub load_deps ($$) {
@@ -560,7 +595,7 @@ sub select_module ($$$;%) {
       die "Can't detect dependency of @{[$module->as_short]}\n" unless $mods;
     }
   }
-  $dest_module_index->add_modules ($mods);
+  $dest_module_index->merge_modules ($mods);
 } # select_module
 
 sub copy_install_jsons () {
@@ -595,7 +630,7 @@ sub read_module_index ($$) {
       $has_blank_line = 1;
     }
   }
-  $module_index->add_modules ($modules);
+  $module_index->merge_modules ($modules);
 } # read_module_index
 
 sub write_module_index ($$) {
@@ -637,7 +672,7 @@ sub read_pmb_install_list ($$) {
   open my $file, '<', $file_name or die "$0: $file_name: $!";
   my $modules = [];
   while (<$file>) {
-    if (/^\s*\#/ or /^\*$/) {
+    if (/^\s*\#/ or /^\s*$/) {
       #
     } else {
       s/^\s+//;
@@ -645,7 +680,7 @@ sub read_pmb_install_list ($$) {
       push @$modules, PMBP::Module->new_from_module_arg ($_);
     }
   }
-  $module_index->add_modules ($modules);
+  $module_index->merge_modules ($modules);
 } # read_pmb_install_list
 
 sub write_pmb_install_list ($$) {
@@ -681,7 +716,7 @@ sub read_carton_lock ($$) {
   for (values %{$json->{modules}}) {
     push @$modules, PMBP::Module->new_from_carton_lock_entry ($_);
   }
-  $module_index->add_modules ($modules);
+  $module_index->merge_modules ($modules);
 } # read_carton_lock
 
 sub read_install_list ($$);
@@ -729,7 +764,7 @@ sub read_install_list ($$) {
     for (keys %$mod_names) {
       push @$modules, PMBP::Module->new_from_package ($_);
     }
-    $module_index->add_modules ($modules);
+    $module_index->merge_modules ($modules);
     last THIS;
   } # THIS
 
@@ -762,7 +797,7 @@ sub get_dependency_from_cpanfile ($$) {
   for (keys %{$req->as_string_hash}) {
     push @$modules, PMBP::Module->new_from_package ($_);
   }
-  $module_index->add_modules ($modules);
+  $module_index->merge_modules ($modules);
 } # get_dependency_from_cpanfile
 
 sub scan_dependency_from_directory ($) {
@@ -895,11 +930,13 @@ for my $command (@command) {
   } elsif ($command->{type} eq 'write-install-module-index') {
     write_install_module_index $selected_module_index => $command->{file_name};
   } elsif ($command->{type} eq 'write-libs-txt') {
+    mkdir_for_file $command->{file_name};
     open my $file, '>', $command->{file_name}
         or die "$0: $command->{file_name}: $!";
     info_writing "lib paths", $command->{file_name};
     print $file join ':', (get_lib_dir_names);
   } elsif ($command->{type} eq 'write-makefile-pl') {
+    mkdir_for_file $command->{file_name};
     open my $file, '>', $command->{file_name}
         or die "$0: $command->{file_name}: $!";
     info_writing "dummy Makefile.PL", $command->{file_name};
@@ -1116,6 +1153,17 @@ sub find_by_module ($$) {
 sub add_modules ($$) {
   push @{$_[0]->{list}}, @{$_[1]};
 } # add_modules
+
+sub merge_modules {
+  my ($i1, $i2) = @_;
+  my @m;
+  for my $m (@$i2) {
+    unless ($i1->find_by_module ($m)) {
+      push @m, $m;
+    }
+  }
+  $i1->add_modules (\@m);
+} # merge_modules
 
 sub merge_module_index {
   my ($i1, $i2) = @_;
