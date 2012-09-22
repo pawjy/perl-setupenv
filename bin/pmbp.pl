@@ -626,7 +626,9 @@ sub _scandeps_write_result ($$$) {
 
 sub load_deps ($$) {
   my ($module_index, $input_module) = @_;
-  my $module = $module_index->find_by_module ($input_module) or return undef;
+  my $module = $module_index->find_by_module ($input_module)
+      || $input_module;
+  return undef unless defined $module->distvname;
 
   my $result = [];
 
