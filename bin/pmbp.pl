@@ -65,6 +65,10 @@ GetOptions (
     my $module = PMBP::Module->new_from_module_arg ($_[1]);
     push @command, {type => 'select-module', module => $module};
   },
+  '--select-module-deps=s' => sub {
+    my $module = PMBP::Module->new_from_module_arg ($_[1]);
+    push @command, {type => 'select-module-deps', module => $module};
+  },
   '--select-modules-by-file-name=s' => sub {
     push @command, {type => 'select-modules-by-list', file_name => $_[1]};
   },
@@ -110,6 +114,11 @@ GetOptions (
   '--print-scanned-dependency=s' => sub {
     push @command, {type => 'print-scanned-dependency', dir_name => $_[1]};
   },
+  '--print-module-pathname=s' => sub {
+    my $module = PMBP::Module->new_from_module_arg ($_[1]);
+    push @command, {type => 'print-module-pathname',
+                    module => $module};
+  },
 ) or die "Usage: $0 options... (See source for details)\n";
 
 $perl_version ||= `@{[quotemeta $perl]} -e 'print \$^V'`;
@@ -134,6 +143,7 @@ make_path $pmpp_dir_name;
 my $packages_details_file_name = $pmtar_dir_name . '/modules/02packages.details.txt';
 my $install_json_dir_name = $pmtar_dir_name . '/meta';
 my $deps_json_dir_name = $pmtar_dir_name . '/deps';
+my $deps_txt_dir_name = $pmtar_dir_name . '/deps';
 
 sub install_support_module ($;%);
 sub scandeps ($$;%);
@@ -150,7 +160,7 @@ sub info_writing ($$) {
 sub pathname2distvname ($) {
   my $path = shift;
   $path =~ s{^.+/}{};
-  $path =~ s{\.tar\.gz$}{};
+  $path =~ s{\.(?:tar\.(?:gz|bz2)|zip)$}{};
   return $path;
 } # pathname2distvname
 
@@ -274,6 +284,7 @@ sub cpanm ($$;%) {
   prepare_cpanm;
 
   my $perl_lib_dir_name = $args->{perl_lib_dir_name}
+      || ($args->{info} ? $cpanm_lib_dir_name : undef)
       or die "No |perl_lib_dir_name| specified";
 
   my $redo = 0;
@@ -290,7 +301,9 @@ sub cpanm ($$;%) {
     my @option = ($args->{local_option} || '-L' => $perl_lib_dir_name,
                   ($args->{skip_satisfied} ? '--skip-satisfied' : ()),
                   @cpanm_option,
-                  ($args->{scandeps} ? ('--scandeps', '--format=json', '--force') : ()));
+                  ($args->{scandeps} ? ('--scandeps', '--format=json', '--force') : ()),
+                  ($args->{showdeps} ? ('--showdeps') : ()));
+    push @option, '--info' if $args->{info};
 
     my @module_arg = map {
       ref $_ ? $_->as_cpanm_arg ($pmtar_dir_name) : $_;
@@ -314,11 +327,12 @@ sub cpanm ($$;%) {
                $cpanm,
                @option,
                @module_arg);
-    info join ' ', 'PERL_CPANM_HOME=' . $cpanm_home_dir_name, @cmd;
+    info join ' ', 'PERL_CPANM_HOME=' . $cpanm_home_dir_name, @cmd
+        if not $args->{info} or $Verbose > 0;
     my $json_temp_file = File::Temp->new;
     open my $cmd, '-|', ((join ' ', map { quotemeta } @cmd) .
                          ' 2>&1 ' .
-                         ($args->{scandeps} ? ' > ' . quotemeta $json_temp_file : '') .
+                         ($args->{scandeps} || $args->{showdeps} || $args->{info} ? ' > ' . quotemeta $json_temp_file : '') .
                          '')
         or die "Failed to execute @cmd - $!\n";
     my $current_module_name = '';
@@ -327,7 +341,7 @@ sub cpanm ($$;%) {
     while (<$cmd>) {
       info "cpanm($CPANMDepth/$redo): $_" if $Verbose > 0;
       
-      if (/^Can\'t locate (\S+\.pm) in \@INC/) {
+      if (/Can\'t locate (\S+\.pm) in \@INC/) {
         push @required_cpanm, PMBP::Module->new_from_pm_file_name ($1);
       } elsif (/^Building version-\S+ \.\.\. FAIL/) {
         push @required_install,
@@ -374,6 +388,7 @@ sub cpanm ($$;%) {
         $failed = 1;
       }
     }
+    info "cpanm done" if $Verbose > 1;
     (close $cmd and not $failed) or do {
       unless ($CPANMDepth > 100 or $redo++ > 10) {
         my $redo;
@@ -393,7 +408,13 @@ sub cpanm ($$;%) {
           if ($perl_lib_dir_name ne $cpanm_dir_name) {
             local $CPANMDepth = $CPANMDepth + 1;
             for my $module (@required_install) {
-              if ($args->{scandeps}) {
+              if ($args->{showdeps}) {
+                my $mi = get_deps_recursively
+                    ($args->{showdeps}->{global_module_index},
+                     $module);
+                $args->{showdeps}->{module_index}->merge_module_index
+                    ($mi);
+              } elsif ($args->{scandeps}) {
                 scandeps $args->{scandeps}->{module_index}, $module, %args;
               }
               cpanm {perl_lib_dir_name => $perl_lib_dir_name}, [$module], %args
@@ -416,7 +437,13 @@ sub cpanm ($$;%) {
         die "cpanm($CPANMDepth): Installing @{[join ' ', map { ref $_ ? $_->as_short : $_ } @$modules]} failed (@{[$? >> 8]})\n";
       }
     }; # close or do
-    if ($args->{scandeps} and -f $json_temp_file->filename) {
+    if ($args->{info} and -f $json_temp_file->filename) {
+      open my $file, '<', $json_temp_file->filename or die "$0: $!";
+      $result->{output_text} = <$file>;
+    } elsif ($args->{showdeps} and -f $json_temp_file->filename) {
+      read_pmb_install_list
+          ($json_temp_file->filename => $args->{showdeps}->{module_index});
+    } elsif ($args->{scandeps} and -f $json_temp_file->filename) {
       $result->{output_json} = load_json $json_temp_file->filename;
     }
   } # COMMAND
@@ -456,6 +483,51 @@ sub copy_pmpp_modules () {
     }
   }, $pmpp_dir_name);
 } # copy_pmpp_modules
+
+sub get_deps_recursively ($$) {
+  my ($global_module_index, $module) = @_;
+  my @module = ($module);
+  my $module_index = PMBP::ModuleIndex->new_empty;
+  while (@module) {
+    my $module = shift @module;
+    next if $module_index->find_by_module ($module);
+    $module = $global_module_index->find_by_module ($module) || $module;
+    my $mi = get_deps_from_file ($module)
+        || get_deps_by_cpanm ($global_module_index, $module);
+    push @module, ($mi->to_list);
+    $module_index->add_modules ([$module]);
+    $global_module_index->add_modules ([$module]);
+  }
+  return $module_index;
+} # get_deps_recursively
+
+sub get_deps_by_cpanm ($$) {
+  my ($gmi, $module) = @_;
+  get_local_copy_if_necessary $module;
+  my $temp_dir = File::Temp->newdir;
+  my $mi = PMBP::ModuleIndex->new_empty;
+  cpanm {perl_lib_dir_name => $temp_dir->dirname,
+         temp_dir => $temp_dir,
+         showdeps => {module_index => $mi,
+                      global_module_index => $gmi}},
+        [$module];
+  my $dist = $module->distvname;
+  write_pmb_install_list ($mi => "$deps_txt_dir_name/$dist.txt")
+      if defined $dist;
+  return $mi;
+} # get_deps_by_cpanm
+
+sub get_deps_from_file ($) {
+  my ($module) = @_;
+  my $dist = $module->distvname or return undef;
+  my $file_name = "$deps_txt_dir_name/$dist.txt";
+  info "Checking $file_name... " . (-f $file_name ? 'Found' : 'Not found')
+      if $Verbose;
+  return undef unless -f $file_name;
+  my $mi = PMBP::ModuleIndex->new_empty;
+  read_pmb_install_list ($file_name => $mi);
+  return $mi;
+} # get_deps_from_file
 
 sub scandeps ($$;%) {
   my ($module_index, $module, %args) = @_;
@@ -584,7 +656,7 @@ sub select_module ($$$;%) {
             (PMBP::Module->new_from_package ($module->package));
         if ($current_module) {
           my $path = $current_module->pathname;
-          if (defined $path and $path =~ s{-[0-9A-Za-z.-]+\.tar\.gz$}{-@{[$module->version]}.tar.gz}) {
+          if (defined $path and $path =~ s{-[0-9A-Za-z.+-]+\.(tar\.(?:gz|bz2)|zip)$}{-@{[$module->version]}.$1}) {
             if (save_by_pathname $path => $module) {
               scandeps $src_module_index, $module, %args;
               $mods = load_deps $src_module_index => $module;
@@ -663,8 +735,8 @@ sub write_module_index ($$) {
   close $details;
 } # write_module_index
 
-sub read_pmb_install_list ($$) {
-  my ($file_name => $module_index) = @_;
+sub read_pmb_install_list ($$;%) {
+  my ($file_name => $module_index, %args) = @_;
   unless (-f $file_name) {
     info "$file_name not found; skipped\n";
     return;
@@ -677,7 +749,14 @@ sub read_pmb_install_list ($$) {
     } else {
       s/^\s+//;
       s/\s+$//;
-      push @$modules, PMBP::Module->new_from_module_arg ($_);
+      my $module = PMBP::Module->new_from_module_arg ($_);
+      next if {
+        map { $_ => 1 } qw(
+          perl strict warnings base lib encoding utf8 overload
+          constant vars integer
+        ),
+      }->{$module->package || ''};
+      push @$modules, $module;
     }
   }
   $module_index->merge_modules ($modules);
@@ -831,6 +910,7 @@ sub scan_dependency_from_directory ($) {
   delete $modules->{$_} for qw(
     q qw qq
     strict warnings base lib encoding utf8 overload
+    constant vars integer
   );
   for (keys %$modules) {
     delete $modules->{$_} unless /\A[0-9A-Za-z_]+(?:::[0-9A-Za-z_]+)*\z/;
@@ -906,6 +986,9 @@ for my $command (@command) {
     scandeps $global_module_index, $command->{module},
         skip_if_found => 1,
         module_index_file_name => $module_index_file_name;
+  } elsif ($command->{type} eq 'select-module-deps') {
+    $selected_module_index->merge_module_index
+        (get_deps_recursively $global_module_index, $command->{module});
   } elsif ($command->{type} eq 'select-module') {
     select_module $global_module_index => $command->{module} => $selected_module_index,
         module_index_file_name => $module_index_file_name;
@@ -971,6 +1054,9 @@ for my $command (@command) {
     install_support_module PMBP::Module->new_from_package ('Module::CoreList');
     require Module::CoreList;
     print Module::CoreList->first_release ($command->{module_name});
+  } elsif ($command->{type} eq 'print-module-pathname') {
+    my $pathname = $command->{module}->pathname;
+    print $pathname if defined $pathname;
   } else {
     die "Command |$command->{type}| is not defined";
   }
@@ -1043,9 +1129,9 @@ sub _set_distname ($) {
   my $self = shift;
 
   if (not defined $self->{pathname} and defined $self->{url}) {
-    if ($self->{url} =~ m{/authors/id/(.+\.tar\.gz)$}) {
+    if ($self->{url} =~ m{/authors/id/(.+\.(?:tar\.(?:gz|bz2)|zip))$}) {
       $self->{pathname} = $1;
-    } elsif ($self->{url} =~ m{([^/]+\.tar\.gz)$}) {
+    } elsif ($self->{url} =~ m{([^/]+\.(?:tar\.(?:gz|bz2)|zip))$}) {
       $self->{pathname} = "misc/$1";
     }
   }
@@ -1060,15 +1146,30 @@ sub version ($) {
 } # version
 
 sub pathname ($) {
-  return $_[0]->{pathname};
+  return $_[0]->{pathname} if exists $_[0]->{pathname};
+
+  if (defined $_[0]->{package}) {
+    my $result = main::cpanm {info => 1}, [$_[0]];
+    if (defined $result->{output_text} and
+        $result->{output_text} =~ m{^([A-Z0-9]+)/((?:modules/)?[A-Za-z0-9_.+-]+)$}) {
+      return $_[0]->{pathname} = join '/', 
+          (substr $1, 0, 1),
+          (substr $1, 0, 2),
+          $1,
+          $2;
+    }
+  }
+
+  return $_[0]->{pathname} = undef;
 } # pathname
 
 sub distvname ($) {
   my $self = shift;
   return $self->{distvname} if defined $self->{distvname};
 
-  if (defined $self->{pathname}) {
-    return $self->{distvname} = main::pathname2distvname $self->{pathname};
+  my $pathname = $self->pathname;
+  if (defined $pathname) {
+    return $self->{distvname} = main::pathname2distvname $pathname;
   }
   return $self->{distvname} = undef;
 } # distvname
@@ -1083,7 +1184,8 @@ sub is_equal_module ($$) {
   return 0 if $m1->{package} ne $m2->{package};
   return 0 if defined $m1->{version} and not defined $m2->{version};
   return 0 if not defined $m1->{version} and defined $m2->{version};
-  return 0 if $m1->{version} ne $m2->{version};
+  return 0 if defined $m1->{version} and defined $m2->{version} and
+              $m1->{version} ne $m2->{version};
   return 1;
 } # is_equal_module
 
