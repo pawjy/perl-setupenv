@@ -3,3 +3,5 @@
 /config/perl
 /local/
 /carton.lock
+/perl
+/prove
