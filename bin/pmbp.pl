@@ -1526,6 +1526,15 @@ This command should be invoked before any other command where
 possible.  In particular, installing modules before the
 C<--install-perl> command could make the installed module broken.
 
+=item --print-perl-core-version="Perl::Module::Name"
+
+Print the first version of Perl where the specified module is bundled
+as a core module, as returned by L<Module::CoreList>.  For example,
+C<5.007003> is printed if the module specified is C<Encode>.  The
+L<Module::CoreList> module is automatically installed for the script
+if not available.  If the specified module is not part of core Perl
+distribution, nothing is printed.
+
 =back
 
 =head1 DEPENDENCY
