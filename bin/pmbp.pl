@@ -106,9 +106,6 @@ GetOptions (
   '--write-makefile-pl=s' => sub {
     push @command, {type => 'write-makefile-pl', file_name => $_[1]};
   },
-  '--print-libs' => sub {
-    push @command, {type => 'print-libs'};
-  },
   '--print-perl-core-version=s' => sub {
     push @command, {type => 'print-perl-core-version', module_name => $_[1]};
   },
@@ -118,9 +115,6 @@ GetOptions (
   '--prepend-mirror=s' => sub {
     push @command, {type => 'prepend-mirror', url => $_[1]};
   },
-  '--print-pmtar-dir-name' => sub {
-    push @command, {type => 'print-pmtar-dir-name'};
-  },
   '--print-scanned-dependency=s' => sub {
     push @command, {type => 'print-scanned-dependency', dir_name => $_[1]};
   },
@@ -129,6 +123,15 @@ GetOptions (
     push @command, {type => 'print-module-pathname',
                     module => $module};
   },
+  (map {
+    my $n = $_;
+    ("--$n" => sub {
+      push @command, {type => $n};
+    });
+  } qw(
+    print-latest-perl-version
+    print-libs print-pmtar-dir-name
+  )),
 ) or die "Usage: $0 options... (See source for details)\n";
 
 $perl_version ||= `@{[quotemeta $perl]} -e 'print \$^V'`;
@@ -262,6 +265,7 @@ sub get_default_mirror_file_name () {
   sub encode_json ($) {
     unless ($json_installed) {
       $json_installed = 1;
+      eval q{ require JSON } or
       install_support_module PMBP::Module->new_from_package ('JSON');
     }
     require JSON;
@@ -271,6 +275,7 @@ sub get_default_mirror_file_name () {
   sub decode_json ($) {
     unless ($json_installed) {
       $json_installed = 1;
+      eval q{ require JSON } or
       install_support_module PMBP::Module->new_from_package ('JSON');
     }
     require JSON;
@@ -332,6 +337,23 @@ sub save_by_pathname ($$) {
   
   return 0;
 } # save_by_pathname
+
+my $LatestPerlVersion;
+sub get_latest_perl_version () {
+  return $LatestPerlVersion if $LatestPerlVersion;
+
+  my $file_name = qq<$temp_dir_name/perl.json>;
+  save_url q<http://api.metacpan.org/release/perl> => $file_name
+      if not -f $file_name or
+         [stat $file_name]->[9] + 24 * 60 * 60 < time;
+  my $json = load_json $file_name;
+  if (ref $json eq 'HASH' and $json->{name} and
+      $json->{name} =~ /^perl-([0-9A-Za-z._-]+)$/) {
+    return $LatestPerlVersion = $1;
+  } else {
+    return $LatestPerlVersion = '5.16.1';
+  }
+} # get_latest_perl_version
 
 sub prepare_cpanm () {
   return if -f $cpanm;
@@ -1083,6 +1105,10 @@ while (@command) {
                           ? $pmb_install_file_name : undef},
         {type => 'write-libs-txt'},
         {type => 'create-libs-txt-symlink'};
+
+  } elsif ($command->{type} eq 'print-latest-perl-version') {
+    print get_latest_perl_version;
+
   } elsif ($command->{type} eq 'install-module') {
     delete_pmpp_arch_dir if $pmpp_touched;
     info 0, "Installing @{[$command->{module}->as_short]}...";
@@ -1444,12 +1470,26 @@ __END__
 
 XXX
 
+=head2 Normal options
+
 =over 4
 
 =item --wget-command="wget"
 
 Specify the "wget" command and arguments, if desired.  By default,
 C<wget> is used.
+
+=back
+
+=head2 Commands
+
+=over 4
+
+=item --print-latest-perl-version
+
+Print the version number of the latest stable release of Perl to the
+standard output.  At the time of writing, this command prints the
+string C<5.16.1>.
 
 =back
 
