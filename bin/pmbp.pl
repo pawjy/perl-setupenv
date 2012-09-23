@@ -38,6 +38,12 @@ GetOptions (
   '--verbose' => sub { $Verbose++ },
   '--preserve-info-file' => \$PreserveInfoFile,
 
+  '--update' => sub {
+    push @command, {type => 'update'};
+  },
+  '--install' => sub {
+    push @command, {type => 'install'};
+  },
   '--install-module=s' => sub {
     my $module = PMBP::Module->new_from_module_arg ($_[1]);
     push @command, {type => 'install-module', module => $module};
@@ -370,7 +376,8 @@ sub cpanm ($$;%) {
         map { ('--mirror' => $_) } @CPANMirror;
 
     if (defined $args{module_index_file_name}) {
-      push @option, '--mirror-index' => abs_path $args{module_index_file_name};
+      my $mi = abs_path $args{module_index_file_name};
+      push @option, '--mirror-index' => $mi if defined $mi;
     } else {
       get_default_mirror_file_name;
       unshift @option, '--mirror' => abs_path $cpanm_dir_name;
@@ -531,6 +538,16 @@ sub install_support_module ($;%) {
          use_pmpp => 1,
          local_option => '-l', skip_satisfied => 1}, [$module], @_;
 } # install_support_module
+
+sub init_pmtar_git () {
+  return if -f "$pmtar_dir_name/.git/config";
+  system "cd \Q$pmtar_dir_name\E && git init";
+} # init_pmtar_git
+
+sub init_pmpp_git () {
+  return if -f "$pmpp_dir_name/.git/config";
+  system "cd \Q$pmpp_dir_name\E && git init";
+} # init_pmpp_git
 
 sub copy_pmpp_modules () {
   delete_pmpp_arch_dir ();
@@ -1000,6 +1017,11 @@ sub get_lib_dir_names () {
   return @lib;
 } # get_lib_dir_names
 
+sub get_libs_txt_file_name () {
+  my $version = $perl_version;
+  return "$root_dir_name/local/config/perl/libs-$version-$Config{archname}.txt";
+} # get_libs_txt_file_name
+
 sub delete_pmpp_arch_dir () {
   info 1, "rm -fr $pmpp_dir_name/lib/perl5/$Config{archname}";
   remove_tree "$pmpp_dir_name/lib/perl5/$Config{archname}";
@@ -1022,10 +1044,43 @@ info 6, '$ ' . join ' ', @Command;
 info 6, sprintf 'Perl %vd (%s)', $^V, $Config{archname};
 info 6, '@INC = ' . join ' ', @INC;
 
-for my $command (@command) {
-  if ($command->{type} eq 'install-module') {
+while (@command) {
+  my $command = shift @command;
+  if ($command->{type} eq 'update') {
+    my $module_list_file_name = "$root_dir_name/deps/pmtar/modules/index.txt";
+    my $pmb_install_file_name = "$root_dir_name/config/perl/pmb-install.txt";
+    unshift @command,
+        {type => 'read-module-index',
+         file_name => $module_list_file_name},
+        {type => 'set-module-index'},
+        {type => 'init-pmtar-git'},
+        {type => 'select-modules-by-list'},
+        {type => 'write-module-index',
+         file_name => $module_list_file_name},
+        {type => 'write-pmb-install-list',
+         file_name => $pmb_install_file_name},
+        {type => 'init-pmpp-git'},
+        {type => 'update-pmpp-by-list',
+         file_name => $pmb_install_file_name},
+        {type => 'write-module-index',
+         file_name => $module_list_file_name};
+  } elsif ($command->{type} eq 'install') {
+    my $module_list_file_name = "$root_dir_name/deps/pmtar/modules/index.txt";
+    my $pmb_install_file_name = "$root_dir_name/config/perl/pmb-install.txt";
+    unshift @command,
+        {type => 'read-module-index',
+         file_name => $module_list_file_name},
+        {type => 'set-module-index',
+         file_name => $module_list_file_name},
+        {type => 'install-by-pmpp'},
+        {type => 'install-modules-by-list',
+         file_name => -f $pmb_install_file_name
+                          ? $pmb_install_file_name : undef},
+        {type => 'write-libs-txt'},
+        {type => 'create-libs-txt-symlink'};
+  } elsif ($command->{type} eq 'install-module') {
     delete_pmpp_arch_dir if $pmpp_touched;
-    info 0, "Install @{[$command->{module}->as_short]}...";
+    info 0, "Installing @{[$command->{module}->as_short]}...";
     install_module $command->{module},
         module_index_file_name => $module_index_file_name;
   } elsif ($command->{type} eq 'install-modules-by-list') {
@@ -1036,10 +1091,12 @@ for my $command (@command) {
     } else {
       read_install_list $root_dir_name => $module_index;
     }
-    install_module $_, module_index_file_name => $module_index_file_name
-        for ($module_index->to_list);
+    for ($module_index->to_list) {
+      info 0, "Installing @{[$_->as_short]}...";
+      install_module $_, module_index_file_name => $module_index_file_name;
+    }
   } elsif ($command->{type} eq 'install-to-pmpp') {
-    info 0, "Install @{[$command->{module}->as_short]} to pmpp...";
+    info 0, "Installing @{[$command->{module}->as_short]} to pmpp...";
     install_module $command->{module},
         module_index_file_name => $module_index_file_name, pmpp => 1;
     $pmpp_touched = 1;
@@ -1053,8 +1110,10 @@ for my $command (@command) {
     } else {
       read_install_list $root_dir_name => $module_index;
     }
-    install_module $_, module_index_file_name => $module_index_file_name, pmpp => 1
-        for ($module_index->to_list);
+    for ($module_index->to_list) {
+      info 0, "Installing @{[$_->as_short]} to pmpp...";
+      install_module $_, module_index_file_name => $module_index_file_name, pmpp => 1;
+    }
     $pmpp_touched = 1;
   } elsif ($command->{type} eq 'scandeps') {
     info 0, "Scanning dependency of @{[$command->{module}->as_short]}...";
@@ -1088,11 +1147,18 @@ for my $command (@command) {
   } elsif ($command->{type} eq 'write-install-module-index') {
     write_install_module_index $selected_module_index => $command->{file_name};
   } elsif ($command->{type} eq 'write-libs-txt') {
-    mkdir_for_file $command->{file_name};
-    open my $file, '>', $command->{file_name}
-        or die "$0: $command->{file_name}: $!";
-    info_writing 0, "lib paths", $command->{file_name};
+    my $file_name = $command->{file_name};
+    $file_name = get_libs_txt_file_name unless defined $file_name;
+    mkdir_for_file $file_name;
+    open my $file, '>', $file_name or die "$0: $file_name: $!";
+    info_writing 0, "lib paths", $file_name;
     print $file join ':', (get_lib_dir_names);
+  } elsif ($command->{type} eq 'create-libs-txt-symlink') {
+    my $real_name = get_libs_txt_file_name;
+    my $link_name = "$root_dir_name/config/perl/libs.txt";
+    mkdir_for_file $link_name;
+    unlink $link_name or die "$0: $link_name: $!" if -f $link_name;
+    symlink $real_name => $link_name or die "$0: $link_name: $!";
   } elsif ($command->{type} eq 'write-makefile-pl') {
     mkdir_for_file $command->{file_name};
     open my $file, '>', $command->{file_name}
@@ -1114,7 +1180,7 @@ for my $command (@command) {
   } elsif ($command->{type} eq 'print-libs') {
     print join ':', (get_lib_dir_names);
   } elsif ($command->{type} eq 'set-module-index') {
-    $module_index_file_name = $command->{file_name};
+    $module_index_file_name = $command->{file_name}; # or undef
   } elsif ($command->{type} eq 'prepend-mirror') {
     if ($command =~ m{^[^/]}) {
       $command->{url} = abs_path $command->{url};
@@ -1122,6 +1188,10 @@ for my $command (@command) {
     unshift @CPANMirror, $command->{url};
   } elsif ($command->{type} eq 'print-pmtar-dir-name') {
     print $pmtar_dir_name;
+  } elsif ($command->{type} eq 'init-pmtar-git') {
+    init_pmtar_git;
+  } elsif ($command->{type} eq 'init-pmpp-git') {
+    init_pmpp_git;
   } elsif ($command->{type} eq 'print-scanned-dependency') {
     my $mod_names = scan_dependency_from_directory $command->{dir_name};
     print map { $_ . "\n" } sort { $a cmp $b } keys %$mod_names;
@@ -1135,7 +1205,7 @@ for my $command (@command) {
   } else {
     die "Command |$command->{type}| is not defined";
   }
-}
+} # while @command
 
 delete_pmpp_arch_dir if $pmpp_touched;
 destroy;
