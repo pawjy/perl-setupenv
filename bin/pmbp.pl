@@ -731,12 +731,12 @@ sub load_deps ($$) {
 
 sub init_pmtar_git () {
   return if -f "$pmtar_dir_name/.git/config";
-  system "cd \Q$pmtar_dir_name\E && git init";
+  run_command ['sh', '-c', "cd \Q$pmtar_dir_name\E && git init"];
 } # init_pmtar_git
 
 sub init_pmpp_git () {
   return if -f "$pmpp_dir_name/.git/config";
-  system "cd \Q$pmpp_dir_name\E && git init";
+  run_command ['sh', '-c', "cd \Q$pmpp_dir_name\E && git init"];
 } # init_pmpp_git
 
 sub copy_pmpp_modules () {
