@@ -232,8 +232,13 @@ sub copy_log_file ($$) {
 
 sub _save_url {
   mkdir_for_file $_[1];
-  info 1, "Downloading <$_[0]>...\n";
-  system "wget -O \Q$_[1]\E \Q$_[0]\E 1>&2";
+  info 1, "Downloading <$_[0]>...";
+  open my $cmd, "-|", "$wget -O \Q$_[1]\E \Q$_[0]\E 2>&1"
+      or die "$0: wget: $!";
+  while (<$cmd>) {
+    info 2, $_;
+  }
+  close $cmd;
   return -f $_[1];
 } # _save_url
 
@@ -1432,6 +1437,33 @@ sub to_list ($) {
 sub TO_JSON ($) {
   return $_[0]->{list};
 } # TO_JSON
+
+__END__
+
+=head1 OPTIONS
+
+XXX
+
+=over 4
+
+=item --wget-command="wget"
+
+Specify the "wget" command and arguments, if desired.  By default,
+C<wget> is used.
+
+=back
+
+=head1 DEPENDENCY
+
+Perl 5.8 or later is supported by this script.  Core modules of Perl
+5.8 must be available.
+
+In addition, the C<wget> command must be available.  Some of commands
+(in particular, the C<--update> command) requires the C<git> command.
+
+Though the script depends on C<perlbrew> and C<cpanm> commands, they
+are automatically downloaded from the Internet such that you don't
+have to prepare these scripts.
 
 =head1 LICENSE
 
