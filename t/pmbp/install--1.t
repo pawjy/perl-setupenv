@@ -19,7 +19,7 @@ perl -e "-f '$tempdir/config/perl/libs.txt' ? print qq{ok 2\n} : print qq{not ok
 (ls $tempdir/local/perl-*/pm/lib/perl5/Test/Class.pm > /dev/null && echo "ok 4") || echo "not ok 4"
 (ls $tempdir/deps/pmpp/lib/perl5/Test/Class.pm > /dev/null && echo "not ok 5") || echo "ok 5"
 
-(ls $tempdir/deps/pmpp/.git/config > /dev/null && echo "ok 6") || echo "not ok 6"
-(ls $tempdir/deps/pmtar/.git/config > /dev/null && echo "ok 7") || echo "not ok 7"
+(ls $tempdir/deps/pmpp/.git/config > /dev/null && echo "not ok 6") || echo "ok 6"
+(ls $tempdir/deps/pmtar/.git/config > /dev/null && echo "not ok 7") || echo "ok 7"
 
 rm -fr $tempdir
