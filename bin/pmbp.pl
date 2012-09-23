@@ -11,12 +11,11 @@ use Getopt::Long;
 my $perl = 'perl';
 my $perl_version;
 my $wget = 'wget';
-my $cpanm_url = q<http://cpanmin.us>;
+my $cpanm_url = q<http://cpanmin.us/>;
 my $root_dir_name = '.';
 my $pmtar_dir_name;
 my $pmpp_dir_name;
 my @command;
-my @cpanm_option = qw(--notest --cascade-search);
 my @CPANMirror = qw(
   http://search.cpan.org/CPAN
   http://cpan.metacpan.org/
@@ -25,7 +24,7 @@ my @CPANMirror = qw(
 my $Verbose = 0;
 my $PreserveInfoFile = 0;
 
-my @Command = @ARGV;
+my @Argument = @ARGV;
 
 GetOptions (
   '--perl-command=s' => \$perl,
@@ -74,10 +73,6 @@ GetOptions (
   '--select-module=s' => sub {
     my $module = PMBP::Module->new_from_module_arg ($_[1]);
     push @command, {type => 'select-module', module => $module};
-  },
-  '--select-module-deps=s' => sub {
-    my $module = PMBP::Module->new_from_module_arg ($_[1]);
-    push @command, {type => 'select-module-deps', module => $module};
   },
   '--select-modules-by-file-name=s' => sub {
     push @command, {type => 'select-modules-by-list', file_name => $_[1]};
@@ -157,62 +152,57 @@ my $install_json_dir_name = $pmtar_dir_name . '/meta';
 my $deps_json_dir_name = $pmtar_dir_name . '/deps';
 my $deps_txt_dir_name = $pmtar_dir_name . '/deps';
 
-sub install_support_module ($;%);
-sub scandeps ($$;%);
-sub cpanm ($$;%);
+## ------ Logging ------
 
-my $InfoNeedNewline = 0;
-my $InfoFile;
-my $InfoFileName;
-
-sub open_info_file () {
-  $InfoFileName = "$log_dir_name/pmbp-" . time . "-" . $$ . ".log";
-  mkdir_for_file ($InfoFileName);
-  open $InfoFile, '>', $InfoFileName or die "$0: $InfoFileName: $!";
-  info_writing (0, "operation log file", $InfoFileName);
-} # open_info_file
-
-sub delete_info_file () {
-  close $InfoFile;
-  unlink $InfoFileName;
-} # delete_info_file
-
-sub info ($$) {
-  if ($Verbose >= $_[0]) {
-    $InfoNeedNewline--, print STDERR "\n" if $InfoNeedNewline;
-    if ($_[1] =~ /...\z/) {
-      print STDERR $_[1];
-      $InfoNeedNewline = 1;
+{
+  my $InfoNeedNewline = 0;
+  my $InfoFile;
+  my $InfoFileName;
+  
+  sub open_info_file () {
+    $InfoFileName = "$log_dir_name/pmbp-" . time . "-" . $$ . ".log";
+    mkdir_for_file ($InfoFileName);
+    open $InfoFile, '>', $InfoFileName or die "$0: $InfoFileName: $!";
+    info_writing (0, "operation log file", $InfoFileName);
+  } # open_info_file
+  
+  sub delete_info_file () {
+    close $InfoFile;
+    unlink $InfoFileName;
+  } # delete_info_file
+  
+  sub info ($$) {
+    if ($Verbose >= $_[0]) {
+      $InfoNeedNewline--, print STDERR "\n" if $InfoNeedNewline;
+      if ($_[1] =~ /...\z/) {
+        print STDERR $_[1];
+        $InfoNeedNewline = 1;
+      } else {
+        print STDERR $_[1], ($_[1] =~ /\n\z/ ? "" : "\n");
+      }
     } else {
-      print STDERR $_[1], ($_[1] =~ /\n\z/ ? "" : "\n");
+      print STDERR ".";
+      $InfoNeedNewline = 1;
     }
-  } else {
-    print STDERR ".";
-    $InfoNeedNewline = 1;
-  }
-  print $InfoFile $_[1], ($_[1] =~ /\n\z/ ? "" : "\n");
-} # info
+    print $InfoFile $_[1], ($_[1] =~ /\n\z/ ? "" : "\n");
+  } # info
+  
+  sub info_die ($) {
+    $InfoNeedNewline--, print STDERR "\n" if $InfoNeedNewline;
+    print $InfoFile $_[0] =~ /\n\z/ ? $_[0] : "$_[0]\n";
+    die $_[0] =~ /\n\z/ ? $_[0] : "$_[0]\n";
+  } # info_die
 
-sub info_die ($) {
-  $InfoNeedNewline--, print STDERR "\n" if $InfoNeedNewline;
-  print $InfoFile $_[0] =~ /\n\z/ ? $_[0] : "$_[0]\n";
-  die $_[0] =~ /\n\z/ ? $_[0] : "$_[0]\n";
-} # info_die
+  sub info_writing ($$$) {
+    info $_[0], join '', "Writing ", $_[1], " ", File::Spec->abs2rel ($_[2]), " ...";
+  } # info_writing
 
-sub info_writing ($$$) {
-  info $_[0], join '', "Writing ", $_[1], " ", File::Spec->abs2rel ($_[2]), " ...";
-} # info_writing
+  sub info_end () {
+    $InfoNeedNewline--, print STDERR "\n" if $InfoNeedNewline;
+  } # info_end
+}
 
-sub info_end () {
-  $InfoNeedNewline--, print STDERR "\n" if $InfoNeedNewline;
-} # info_end
-
-sub pathname2distvname ($) {
-  my $path = shift;
-  $path =~ s{^.+/}{};
-  $path =~ s{\.(?:tar\.(?:gz|bz2)|zip)$}{};
-  return $path;
-} # pathname2distvname
+## ------ Files and directories ------
 
 sub mkdir_for_file ($) {
   my $file_name = $_[0];
@@ -227,21 +217,32 @@ sub copy_log_file ($$) {
   $log_file_name = "$log_dir_name/@{[time]}-$log_file_name.log";
   mkdir_for_file $log_file_name;
   copy $file_name => $log_file_name or die "Can't save log file: $!\n";
-  info_writing 0, "cpanm install log file", $log_file_name;
+  info_writing 0, "install log file", $log_file_name;
   open my $file, '<', $file_name or die "$0: $file_name: $!";
   local $/ = undef;
   return <$file>;
 } # copy_log_file
 
+## ------ Commands ------
+
+sub run_command ($;%) {
+  my ($command, %args) = @_;
+  open my $cmd, "-|", (join ' ', map quotemeta, @$command) . " 2>&1"
+      or die "$0: $command->[0]: $!";
+  while (<$cmd>) {
+    my $level = $args{info_level} || 1;
+    $level = $args{onoutput}->($_) if $args{onoutput};
+    info $level, $_;
+  }
+  close $cmd;
+} # run_command
+
+## ------ Downloading ------
+
 sub _save_url {
   mkdir_for_file $_[1];
   info 1, "Downloading <$_[0]>...";
-  open my $cmd, "-|", "$wget -O \Q$_[1]\E \Q$_[0]\E 2>&1"
-      or die "$0: wget: $!";
-  while (<$cmd>) {
-    info 2, $_;
-  }
-  close $cmd;
+  run_command [$wget, '-O', $_[1], $_[0]], info_level => 2;
   return -f $_[1];
 } # _save_url
 
@@ -249,15 +250,7 @@ sub save_url ($$) {
   _save_url (@_) or die "Failed to download <$_[0]>\n";
 } # save_url
 
-sub get_default_mirror_file_name () {
-  my $file_name = qq<$cpanm_dir_name/modules/02packages.details.txt.gz>;
-  if (not -f $file_name or
-      [stat $file_name]->[9] + 24 * 60 * 60 < time) {
-    save_url q<http://ftp.jaist.ac.jp/pub/CPAN/modules/02packages.details.txt.gz> => $file_name;
-    utime time, time, $file_name;
-  }
-  return abs_path $file_name;
-} # get_default_mirror_file_name
+## ------ JSON ------
 
 {
   my $json_installed;
@@ -291,52 +284,7 @@ sub load_json ($) {
   return $json;
 } # load_json
 
-sub get_local_copy_if_necessary ($) {
-  my $module = shift;
-
-  my $path = $module->pathname;
-  my $url = $module->url;
-
-  if (defined $path and defined $url) {
-    $path = "$pmtar_dir_name/authors/id/$path";
-    if (not -f $path) {
-      save_url $url => $path;
-    }
-  }
-} # get_local_copy_if_necessary
-
-sub save_by_pathname ($$) {
-  my ($pathname => $module) = @_;
-
-  my $dest_file_name = "$pmtar_dir_name/authors/id/$pathname";
-  if (-f $dest_file_name) {
-    $module->{url} = 'file://' . abs_path "$pmtar_dir_name/authors/id/$pathname";
-    $module->{pathname} = $pathname;
-    return 1;
-  }
-
-  for (@CPANMirror) {
-    my $mirror = $_;
-    $mirror =~ s{/+$}{};
-    $mirror .= "/authors/id/$pathname";
-    if ($mirror =~ m{^[Hh][Tt][Tt][Pp][Ss]?:}) {
-      if (_save_url $mirror => $dest_file_name) {
-        $module->{url} = $mirror;
-        $module->{pathname} = $pathname;
-        return 1;
-      }
-    } else {
-      if (-f $mirror) {
-        copy $mirror => $dest_file_name or die "$0: Can't copy $mirror";
-        $module->{url} = $mirror;
-        $module->{pathname} = $pathname;
-        return 1;
-      }
-    }
-  }
-  
-  return 0;
-} # save_by_pathname
+## ------ Installing Perl ------
 
 my $LatestPerlVersion;
 sub get_latest_perl_version () {
@@ -355,17 +303,20 @@ sub get_latest_perl_version () {
   }
 } # get_latest_perl_version
 
-sub prepare_cpanm () {
+## ------ cpanm ------
+
+sub install_cpanm () {
   return if -f $cpanm;
   save_url $cpanm_url => $cpanm;
-} # prepare_cpanm
+} # install_cpanm
 
 our $CPANMDepth = 0;
 my $cpanm_init = 0;
+sub cpanm ($$;%);
 sub cpanm ($$;%) {
   my ($args, $modules, %args) = @_;
   my $result = {};
-  prepare_cpanm;
+  install_cpanm;
 
   my $perl_lib_dir_name = $args->{perl_lib_dir_name}
       || ($args->{info} ? $cpanm_lib_dir_name : undef)
@@ -384,12 +335,11 @@ sub cpanm ($$;%) {
 
     my @option = ($args->{local_option} || '-L' => $perl_lib_dir_name,
                   ($args->{skip_satisfied} ? '--skip-satisfied' : ()),
-                  @cpanm_option,
-                  ($args->{scandeps} ? ('--scandeps', '--format=json', '--force') : ()),
-                  ($args->{showdeps} ? ('--showdeps') : ()));
+                  qw(--notest --cascade-search),
+                  ($args->{scandeps} ? ('--scandeps', '--format=json', '--force') : ()));
     push @option, '--info' if $args->{info};
     push @option, '--verbose' if $Verbose > 1 and
-        not ($args->{showdeps} or $args->{scandeps} or $args->{info});
+        not ($args->{scandeps} or $args->{info});
 
     my @module_arg = map {
       ref $_ ? $_->as_cpanm_arg ($pmtar_dir_name) : $_;
@@ -406,7 +356,7 @@ sub cpanm ($$;%) {
       my $mi = abs_path $args{module_index_file_name};
       push @option, '--mirror-index' => $mi if defined $mi;
     } else {
-      get_default_mirror_file_name;
+      get_default_mirror_file_name ();
       unshift @option, '--mirror' => abs_path $cpanm_dir_name;
     }
     ## Let cpanm not use Web API, as it slows down operations.
@@ -424,7 +374,8 @@ sub cpanm ($$;%) {
     my $json_temp_file = File::Temp->new;
     open my $cmd, '-|', ((join ' ', map { quotemeta } @cmd) .
                          ' 2>&1 ' .
-                         ($args->{scandeps} || $args->{showdeps} || $args->{info} ? ' > ' . quotemeta $json_temp_file : '') .
+                         ($args->{scandeps} || $args->{info}
+                              ? ' > ' . quotemeta $json_temp_file : '') .
                          '')
         or die "Failed to execute @cmd - $!\n";
     my $current_module_name = '';
@@ -497,33 +448,27 @@ sub cpanm ($$;%) {
         if (@required_cpanm) {
           local $CPANMDepth = $CPANMDepth + 1;
           for my $module (@required_cpanm) {
-            install_support_module $module, %args;
+            install_support_module ($module, %args);
           }
           $redo = 1;
         } elsif (@required_install) {
           if ($perl_lib_dir_name ne $cpanm_dir_name) {
             local $CPANMDepth = $CPANMDepth + 1;
             for my $module (@required_install) {
-              if ($args->{showdeps}) {
-                my $mi = get_deps_recursively
-                    ($args->{showdeps}->{global_module_index},
-                     $module);
-                $args->{showdeps}->{module_index}->merge_module_index
-                    ($mi);
-              } elsif ($args->{scandeps}) {
-                scandeps $args->{scandeps}->{module_index}, $module,
+              if ($args->{scandeps}) {
+                scandeps ($args->{scandeps}->{module_index}, $module,
                     skip_if_found => 1,
-                    %args;
+                    %args);
                 push @{$result->{additional_deps} ||= []}, $module;
               }
-              cpanm {perl_lib_dir_name => $perl_lib_dir_name}, [$module], %args
+              cpanm ({perl_lib_dir_name => $perl_lib_dir_name}, [$module], %args)
                   unless $args->{no_install};
             }
             $redo = 1 unless $args->{no_install};
           } else {
             local $CPANMDepth = $CPANMDepth + 1;
             for my $module (@required_install) {
-              cpanm {perl_lib_dir_name => $perl_lib_dir_name}, [$module], %args;
+              cpanm ({perl_lib_dir_name => $perl_lib_dir_name}, [$module], %args);
             }
             $redo = 1;
           }
@@ -541,15 +486,77 @@ sub cpanm ($$;%) {
     if ($args->{info} and -f $json_temp_file->filename) {
       open my $file, '<', $json_temp_file->filename or die "$0: $!";
       $result->{output_text} = <$file>;
-    } elsif ($args->{showdeps} and -f $json_temp_file->filename) {
-      read_pmb_install_list
-          ($json_temp_file->filename => $args->{showdeps}->{module_index});
     } elsif ($args->{scandeps} and -f $json_temp_file->filename) {
       $result->{output_json} = load_json $json_temp_file->filename;
     }
   } # COMMAND
   return $result;
 } # cpanm
+
+sub destroy_cpanm_home () {
+  remove_tree $cpanm_home_dir_name;
+} # destroy_cpanm_home
+
+## ------ Downloading modules ------
+
+sub get_default_mirror_file_name () {
+  my $file_name = qq<$cpanm_dir_name/modules/02packages.details.txt.gz>;
+  if (not -f $file_name or
+      [stat $file_name]->[9] + 24 * 60 * 60 < time) {
+    save_url q<http://ftp.jaist.ac.jp/pub/CPAN/modules/02packages.details.txt.gz> => $file_name;
+    utime time, time, $file_name;
+  }
+  return abs_path $file_name;
+} # get_default_mirror_file_name
+
+sub get_local_copy_if_necessary ($) {
+  my $module = shift;
+
+  my $path = $module->pathname;
+  my $url = $module->url;
+
+  if (defined $path and defined $url) {
+    $path = "$pmtar_dir_name/authors/id/$path";
+    if (not -f $path) {
+      save_url $url => $path;
+    }
+  }
+} # get_local_copy_if_necessary
+
+sub save_by_pathname ($$) {
+  my ($pathname => $module) = @_;
+
+  my $dest_file_name = "$pmtar_dir_name/authors/id/$pathname";
+  if (-f $dest_file_name) {
+    $module->{url} = 'file://' . abs_path "$pmtar_dir_name/authors/id/$pathname";
+    $module->{pathname} = $pathname;
+    return 1;
+  }
+
+  for (@CPANMirror) {
+    my $mirror = $_;
+    $mirror =~ s{/+$}{};
+    $mirror .= "/authors/id/$pathname";
+    if ($mirror =~ m{^[Hh][Tt][Tt][Pp][Ss]?:}) {
+      if (_save_url $mirror => $dest_file_name) {
+        $module->{url} = $mirror;
+        $module->{pathname} = $pathname;
+        return 1;
+      }
+    } else {
+      if (-f $mirror) {
+        copy $mirror => $dest_file_name or die "$0: Can't copy $mirror";
+        $module->{url} = $mirror;
+        $module->{pathname} = $pathname;
+        return 1;
+      }
+    }
+  }
+  
+  return 0;
+} # save_by_pathname
+
+## ------ Installing modules ------
 
 sub install_module ($;%) {
   my ($module, %args) = @_;
@@ -566,78 +573,7 @@ sub install_support_module ($;%) {
          local_option => '-l', skip_satisfied => 1}, [$module], @_;
 } # install_support_module
 
-sub init_pmtar_git () {
-  return if -f "$pmtar_dir_name/.git/config";
-  system "cd \Q$pmtar_dir_name\E && git init";
-} # init_pmtar_git
-
-sub init_pmpp_git () {
-  return if -f "$pmpp_dir_name/.git/config";
-  system "cd \Q$pmpp_dir_name\E && git init";
-} # init_pmpp_git
-
-sub copy_pmpp_modules () {
-  delete_pmpp_arch_dir ();
-  require File::Find;
-  my $from_base_path = abs_path $pmpp_dir_name;
-  my $to_base_path = abs_path $installed_dir_name;
-  File::Find::find (sub {
-    my $rel = File::Spec->abs2rel ((abs_path $_), $from_base_path);
-    my $dest = File::Spec->rel2abs ($rel, $to_base_path);
-    if (-f $_) {
-      info 2, "Copying file $rel...";
-      unlink $dest if -f $dest;
-      copy $_ => $dest or die "$0: $dest: $!";
-    } elsif (-d $_) {
-      info 2, "Copying directory $rel...";
-      make_path $dest;
-    }
-  }, $pmpp_dir_name);
-} # copy_pmpp_modules
-
-sub get_deps_recursively ($$) {
-  my ($global_module_index, $module) = @_;
-  my @module = ($module);
-  my $module_index = PMBP::ModuleIndex->new_empty;
-  while (@module) {
-    my $module = shift @module;
-    next if $module_index->find_by_module ($module);
-    $module = $global_module_index->find_by_module ($module) || $module;
-    my $mi = get_deps_from_file ($module)
-        || get_deps_by_cpanm ($global_module_index, $module);
-    push @module, ($mi->to_list);
-    $module_index->add_modules ([$module]);
-    $global_module_index->add_modules ([$module]);
-  }
-  return $module_index;
-} # get_deps_recursively
-
-sub get_deps_by_cpanm ($$) {
-  my ($gmi, $module) = @_;
-  get_local_copy_if_necessary $module;
-  my $temp_dir = File::Temp->newdir;
-  my $mi = PMBP::ModuleIndex->new_empty;
-  cpanm {perl_lib_dir_name => $temp_dir->dirname,
-         temp_dir => $temp_dir,
-         showdeps => {module_index => $mi,
-                      global_module_index => $gmi}},
-        [$module];
-  my $dist = $module->distvname;
-  write_pmb_install_list ($mi => "$deps_txt_dir_name/$dist.txt")
-      if defined $dist;
-  return $mi;
-} # get_deps_by_cpanm
-
-sub get_deps_from_file ($) {
-  my ($module) = @_;
-  my $dist = $module->distvname or return undef;
-  my $file_name = "$deps_txt_dir_name/$dist.txt";
-  info 2, "Checking $file_name... " . (-f $file_name ? 'Found' : 'Not found');
-  return undef unless -f $file_name;
-  my $mi = PMBP::ModuleIndex->new_empty;
-  read_pmb_install_list ($file_name => $mi);
-  return $mi;
-} # get_deps_from_file
+## ------ Detecting module dependency ------
 
 sub scandeps ($$;%) {
   my ($module_index, $module, %args) = @_;
@@ -751,6 +687,44 @@ sub load_deps ($$) {
   return $result;
 } # load_deps
 
+## ------ pmtar and pmpp repositories ------
+
+sub init_pmtar_git () {
+  return if -f "$pmtar_dir_name/.git/config";
+  system "cd \Q$pmtar_dir_name\E && git init";
+} # init_pmtar_git
+
+sub init_pmpp_git () {
+  return if -f "$pmpp_dir_name/.git/config";
+  system "cd \Q$pmpp_dir_name\E && git init";
+} # init_pmpp_git
+
+sub copy_pmpp_modules () {
+  delete_pmpp_arch_dir ();
+  require File::Find;
+  my $from_base_path = abs_path $pmpp_dir_name;
+  my $to_base_path = abs_path $installed_dir_name;
+  File::Find::find (sub {
+    my $rel = File::Spec->abs2rel ((abs_path $_), $from_base_path);
+    my $dest = File::Spec->rel2abs ($rel, $to_base_path);
+    if (-f $_) {
+      info 2, "Copying file $rel...";
+      unlink $dest if -f $dest;
+      copy $_ => $dest or die "$0: $dest: $!";
+    } elsif (-d $_) {
+      info 2, "Copying directory $rel...";
+      make_path $dest;
+    }
+  }, $pmpp_dir_name);
+} # copy_pmpp_modules
+
+sub delete_pmpp_arch_dir () {
+  info 1, "rm -fr $pmpp_dir_name/lib/perl5/$Config{archname}";
+  remove_tree "$pmpp_dir_name/lib/perl5/$Config{archname}";
+} # delete_pmpp_arch_dir
+
+## ------ Module lists ------
+
 sub select_module ($$$;%) {
   my ($src_module_index => $module => $dest_module_index, %args) = @_;
   
@@ -784,22 +758,6 @@ sub select_module ($$$;%) {
   }
   $dest_module_index->merge_modules ($mods);
 } # select_module
-
-sub copy_install_jsons () {
-  make_path $install_json_dir_name;
-  for (glob "$installed_dir_name/lib/perl5/$Config{archname}/.meta/*/install.json") {
-    if (m{/([^/]+)/install\.json$}) {
-      copy $_ => "$install_json_dir_name/$1.json";
-    }
-  }
-} # copy_install_jsons
-
-# XXX
-#copy_install_jsons;
-# for (glob "$installed_dir_name/lib/perl5/$Config{archname}/.meta/*/install.json") {
-# exit unless -f "}.$pmtar_dir_name.q{/authors/id/".$data->{pathname};
-# for (keys %{$data->{provides}}) {
-# $ver = $data->{provides}->{$_}->{version} || "undef";
 
 sub read_module_index ($$) {
   my ($file_name => $module_index) = @_;
@@ -912,6 +870,8 @@ sub read_carton_lock ($$) {
   }
   $module_index->merge_modules ($modules);
 } # read_carton_lock
+
+## ------ Detecting application dependency ------
 
 sub read_install_list ($$);
 sub read_install_list ($$) {
@@ -1034,6 +994,8 @@ sub scan_dependency_from_directory ($) {
   return $modules;
 } # scan_dependency_from_directory
 
+## ------ Library paths ------
+
 sub get_lib_dir_names () {
   my @lib = grep { defined } map { abs_path $_ } map { glob $_ }
       qq{$root_dir_name/lib},
@@ -1045,29 +1007,24 @@ sub get_lib_dir_names () {
 } # get_lib_dir_names
 
 sub get_libs_txt_file_name () {
-  my $version = $perl_version;
-  return "$root_dir_name/local/config/perl/libs-$version-$Config{archname}.txt";
+  return "$root_dir_name/local/config/perl/libs-$perl_version-$Config{archname}.txt";
 } # get_libs_txt_file_name
 
-sub delete_pmpp_arch_dir () {
-  info 1, "rm -fr $pmpp_dir_name/lib/perl5/$Config{archname}";
-  remove_tree "$pmpp_dir_name/lib/perl5/$Config{archname}";
-} # delete_pmpp_arch_dir
-
-sub destroy_cpanm_home () {
-  remove_tree $cpanm_home_dir_name;
-} # destroy_cpanm_home
+## ------ Cleanup ------
 
 sub destroy () {
   destroy_cpanm_home;
 } # destroy
 
+## ------ Main ------
+
 my $global_module_index = PMBP::ModuleIndex->new_empty;
 my $selected_module_index = PMBP::ModuleIndex->new_empty;
 my $module_index_file_name;
 my $pmpp_touched;
+my $start_time = time;
 open_info_file;
-info 6, '$ ' . join ' ', @Command;
+info 6, '$ ' . join ' ', @Argument;
 info 6, sprintf 'Perl %vd (%s)', $^V, $Config{archname};
 info 6, '@INC = ' . join ' ', @INC;
 
@@ -1151,9 +1108,6 @@ while (@command) {
     scandeps $global_module_index, $command->{module},
         skip_if_found => 1,
         module_index_file_name => $module_index_file_name;
-  } elsif ($command->{type} eq 'select-module-deps') {
-    $selected_module_index->merge_module_index
-        (get_deps_recursively $global_module_index, $command->{module});
   } elsif ($command->{type} eq 'select-module') {
     select_module $global_module_index => $command->{module} => $selected_module_index,
         module_index_file_name => $module_index_file_name;
@@ -1240,8 +1194,11 @@ while (@command) {
 
 delete_pmpp_arch_dir if $pmpp_touched;
 destroy;
+info 0, "Done: " . (time - $start_time) . " s";
 info_end;
 delete_info_file unless $PreserveInfoFile;
+
+## ------ End of main ------
 
 package PMBP::Module;
 use Carp;
@@ -1347,7 +1304,9 @@ sub distvname ($) {
 
   my $pathname = $self->pathname;
   if (defined $pathname) {
-    return $self->{distvname} = main::pathname2distvname $pathname;
+    $pathname =~ s{^.+/}{};
+    $pathname =~ s{\.(?:tar\.(?:gz|bz2)|zip)$}{};
+    return $self->{distvname} = $pathname;
   }
   return $self->{distvname} = undef;
 } # distvname
