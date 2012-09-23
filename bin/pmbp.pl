@@ -23,6 +23,9 @@ my @CPANMirror = qw(
   http://backpan.perl.org/
 );
 my $Verbose = 0;
+my $PreserveInfoFile = 0;
+
+my @Command = @ARGV;
 
 GetOptions (
   '--perl-command=s' => \$perl,
@@ -33,6 +36,7 @@ GetOptions (
   '--pmpp-dir-name=s' => \$pmpp_dir_name,
   '--perl-version=s' => \$perl_version,
   '--verbose' => sub { $Verbose++ },
+  '--preserve-info-file' => \$PreserveInfoFile,
 
   '--install-module=s' => sub {
     my $module = PMBP::Module->new_from_module_arg ($_[1]);
@@ -148,13 +152,51 @@ sub install_support_module ($;%);
 sub scandeps ($$;%);
 sub cpanm ($$;%);
 
-sub info ($) {
-  print STDERR $_[0], $_[0] =~ /\n\z/ ? "" : "\n";
+my $InfoNeedNewline = 0;
+my $InfoFile;
+my $InfoFileName;
+
+sub open_info_file () {
+  $InfoFileName = "$log_dir_name/pmbp-" . time . "-" . $$ . ".log";
+  mkdir_for_file ($InfoFileName);
+  open $InfoFile, '>', $InfoFileName or die "$0: $InfoFileName: $!";
+  info_writing (0, "operation log file", $InfoFileName);
+} # open_info_file
+
+sub delete_info_file () {
+  close $InfoFile;
+  unlink $InfoFileName;
+} # delete_info_file
+
+sub info ($$) {
+  if ($Verbose >= $_[0]) {
+    $InfoNeedNewline--, print STDERR "\n" if $InfoNeedNewline;
+    if ($_[1] =~ /...\z/) {
+      print STDERR $_[1];
+      $InfoNeedNewline = 1;
+    } else {
+      print STDERR $_[1], ($_[1] =~ /\n\z/ ? "" : "\n");
+    }
+  } else {
+    print STDERR ".";
+    $InfoNeedNewline = 1;
+  }
+  print $InfoFile $_[1], ($_[1] =~ /\n\z/ ? "" : "\n");
 } # info
 
-sub info_writing ($$) {
-  print STDERR "Writing ", $_[0], " ", File::Spec->abs2rel ($_[1]), "...\n";
+sub info_die ($) {
+  $InfoNeedNewline--, print STDERR "\n" if $InfoNeedNewline;
+  print $InfoFile $_[0] =~ /\n\z/ ? $_[0] : "$_[0]\n";
+  die $_[0] =~ /\n\z/ ? $_[0] : "$_[0]\n";
+} # info_die
+
+sub info_writing ($$$) {
+  info $_[0], join '', "Writing ", $_[1], " ", File::Spec->abs2rel ($_[2]), " ...";
 } # info_writing
+
+sub info_end () {
+  $InfoNeedNewline--, print STDERR "\n" if $InfoNeedNewline;
+} # info_end
 
 sub pathname2distvname ($) {
   my $path = shift;
@@ -176,7 +218,7 @@ sub copy_log_file ($$) {
   $log_file_name = "$log_dir_name/@{[time]}-$log_file_name.log";
   mkdir_for_file $log_file_name;
   copy $file_name => $log_file_name or die "Can't save log file: $!\n";
-  info "Log file: $log_file_name";
+  info_writing 0, "cpanm install log file", $log_file_name;
   open my $file, '<', $file_name or die "$0: $file_name: $!";
   local $/ = undef;
   return <$file>;
@@ -184,7 +226,7 @@ sub copy_log_file ($$) {
 
 sub _save_url {
   mkdir_for_file $_[1];
-  info "Downloading <$_[0]>...\n";
+  info 1, "Downloading <$_[0]>...\n";
   system "wget -O \Q$_[1]\E \Q$_[0]\E 1>&2";
   return -f $_[1];
 } # _save_url
@@ -343,8 +385,8 @@ sub cpanm ($$;%) {
                $cpanm,
                @option,
                @module_arg);
-    info join ' ', 'PERL_CPANM_HOME=' . $cpanm_home_dir_name, @cmd
-        if not $args->{info} or $Verbose > 0;
+    info $args{info} ? 2 : 1,
+        join ' ', 'PERL_CPANM_HOME=' . $cpanm_home_dir_name, @cmd;
     my $json_temp_file = File::Temp->new;
     open my $cmd, '-|', ((join ' ', map { quotemeta } @cmd) .
                          ' 2>&1 ' .
@@ -355,7 +397,11 @@ sub cpanm ($$;%) {
     my $failed;
     my $remove_inc;
     while (<$cmd>) {
-      info "cpanm($CPANMDepth/$redo): $_" if $Verbose > 0;
+      if (/^! Couldn\'t find module or a distribution /) {
+        info 0, "cpanm($CPANMDepth/$redo): $_";
+      } else {
+        info 1, "cpanm($CPANMDepth/$redo): $_";
+      }
       
       if (/Can\'t locate (\S+\.pm) in \@INC/) {
         push @required_cpanm, PMBP::Module->new_from_pm_file_name ($1);
@@ -404,7 +450,7 @@ sub cpanm ($$;%) {
         $failed = 1;
       }
     }
-    info "cpanm done" if $Verbose > 1;
+    info 2, "cpanm done";
     (close $cmd and not $failed) or do {
       unless ($CPANMDepth > 100 or $redo++ > 10) {
         my $redo;
@@ -431,7 +477,9 @@ sub cpanm ($$;%) {
                 $args->{showdeps}->{module_index}->merge_module_index
                     ($mi);
               } elsif ($args->{scandeps}) {
-                scandeps $args->{scandeps}->{module_index}, $module, %args;
+                scandeps $args->{scandeps}->{module_index}, $module,
+                    skip_if_found => 1,
+                    %args;
                 push @{$result->{additional_deps} ||= []}, $module;
               }
               cpanm {perl_lib_dir_name => $perl_lib_dir_name}, [$module], %args
@@ -451,9 +499,9 @@ sub cpanm ($$;%) {
       if ($args->{info}) {
         #
       } elsif ($args->{ignore_errors}) {
-        info "cpanm($CPANMDepth): Installing @{[join ' ', map { ref $_ ? $_->as_short : $_ } @$modules]} failed (@{[$? >> 8]}) (Ignored)";
+        info 0, "cpanm($CPANMDepth): Processing @{[join ' ', map { ref $_ ? $_->as_short : $_ } @$modules]} failed (@{[$? >> 8]}) (Ignored)";
       } else {
-        die "cpanm($CPANMDepth): Installing @{[join ' ', map { ref $_ ? $_->as_short : $_ } @$modules]} failed (@{[$? >> 8]})\n";
+        info_die "cpanm($CPANMDepth): Processing @{[join ' ', map { ref $_ ? $_->as_short : $_ } @$modules]} failed (@{[$? >> 8]})\n";
       }
     }; # close or do
     if ($args->{info} and -f $json_temp_file->filename) {
@@ -493,11 +541,11 @@ sub copy_pmpp_modules () {
     my $rel = File::Spec->abs2rel ((abs_path $_), $from_base_path);
     my $dest = File::Spec->rel2abs ($rel, $to_base_path);
     if (-f $_) {
-      info "Copying file $rel...";
+      info 2, "Copying file $rel...";
       unlink $dest if -f $dest;
       copy $_ => $dest or die "$0: $dest: $!";
     } elsif (-d $_) {
-      info "Copying directory $rel...";
+      info 2, "Copying directory $rel...";
       make_path $dest;
     }
   }, $pmpp_dir_name);
@@ -540,8 +588,7 @@ sub get_deps_from_file ($) {
   my ($module) = @_;
   my $dist = $module->distvname or return undef;
   my $file_name = "$deps_txt_dir_name/$dist.txt";
-  info "Checking $file_name... " . (-f $file_name ? 'Found' : 'Not found')
-      if $Verbose;
+  info 2, "Checking $file_name... " . (-f $file_name ? 'Found' : 'Not found');
   return undef unless -f $file_name;
   my $mi = PMBP::ModuleIndex->new_empty;
   read_pmb_install_list ($file_name => $mi);
@@ -617,7 +664,7 @@ sub _scandeps_write_result ($$$) {
   for my $m (@$result) {
     next unless defined $m->[0]->distvname;
     my $file_name = $deps_json_dir_name . '/' . $m->[0]->distvname . '.json';
-    info_writing "json file", $file_name;
+    info_writing 1, "json file", $file_name;
     if (-f $file_name) {
       my $json = load_json $file_name;
       if (defined $json and ref $json eq 'ARRAY' and ref $json->[1] eq 'ARRAY') {
@@ -648,7 +695,7 @@ sub load_deps ($$) {
     next if $done{$dist}++;
     my $json_file_name = "$deps_json_dir_name/$dist.json";
     unless (-f $json_file_name) {
-      info "$json_file_name not found";
+      info 2, "$json_file_name not found";
       return undef;
     }
     my $json = load_json $json_file_name;
@@ -665,7 +712,7 @@ sub select_module ($$$;%) {
   
   my $mods = load_deps $src_module_index => $module;
   unless ($mods) {
-    info "Scanning dependency of @{[$module->as_short]}...";
+    info 0, "Scanning dependency of @{[$module->as_short]}...";
     scandeps $src_module_index, $module, %args;
     $mods = load_deps $src_module_index => $module;
     unless ($mods) {
@@ -713,7 +760,7 @@ sub copy_install_jsons () {
 sub read_module_index ($$) {
   my ($file_name => $module_index) = @_;
   unless (-f $file_name) {
-    info "$file_name not found; skipped\n";
+    info 0, "$file_name not found; skipped\n";
     return;
   }
   open my $file, '<', $file_name or die "$0: $file_name: $!";
@@ -742,7 +789,7 @@ sub write_module_index ($$) {
         $module->pathname;
   }
 
-  info_writing "package list", $file_name;
+  info_writing 0, "package list", $file_name;
   mkdir_for_file $file_name;
   open my $details, '>', $file_name or die "$0: $file_name: $!";
   print $details "File: 02packages.details.txt\n";
@@ -762,7 +809,7 @@ sub write_module_index ($$) {
 sub read_pmb_install_list ($$;%) {
   my ($file_name => $module_index, %args) = @_;
   unless (-f $file_name) {
-    info "$file_name not found; skipped\n";
+    info 0, "$file_name not found; skipped\n";
     return;
   }
   open my $file, '<', $file_name or die "$0: $file_name: $!";
@@ -795,7 +842,7 @@ sub write_pmb_install_list ($$) {
     push @$result, [$module->package, $module->version];
   }
 
-  info_writing "pmb-install list", $file_name;
+  info_writing 0, "pmb-install list", $file_name;
   mkdir_for_file $file_name;
   open my $file, '>', $file_name or die "$0: $file_name: $!";
   my $found = {};
@@ -954,7 +1001,7 @@ sub get_lib_dir_names () {
 } # get_lib_dir_names
 
 sub delete_pmpp_arch_dir () {
-  info "rm -fr $pmpp_dir_name/lib/perl5/$Config{archname}";
+  info 1, "rm -fr $pmpp_dir_name/lib/perl5/$Config{archname}";
   remove_tree "$pmpp_dir_name/lib/perl5/$Config{archname}";
 } # delete_pmpp_arch_dir
 
@@ -970,11 +1017,15 @@ my $global_module_index = PMBP::ModuleIndex->new_empty;
 my $selected_module_index = PMBP::ModuleIndex->new_empty;
 my $module_index_file_name;
 my $pmpp_touched;
+open_info_file;
+info 6, '$ ' . join ' ', @Command;
+info 6, sprintf 'Perl %vd (%s)', $^V, $Config{archname};
+info 6, '@INC = ' . join ' ', @INC;
 
 for my $command (@command) {
   if ($command->{type} eq 'install-module') {
     delete_pmpp_arch_dir if $pmpp_touched;
-    info "Install @{[$command->{module}->as_short]}...";
+    info 0, "Install @{[$command->{module}->as_short]}...";
     install_module $command->{module},
         module_index_file_name => $module_index_file_name;
   } elsif ($command->{type} eq 'install-modules-by-list') {
@@ -988,12 +1039,12 @@ for my $command (@command) {
     install_module $_, module_index_file_name => $module_index_file_name
         for ($module_index->to_list);
   } elsif ($command->{type} eq 'install-to-pmpp') {
-    info "Install @{[$command->{module}->as_short]} to pmpp...";
+    info 0, "Install @{[$command->{module}->as_short]} to pmpp...";
     install_module $command->{module},
         module_index_file_name => $module_index_file_name, pmpp => 1;
     $pmpp_touched = 1;
   } elsif ($command->{type} eq 'install-by-pmpp') {
-    info "Copying pmpp modules...";
+    info 0, "Copying pmpp modules...";
     copy_pmpp_modules;
   } elsif ($command->{type} eq 'update-pmpp-by-list') {
     my $module_index = PMBP::ModuleIndex->new_empty;
@@ -1006,7 +1057,7 @@ for my $command (@command) {
         for ($module_index->to_list);
     $pmpp_touched = 1;
   } elsif ($command->{type} eq 'scandeps') {
-    info "Scanning dependency of @{[$command->{module}->as_short]}...";
+    info 0, "Scanning dependency of @{[$command->{module}->as_short]}...";
     scandeps $global_module_index, $command->{module},
         skip_if_found => 1,
         module_index_file_name => $module_index_file_name;
@@ -1040,13 +1091,13 @@ for my $command (@command) {
     mkdir_for_file $command->{file_name};
     open my $file, '>', $command->{file_name}
         or die "$0: $command->{file_name}: $!";
-    info_writing "lib paths", $command->{file_name};
+    info_writing 0, "lib paths", $command->{file_name};
     print $file join ':', (get_lib_dir_names);
   } elsif ($command->{type} eq 'write-makefile-pl') {
     mkdir_for_file $command->{file_name};
     open my $file, '>', $command->{file_name}
         or die "$0: $command->{file_name}: $!";
-    info_writing "dummy Makefile.PL", $command->{file_name};
+    info_writing 0, "dummy Makefile.PL", $command->{file_name};
     print $file q{
       use inc::Module::Install;
       name "Dummy";
@@ -1088,6 +1139,8 @@ for my $command (@command) {
 
 delete_pmpp_arch_dir if $pmpp_touched;
 destroy;
+info_end;
+delete_info_file unless $PreserveInfoFile;
 
 package PMBP::Module;
 use Carp;
