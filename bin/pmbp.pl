@@ -363,6 +363,12 @@ sub cpanm ($$) {
       || ($args->{info} ? $cpanm_lib_dir_name : undef)
       or die "No |perl_lib_dir_name| specified";
 
+  if (not $args->{info} and @$modules == 1 and
+      ref $modules->[0] and $modules->[0]->is_perl) {
+    info 1, "cpanm invocation for package |perl| skipped";
+    return {};
+  }
+
   my $redo = 0;
   COMMAND: {
     my @required_cpanm;
@@ -542,7 +548,8 @@ sub destroy_cpanm_home () {
 sub get_default_mirror_file_name () {
   my $file_name = qq<$cpanm_dir_name/modules/02packages.details.txt.gz>;
   if (not -f $file_name or
-      [stat $file_name]->[9] + 24 * 60 * 60 < time) {
+      [stat $file_name]->[9] + 24 * 60 * 60 < time or
+      [stat $file_name]->[7] < 1 * 1024 * 1024) {
     save_url q<http://ftp.jaist.ac.jp/pub/CPAN/modules/02packages.details.txt.gz> => $file_name;
     utime time, time, $file_name;
   }
@@ -663,7 +670,7 @@ sub _scandeps_write_result ($$$) {
   }; # $convert_list;
 
   my $more = $result->{additional_deps} || [];
-  $result = [($convert_list->($result->{output_json} || {}))];
+  $result = [($convert_list->($result->{output_json} || []))];
 
   if ($module) {
     for (@$result) {
@@ -755,7 +762,7 @@ sub copy_pmpp_modules () {
       info 2, "Copying directory $rel...";
       make_path $dest;
     }
-  }, $_) for "$pmpp_dir_name/bin", "$pmpp_dir_name/lib";
+  }, $_) for grep { -d $_ } "$pmpp_dir_name/bin", "$pmpp_dir_name/lib";
 } # copy_pmpp_modules
 
 sub delete_pmpp_arch_dir () {
@@ -774,7 +781,9 @@ sub select_module ($$$;%) {
     scandeps $src_module_index, $module, %args;
     $mods = load_deps $src_module_index => $module;
     unless ($mods) {
-      if (defined $module->pathname) {
+      if ($module->is_perl) {
+        $mods = [];
+      } elsif (defined $module->pathname) {
         if (save_by_pathname $module->pathname => $module) {
           scandeps $src_module_index, $module, %args;
           $mods = load_deps $src_module_index => $module;
@@ -823,6 +832,7 @@ sub write_module_index ($$) {
   my @list;
   for my $module (($module_index->to_list)) {
     my $mod = $module->package;
+    next unless defined $mod;
     my $ver = $module->version;
     $ver = 'undef' if not defined $ver;
     push @list, sprintf "%s %s  %s\n",
@@ -867,6 +877,7 @@ sub read_pmb_install_list ($$;%) {
         map { $_ => 1 } qw(
           perl strict warnings base lib encoding utf8 overload
           constant vars integer
+          Config
         ),
       }->{$module->package || ''};
       push @$modules, $module;
@@ -889,7 +900,7 @@ sub write_pmb_install_list ($$) {
   open my $file, '>', $file_name or die "$0: $file_name: $!";
   my $found = {};
   for (@$result) {
-    my $v = $_->[0] . (defined $_->[1] ? '~' . $_->[1] : '');
+    my $v = (defined $_->[0] ? $_->[0] : '') . (defined $_->[1] ? '~' . $_->[1] : '');
     next if $found->{$v}++;
     print $file $v . "\n";
   }
@@ -1026,6 +1037,7 @@ sub scan_dependency_from_directory ($) {
     q qw qq
     strict warnings base lib encoding utf8 overload
     constant vars integer
+    Config
   );
   for (keys %$modules) {
     delete $modules->{$_} unless /\A[0-9A-Za-z_]+(?:::[0-9A-Za-z_]+)*\z/;
@@ -1084,6 +1096,8 @@ while (@command) {
         {type => 'write-pmb-install-list',
          file_name => $pmb_install_file_name},
         {type => 'init-pmpp-git'},
+        {type => 'set-module-index',
+         file_name => $module_list_file_name},
         {type => 'update-pmpp-by-list',
          file_name => $pmb_install_file_name},
         {type => 'write-module-index',
@@ -1154,6 +1168,7 @@ while (@command) {
   } elsif ($command->{type} eq 'select-module') {
     select_module $global_module_index => $command->{module} => $selected_module_index,
         module_index_file_name => $module_index_file_name;
+    $global_module_index->merge_module_index ($selected_module_index);
   } elsif ($command->{type} eq 'select-modules-by-list') {
     my $module_index = PMBP::ModuleIndex->new_empty;
     if (defined $command->{file_name}) {
@@ -1164,6 +1179,7 @@ while (@command) {
     select_module $global_module_index => $_ => $selected_module_index,
         module_index_file_name => $module_index_file_name
         for ($module_index->to_list);
+    $global_module_index->merge_module_index ($selected_module_index);
   } elsif ($command->{type} eq 'read-module-index') {
     read_module_index $command->{file_name} => $global_module_index;
   } elsif ($command->{type} eq 'read-carton-lock') {
@@ -1273,6 +1289,11 @@ sub new_from_module_arg ($$) {
     my $self = bless {package => $1, version => $2, url => $3}, $class;
     $self->_set_distname;
     return $self;
+  } elsif ($arg =~ m{\A([Hh][Tt][Tt][Pp][Ss]?://.+)\z}) {
+    warn "URL without module name ($1) is specified; installing modules without module name is not supported\n";
+    my $self = bless {url => $1}, $class;
+    $self->_set_distname;
+    return $self;
   } else {
     croak "Module argument |$arg| is not supported";
   }
@@ -1354,6 +1375,12 @@ sub distvname ($) {
   return $self->{distvname} = undef;
 } # distvname
 
+sub is_perl ($) {
+  my $self = shift;
+  my $dist = $self->distvname;
+  return $dist && $dist =~ /^perl-[0-9.]+$/;
+} # is_perl
+
 sub url ($) {
   return $_[0]->{url};
 } # url
@@ -1382,7 +1409,7 @@ sub merge_input_data ($$) {
 
 sub as_short ($) {
   my $self = shift;
-  return $self->{package} . (defined $self->{version} ? '~' . $self->{version} : '');
+  return (defined $self->{package} ? $self->{package} : '') . (defined $self->{version} ? '~' . $self->{version} : '');
 } # as_short
 
 sub as_cpanm_arg ($$) {
@@ -1423,9 +1450,12 @@ sub new_from_arrayref ($$) {
 } # new_from_arrayref
 
 sub find_by_module ($$) {
+  return undef unless defined $_[1]->package;
   for (@{$_[0]->{list}}) {
     if ($_->is_equal_module ($_[1]) or
-        (not defined $_[1]->version and $_->package eq $_[1]->package)) {
+        (not defined $_[1]->version and
+         defined $_->package and
+         $_->package eq $_[1]->package)) {
       return $_;
     }
   }
