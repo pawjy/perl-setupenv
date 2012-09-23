@@ -1,0 +1,3 @@
+[submodule "t_deps/modules/perl-anyevent-httpserver"]
+	path = t_deps/modules/perl-anyevent-httpserver
+	url = git://github.com/wakaba/perl-anyevent-httpserver.git

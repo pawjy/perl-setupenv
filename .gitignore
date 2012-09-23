@@ -5,3 +5,5 @@
 /carton.lock
 /perl
 /prove
+/deps/
+/t/pmbp/mixed-1/modules/cpanfile/local/
