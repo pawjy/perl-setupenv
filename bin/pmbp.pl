@@ -259,7 +259,7 @@ sub save_url ($$) {
     unless ($json_installed) {
       $json_installed = 1;
       eval q{ require JSON } or
-      install_support_module PMBP::Module->new_from_package ('JSON');
+      install_support_module (PMBP::Module->new_from_package ('JSON'));
     }
     require JSON;
     return JSON->new->utf8->allow_blessed->convert_blessed->allow_nonref->pretty->canonical->encode ($_[0]);
@@ -269,7 +269,7 @@ sub save_url ($$) {
     unless ($json_installed) {
       $json_installed = 1;
       eval q{ require JSON } or
-      install_support_module PMBP::Module->new_from_package ('JSON');
+      install_support_module (PMBP::Module->new_from_package ('JSON'));
     }
     require JSON;
     return JSON->new->utf8->allow_blessed->convert_blessed->allow_nonref->pretty->canonical->decode ($_[0]);
@@ -312,9 +312,9 @@ sub install_cpanm () {
 
 our $CPANMDepth = 0;
 my $cpanm_init = 0;
-sub cpanm ($$;%);
-sub cpanm ($$;%) {
-  my ($args, $modules, %args) = @_;
+sub cpanm ($$);
+sub cpanm ($$) {
+  my ($args, $modules) = @_;
   my $result = {};
   install_cpanm;
 
@@ -329,9 +329,6 @@ sub cpanm ($$;%) {
     my @required_install2;
 
     my @perl_option = ('-I' . $cpanm_lib_dir_name);
-    if ($args{pmpp}) {
-      push @perl_option, ('-I' . $pmpp_dir_name);
-    }
 
     my @option = ($args->{local_option} || '-L' => $perl_lib_dir_name,
                   ($args->{skip_satisfied} ? '--skip-satisfied' : ()),
@@ -352,8 +349,8 @@ sub cpanm ($$;%) {
         '--mirror' => (abs_path $pmtar_dir_name),
         map { ('--mirror' => $_) } @CPANMirror;
 
-    if (defined $args{module_index_file_name}) {
-      my $mi = abs_path $args{module_index_file_name};
+    if (defined $args->{module_index_file_name}) {
+      my $mi = abs_path $args->{module_index_file_name};
       push @option, '--mirror-index' => $mi if defined $mi;
     } else {
       get_default_mirror_file_name ();
@@ -369,7 +366,7 @@ sub cpanm ($$;%) {
                $cpanm,
                @option,
                @module_arg);
-    info $args{info} ? 2 : 1,
+    info $args->{info} ? 2 : 1,
         join ' ', 'PERL_CPANM_HOME=' . $cpanm_home_dir_name, @cmd;
     my $json_temp_file = File::Temp->new;
     open my $cmd, '-|', ((join ' ', map { quotemeta } @cmd) .
@@ -448,7 +445,7 @@ sub cpanm ($$;%) {
         if (@required_cpanm) {
           local $CPANMDepth = $CPANMDepth + 1;
           for my $module (@required_cpanm) {
-            install_support_module ($module, %args);
+            install_support_module ($module);
           }
           $redo = 1;
         } elsif (@required_install) {
@@ -457,18 +454,20 @@ sub cpanm ($$;%) {
             for my $module (@required_install) {
               if ($args->{scandeps}) {
                 scandeps ($args->{scandeps}->{module_index}, $module,
-                    skip_if_found => 1,
-                    %args);
+                          skip_if_found => 1,
+                          module_index_file_name => $args->{module_index_file_name});
                 push @{$result->{additional_deps} ||= []}, $module;
               }
-              cpanm ({perl_lib_dir_name => $perl_lib_dir_name}, [$module], %args)
+              cpanm ({perl_lib_dir_name => $perl_lib_dir_name,
+                      module_index_file_name => $args->{module_index_file_name}}, [$module])
                   unless $args->{no_install};
             }
             $redo = 1 unless $args->{no_install};
           } else {
             local $CPANMDepth = $CPANMDepth + 1;
             for my $module (@required_install) {
-              cpanm ({perl_lib_dir_name => $perl_lib_dir_name}, [$module], %args);
+              cpanm ({perl_lib_dir_name => $perl_lib_dir_name,
+                      module_index_file_name => $args->{module_index_file_name}}, [$module]);
             }
             $redo = 1;
           }
@@ -562,15 +561,15 @@ sub install_module ($;%) {
   my ($module, %args) = @_;
   get_local_copy_if_necessary $module;
   cpanm {perl_lib_dir_name => $args{pmpp} ? $pmpp_dir_name : $installed_dir_name,
-         use_pmpp => 1}, [$module], %args;
+         module_index_file_name => $args{module_index_file_name}},
+        [$module];
 } # install_module
 
-sub install_support_module ($;%) {
+sub install_support_module ($) {
   my $module = shift;
   get_local_copy_if_necessary $module;
   cpanm {perl_lib_dir_name => $cpanm_dir_name,
-         use_pmpp => 1,
-         local_option => '-l', skip_satisfied => 1}, [$module], @_;
+         local_option => '-l', skip_satisfied => 1}, [$module];
 } # install_support_module
 
 ## ------ Detecting module dependency ------
@@ -594,8 +593,8 @@ sub scandeps ($$;%) {
   get_local_copy_if_necessary $module;
   my $result = cpanm {perl_lib_dir_name => $temp_dir->dirname,
                       temp_dir => $temp_dir,
-                      scandeps => {module_index => $module_index}}, [$module],
-                     %args;
+                      module_index_file_name => $args{module_index_file_name},
+                      scandeps => {module_index => $module_index}}, [$module];
 
   _scandeps_write_result ($result, $module, $module_index);
 } # scandeps
