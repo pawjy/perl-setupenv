@@ -432,6 +432,7 @@ sub cpanm ($$;%) {
                     ($mi);
               } elsif ($args->{scandeps}) {
                 scandeps $args->{scandeps}->{module_index}, $module, %args;
+                push @{$result->{additional_deps} ||= []}, $module;
               }
               cpanm {perl_lib_dir_name => $perl_lib_dir_name}, [$module], %args
                   unless $args->{no_install};
@@ -594,13 +595,16 @@ sub _scandeps_write_result ($$$) {
     );
   }; # $convert_list;
 
+  my $more = $result->{additional_deps} || [];
   $result = [($convert_list->($result->{output_json} || {}))];
 
   if ($module) {
     for (@$result) {
-      if (defined $_->[0]->{pathname} and defined $module->{pathname} and
+      if (defined $_->[0]->{pathname} and
+          defined $module->{pathname} and
           $_->[0]->{pathname} eq $module->{pathname}) {
         $_->[0]->merge_input_data ($module);
+        $_->[1]->add_modules ($more);
       }
     }
   } else {
