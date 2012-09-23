@@ -11,6 +11,8 @@ use Getopt::Long;
 my $perl = 'perl';
 my $perl_version;
 my $wget = 'wget';
+my $PerlbrewInstallerURL = q<http://install.perlbrew.pl/>;
+my $PerlbrewParallelCount = 1;
 my $cpanm_url = q<http://cpanmin.us/>;
 my $root_dir_name = '.';
 my $pmtar_dir_name;
@@ -29,6 +31,8 @@ my @Argument = @ARGV;
 GetOptions (
   '--perl-command=s' => \$perl,
   '--wget-command=s' => \$wget,
+  '--perlbrew-installer-url=s' => \$PerlbrewInstallerURL,
+  '--perlbrew-parallel-count=s' => \$PerlbrewParallelCount,
   '--cpanm-url=s' => \$cpanm_url,
   '--root-dir-name=s' => \$root_dir_name,
   '--pmtar-dir-name=s' => \$pmtar_dir_name,
@@ -37,12 +41,6 @@ GetOptions (
   '--verbose' => sub { $Verbose++ },
   '--preserve-info-file' => \$PreserveInfoFile,
 
-  '--update' => sub {
-    push @command, {type => 'update'};
-  },
-  '--install' => sub {
-    push @command, {type => 'install'};
-  },
   '--install-module=s' => sub {
     my $module = PMBP::Module->new_from_module_arg ($_[1]);
     push @command, {type => 'install-module', module => $module};
@@ -124,6 +122,8 @@ GetOptions (
       push @command, {type => $n};
     });
   } qw(
+    update install
+    install-perl
     print-latest-perl-version
     print-libs print-pmtar-dir-name
   )),
@@ -131,6 +131,9 @@ GetOptions (
 
 $perl_version ||= `@{[quotemeta $perl]} -e 'print \$^V'`;
 $perl_version =~ s/^v//;
+unless ($perl_version =~ /\A5\.[0-9]+\.[0-9]+\z/) {
+  die "Invalid Perl version: $perl_version\n";
+}
 
 $root_dir_name = abs_path $root_dir_name;
 my $local_dir_name = $root_dir_name . '/local/perl-' . $perl_version;
@@ -302,6 +305,44 @@ sub get_latest_perl_version () {
     return $LatestPerlVersion = '5.16.1';
   }
 } # get_latest_perl_version
+
+sub install_perlbrew () {
+  return if -f "$root_dir_name/local/perlbrew/bin/perlbrew";
+  save_url $PerlbrewInstallerURL
+      => "$root_dir_name/local/install.perlbrew";
+  local $ENV{PERLBREW_ROOT} = abs_path "$root_dir_name/local/perlbrew";
+  run_command ['sh', "$root_dir_name/local/install.perlbrew"];
+  unless (-f "$root_dir_name/local/perlbrew/bin/perlbrew") {
+    info_die "Can't install perlbrew";
+  }
+} # install_perlbrew
+
+sub install_perl () {
+  install_perlbrew;
+  local $ENV{PERLBREW_ROOT} = abs_path "$root_dir_name/local/perlbrew";
+  my $log_file_name;
+  run_command ["$root_dir_name/local/perlbrew/bin/perlbrew",
+               'install',
+               'perl-' . $perl_version,
+               '--notest',
+               '--as' => 'perl-' . $perl_version,
+               '-j' => $PerlbrewParallelCount],
+      onoutput => sub {
+        if ($_[0] =~ qr{^  tail -f (.+?/perlbrew/build.perl-.+?\.log)}) {
+          $log_file_name = $1;
+          $log_file_name =~ s{^~/}{$ENV{HOME}/} if defined $ENV{HOME};
+          return 0;
+        } else {
+          return 1;
+        }
+      };
+
+  copy_log_file $log_file_name => "perl-$perl_version"
+      if defined $log_file_name;
+  unless (-f "$root_dir_name/local/perlbrew/perls/perl-$perl_version/bin/perl") {
+    info_die "Failed to install perl-$perl_version";
+  }
+} # install_perl
 
 ## ------ cpanm ------
 
@@ -1065,6 +1106,9 @@ while (@command) {
 
   } elsif ($command->{type} eq 'print-latest-perl-version') {
     print get_latest_perl_version;
+  } elsif ($command->{type} eq 'install-perl') {
+    info 0, "Installing Perl $perl_version...";
+    install_perl;
 
   } elsif ($command->{type} eq 'install-module') {
     delete_pmpp_arch_dir if $pmpp_touched;
@@ -1438,6 +1482,26 @@ XXX
 Specify the "wget" command and arguments, if desired.  By default,
 C<wget> is used.
 
+=item --perl-version="5.n.m"
+
+Specify the Perl version in use.  If the C<--install-perl> command is
+invoked, then the value must be one of Perl versions.  Otherwise, it
+must match the version of the default C<perl> program.  If this option
+is not specified, the version of the default C<perl> program is used.
+In this context, the default C<perl> refers to the C<perl> interpreter
+used when the C<perl> command is invoked under the current C<PATH>
+environment variable.
+
+=item --perlbrew-installer-url="URL"
+
+Specify the URL of the perlbrew installer.  The default URL is
+C<http://install.perlbrew.pl/>.
+
+=item --perlbrew-parallel-count="integer"
+
+Specify the number of parallel processes of perlbrew (used for the
+C<-j> option to the C<perlbrew>'s C<install> command).
+
 =back
 
 =head2 Commands
@@ -1449,6 +1513,19 @@ C<wget> is used.
 Print the version number of the latest stable release of Perl to the
 standard output.  At the time of writing, this command prints the
 string C<5.16.1>.
+
+=item --install-perl
+
+Install the Perl with the version specified by the C<--perl-version>
+option, using the C<perlbrew> program.  The C<perlbrew> program is
+automatically installed under the C<local> directory.  The Perl of the
+specified version is also installed into the C<local> directory.  If
+the C<perl> with specified version has already been installed, this
+command has no effect.
+
+This command should be invoked before any other command where
+possible.  In particular, installing modules before the
+C<--install-perl> command could make the installed module broken.
 
 =back
 
