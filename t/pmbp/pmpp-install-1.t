@@ -1,5 +1,5 @@
 #!/bin/sh
-echo "1..5"
+echo "1..6"
 basedir=`dirname $0`/../..
 pmbp=$basedir/bin/pmbp.pl
 tempdir=`perl -MFile::Temp=tempdir -e 'print tempdir'`/testapp
@@ -19,5 +19,6 @@ PERL5LIB=$perllibs perl -MDBIx::RewriteDSN \
 (ls $tempdir/local/perl-*/pm/lib/perl5/DBIx/RewriteDSN.pm > /dev/null && echo "ok 3") || echo "not ok 3"
 (ls $tempdir/deps/pmpp/lib/perl5/*/DBI.pm > /dev/null && echo "not ok 4") || echo "ok 4"
 (ls $tempdir/local/perl-*/pm/lib/perl5/*/DBI.pm > /dev/null && echo "ok 5") || echo "not ok 5"
+(ls $tempdir/local/perl-*/pm/.git && echo "not ok 6") || echo "ok 6"
 
 rm -fr $tempdir

@@ -755,7 +755,7 @@ sub copy_pmpp_modules () {
       info 2, "Copying directory $rel...";
       make_path $dest;
     }
-  }, $pmpp_dir_name);
+  }, $_) for "$pmpp_dir_name/bin", "$pmpp_dir_name/lib";
 } # copy_pmpp_modules
 
 sub delete_pmpp_arch_dir () {
