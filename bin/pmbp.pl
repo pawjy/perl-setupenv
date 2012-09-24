@@ -135,6 +135,7 @@ unless ($perl_version =~ /\A5\.[0-9]+\.[0-9]+\z/) {
   die "Invalid Perl version: $perl_version\n";
 }
 
+make_path $root_dir_name;
 $root_dir_name = abs_path $root_dir_name;
 my $local_dir_name = $root_dir_name . '/local/perl-' . $perl_version;
 my $pmb_dir_name = $local_dir_name . '/pmbp';
@@ -1513,6 +1514,15 @@ XXX
 
 =over 4
 
+=item --root-dir-name="path/to/dir"
+
+Specify the root directory of the application.  Various operations by
+the script is performed relative to this directory.  The value must be
+a valid path to the directory in the platform.  Unless specified, the
+current directory is used as the root directory.  If there is no such
+a directory, it is first created by the script.  Anyway, the directory
+must be writable by the user executing the script.
+
 =item --wget-command="wget"
 
 Specify the "wget" command and arguments, if desired.  By default,
@@ -1588,7 +1598,7 @@ have to prepare these scripts.
 
 =head1 LICENSE
 
-Copyright 2012 Wakaba <w@suika.fam.cx>.
+Copyright 2012 Wakaba <wakaba@suikawiki.org>.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
