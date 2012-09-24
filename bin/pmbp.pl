@@ -482,6 +482,8 @@ sub cpanm ($$) {
           push @required_install, PMBP::Module->new_from_package ('Module::Build');
         }
         $failed = 1;
+      } elsif (/^! Couldn\'t find module or a distribution Date::Parse \(/) {
+        push @required_install, PMBP::Module->new_from_package ('Date::Parse');
       }
     }
     info 2, "cpanm done";
