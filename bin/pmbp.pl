@@ -448,6 +448,9 @@ sub cpanm ($$) {
         }
       } elsif (/^! Couldn\'t find module or a distribution (\S+)/) {
         if ($1 eq 'GD::Image') {
+          if (@module_arg == 1 and $module_arg[0] eq 'GD::Image') {
+            $module_arg[0] = 'GD';
+          }
           push @required_install, PMBP::Module->new_from_package ('GD');
         }
       } elsif (/^! (?:Installing|Configuring) (\S+) failed\. See (.+?) for details\.$/ or
