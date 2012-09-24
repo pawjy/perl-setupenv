@@ -446,6 +446,10 @@ sub cpanm ($$) {
                 ('Module::Metadata=http://search.cpan.org/CPAN/authors/id/A/AP/APEIRON/Module-Metadata-1.000011.tar.gz');
             $failed = 1;
         }
+      } elsif (/^! Couldn\'t find module or a distribution (\S+)/) {
+        if ($1 eq 'GD::Image') {
+          push @required_install, PMBP::Module->new_from_package ('GD');
+        }
       } elsif (/^! (?:Installing|Configuring) (\S+) failed\. See (.+?) for details\.$/ or
                /^! Configure failed for (\S+). See (.+?) for details\.$/) {
         my $log = copy_log_file $2 => $1;
