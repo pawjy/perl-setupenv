@@ -470,6 +470,7 @@ sub cpanm ($$) {
           my $module_name = {
               auto_set_repository => 'Module::Install::Repository',
               githubmeta => 'Module::Install::GithubMeta',
+              use_test_base => 'Module::Install::TestBase',
           }->{$1};
           push @required_install, PMBP::Module->new_from_package ($module_name)
               if $module_name;
