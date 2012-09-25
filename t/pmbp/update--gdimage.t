@@ -16,6 +16,6 @@ perl $pmbp --root-dir-name "$tempdir" \
 perl $pmbp --root-dir-name "$tempdir" --install
 
 (PERL5LIB="`cat \"$tempdir/config/perl/libs.txt\"`" \
-    perl -e 'use GD::Image' && echo "ok 3") || echo "not ok 3"
+    perl -e 'use GD' && echo "ok 3") || echo "not ok 3"
 
 rm -fr $tempdir
