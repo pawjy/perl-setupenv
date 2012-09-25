@@ -1019,7 +1019,7 @@ sub scan_dependency_from_directory ($) {
   my $modules = {};
 
   my @include_dir_name = qw(bin lib script t t_deps);
-  my @exclude_pattern = map { "$dir_name/$_" } qw(modules t_deps/modules t_deps/projects);
+  my @exclude_pattern = map { "^$_" } qw(modules t_deps/modules t_deps/projects);
   for (split /\n/, qx{cd \Q$dir_name\E && find @{[join ' ', grep quotemeta, @include_dir_name]} @{[join ' ', map { "| grep -v $_" } grep quotemeta, @exclude_pattern]} | grep "\\.\\(pm\\|pl\\|t\\)\$" | xargs grep "\\(use\\|require\\) " --no-filename}) {
     s/\#.*$//;
     if (/(?:use|require)\s*(?:base|parent)\s*(.+)/) {
