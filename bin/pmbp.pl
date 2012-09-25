@@ -483,9 +483,6 @@ sub cpanm ($$) {
           push @required_install, PMBP::Module->new_from_package ($1);
         }
         $failed = 1;
-      } elsif (/^! Couldn\'t find module or a distribution ExtUtils::MakeMaker \(6.6302\)/) {
-        ## Devel release
-        push @required_install, PMBP::Module->new_from_module_arg ('ExtUtils::MakeMaker~6.63_02=http://search.cpan.org/CPAN/authors/id/M/MS/MSCHWERN/ExtUtils-MakeMaker-6.63_02.tar.gz');
       } elsif (/^! Couldn\'t find module or a distribution Date::Parse \(/) {
         push @required_install, PMBP::Module->new_from_package ('Date::Parse');
       }
@@ -978,7 +975,6 @@ sub read_install_list ($$) {
     my $mod_names = scan_dependency_from_directory ($dir_name);
     my $modules = [];
     for (keys %$mod_names) {
-warn "$dir_name requires $_";
       push @$modules, PMBP::Module->new_from_package ($_);
     }
     $module_index->merge_modules ($modules);
