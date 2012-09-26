@@ -573,11 +573,13 @@ sub get_default_mirror_file_name () {
 sub supplemental_module_index () {
   my $dir_name = "$temp_dir_name/supplemental";
   my $file_name = "$dir_name/modules/02packages.details.txt";
-  return $dir_name if -f $file_name and [stat $file_name]->[9] + 24 * 60 * 60 > time;
+  return $dir_name if -f ($file_name . '.gz') and
+      [stat ($file_name . '.gz')]->[9] + 24 * 60 * 60 > time;
   my $index =  PMBP::ModuleIndex->new_from_arrayref ([
     PMBP::Module->new_from_module_arg ('ExtUtils::MakeMaker~6.6302=http://search.cpan.org/CPAN/authors/id/M/MS/MSCHWERN/ExtUtils-MakeMaker-6.63_02.tar.gz'),
   ]);
   write_module_index ($index => $file_name);
+  run_command ['gzip', $file_name];
   return $dir_name;
 } # supplemental_module_index
 
