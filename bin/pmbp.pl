@@ -406,11 +406,17 @@ sub cpanm ($$) {
       get_default_mirror_file_name ();
       unshift @option, '--mirror' => abs_path $cpanm_dir_name;
     }
+
+    push @option, '--mirror' => abs_path supplemental_module_index ();
+
     ## Let cpanm not use Web API, as it slows down operations.
     push @option, '--mirror-only';
 
     local $ENV{LANG} = 'C';
     local $ENV{PERL_CPANM_HOME} = $cpanm_home_dir_name;
+    local $ENV{PATH} = (abs_path "$root_dir_name/local/perlbrew/perls/perl-$perl_version/bin") . ':' . $ENV{PATH};
+    local $ENV{MP_APXS} = '/usr/sbin/apxs';
+    local $ENV{PERLBREW_CONFIGURE_FLAGS} = "-de -Duserelocatableinc ccflags=-fPIC"; # 5.15.5+
     my @cmd = ($perl, 
                @perl_option,
                $cpanm,
@@ -423,7 +429,7 @@ sub cpanm ($$) {
                          ' 2>&1 ' .
                          ($args->{scandeps} || $args->{info}
                               ? ' > ' . quotemeta $json_temp_file : '') .
-                         '')
+                         ' < /dev/null')
         or die "Failed to execute @cmd - $!\n";
     my $current_module_name = '';
     my $failed;
@@ -444,10 +450,10 @@ sub cpanm ($$) {
       } elsif (/^--> Working on (\S)+$/) {
         $current_module_name = $1;
       } elsif (/^skipping .+\/perl-/) {
-          if (@module_arg and $module_arg[0] eq 'Module::Metadata') {
-            push @required_install, PMBP::Module->new_from_module_arg
-                ('Module::Metadata=http://search.cpan.org/CPAN/authors/id/A/AP/APEIRON/Module-Metadata-1.000011.tar.gz');
-            $failed = 1;
+        if (@module_arg and $module_arg[0] eq 'Module::Metadata') {
+          push @required_install, PMBP::Module->new_from_module_arg
+              ('Module::Metadata=http://search.cpan.org/CPAN/authors/id/A/AP/APEIRON/Module-Metadata-1.000011.tar.gz');
+          $failed = 1;
         }
       } elsif (/^! (?:Installing|Configuring) (\S+) failed\. See (.+?) for details\.$/ or
                /^! Configure failed for (\S+). See (.+?) for details\.$/) {
@@ -563,6 +569,17 @@ sub get_default_mirror_file_name () {
   }
   return abs_path $file_name;
 } # get_default_mirror_file_name
+
+sub supplemental_module_index () {
+  my $dir_name = "$temp_dir_name/supplemental";
+  my $file_name = "$dir_name/modules/02packages.details.txt";
+  return $file_name if -f $file_name and [stat $file_name]->[9] + 24 * 60 * 60 > time;
+  my $index =  PMBP::ModuleIndex->new_from_arrayref ([
+    PMBP::Module->new_from_module_arg ('ExtUtils::MakeMaker~6.6302=http://search.cpan.org/CPAN/authors/id/M/MS/MSCHWERN/ExtUtils-MakeMaker-6.63_02.tar.gz'),
+  ]);
+  write_module_index ($index => $file_name);
+  return $file_name;
+} # supplemental_module_index
 
 sub get_local_copy_if_necessary ($) {
   my $module = shift;
