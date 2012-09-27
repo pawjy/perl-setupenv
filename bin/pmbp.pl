@@ -535,6 +535,11 @@ sub cpanm ($$) {
         } elsif ($log =~ /^Could not find gdlib-config in the search path. Please install libgd /m) {
           push @required_system,
               {name => 'gd-devel', debian_name => 'libgd2-xpm-dev'};
+        } elsif ($log =~ /^version.c:.+?: error: db.h: No such file or directory/m and
+                 $log =~ /^-> FAIL Installing DB_File failed/m) {
+          push @required_system,
+              {name => 'bdb-devel', redhat_name => 'db-devel',
+               debian_name => 'libdb-dev'};
         } # $log
         $failed = 1;
       } elsif (/^! Couldn\'t find module or a distribution Date::Parse \(/) {
