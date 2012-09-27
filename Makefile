@@ -24,4 +24,4 @@ test-stopproxy:
 	-rm t_deps/proxy.pid
 
 test-main:
-	http_proxy=localhost:16613 $(PROVE) --verbose t/pmbp/*.t
+	http_proxy=localhost:16613 $(PROVE) --verbose t/pmbp/*.t < /dev/null
