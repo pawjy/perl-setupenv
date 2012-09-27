@@ -543,6 +543,9 @@ sub cpanm ($$) {
           push @required_system,
               {name => 'bdb-devel', redhat_name => 'db-devel',
                debian_name => 'libdb-dev'};
+        } elsif ($log =~ /^Expat.xs:.+?: error: expat.h: No such file or directory/) {
+          push @required_system,
+              {name => 'expat-devel', debian_name => 'libexpat1-dev'};
         } # $log
         $failed = 1;
       } elsif (/^! Couldn\'t find module or a distribution (\S+) \(/) {
