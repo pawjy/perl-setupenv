@@ -239,7 +239,7 @@ sub run_command ($;%) {
   open my $cmd, "-|", (join ' ', map quotemeta, @$command) . " 2>&1"
       or die "$0: $command->[0]: $!";
   while (<$cmd>) {
-    my $level = $args{info_level} || 1;
+    my $level = defined $args{info_level} ? $args{info_level} : 1;
     $level = $args{onoutput}->($_) if $args{onoutput};
     info $level, $_;
   }
