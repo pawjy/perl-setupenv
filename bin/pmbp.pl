@@ -243,7 +243,7 @@ sub run_command ($;%) {
     $level = $args{onoutput}->($_) if $args{onoutput};
     info $level, $_;
   }
-  close $cmd;
+  return close $cmd;
 } # run_command
 
 ## ------ Downloading ------
@@ -318,12 +318,13 @@ sub load_json ($) {
         info 0, '  $ ' . join ' ', @$cmd;
       } else {
         info 0, '$ ' . join ' ', @$cmd;
-        run_command $cmd;
+        return run_command $cmd;
       }
     } else {
       info 0, "Install following packages and retry:";
       info 0, "  " . join ' ', map { $_->{name} } @$packages;
     }
+    return 0;
   } # install_system_packages
 }
 
@@ -551,8 +552,7 @@ sub cpanm ($$) {
           $redo = 1;
         }
         if (@required_system) {
-          install_system_packages \@required_system;
-          $redo = 1;
+          $redo = 1 if install_system_packages \@required_system;
         }
         if (@required_cpanm) {
           local $CPANMDepth = $CPANMDepth + 1;
