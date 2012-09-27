@@ -306,8 +306,10 @@ sub load_json ($) {
     $HasYUM = `which yum` =~ /yum/ ? 1 : 0 if not defined $HasYUM;
 
     my $cmd;
+    my $env = '';
     if ($HasAPT) {
       $cmd = ['sudo', '--', 'apt-get', 'install', '-y', map { $_->{debian_name} || $_->{name} } @$packages];
+      $env = 'DEBIAN_FRONTEND="noninteractive" ';
     } elsif ($HasYUM) {
       $cmd = ['sudo', '--', 'yum', 'install', '-y', map { $_->{redhat_name} || $_->{name} } @$packages];
     }
@@ -315,9 +317,10 @@ sub load_json ($) {
     if ($cmd) {
       if (not $ExecuteSystemPackageInstaller) {
         info 0, "Execute following command and retry:";
-        info 0, '  $ ' . join ' ', @$cmd;
+        info 0, '  ' . $env . '$ ' . join ' ', @$cmd;
       } else {
-        info 0, '$ ' . join ' ', @$cmd;
+        info 0, $env . '$ ' . join ' ', @$cmd;
+        local $ENV{DEBIAN_FRONTEND} = "noninteractive";
         return run_command $cmd;
       }
     } else {
