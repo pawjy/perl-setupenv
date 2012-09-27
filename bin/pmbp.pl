@@ -183,7 +183,7 @@ my $deps_txt_dir_name = $pmtar_dir_name . '/deps';
   sub info ($$) {
     if ($Verbose >= $_[0]) {
       $InfoNeedNewline--, print STDERR "\n" if $InfoNeedNewline;
-      if ($_[1] =~ /...\z/) {
+      if ($_[1] =~ /\.\.\.\z/) {
         print STDERR $_[1];
         $InfoNeedNewline = 1;
       } else {
@@ -1593,11 +1593,6 @@ current directory is used as the root directory.  If there is no such
 a directory, it is first created by the script.  Anyway, the directory
 must be writable by the user executing the script.
 
-=item --wget-command="wget"
-
-Specify the "wget" command and arguments, if desired.  By default,
-C<wget> is used.
-
 =item --perl-version="5.n.m"
 
 Specify the Perl version in use.  If the C<--install-perl> command is
@@ -1607,6 +1602,25 @@ is not specified, the version of the default C<perl> program is used.
 In this context, the default C<perl> refers to the C<perl> interpreter
 used when the C<perl> command is invoked under the current C<PATH>
 environment variable.
+
+=item --wget-command="wget"
+
+Specify the "wget" command and arguments, if desired.  By default,
+C<wget> is used.
+
+=item --execute-system-package-installer
+
+If the option is specified, or if the C<TRAVIS> environment variable
+is se to a true value, the required package detected by the script is
+automatically installed.  Please note that the script execute the
+package manager with C<sudo> command such that you might be requested
+to input sudo password to continue installation.
+
+Otherwise, the suggested system packages are printed to the standard
+error output and the installer is not automatically invoked.
+
+At the time of writing, C<apt-get> (for Debian) and C<yum> (for
+Fedora) are supported.
 
 =item --perlbrew-installer-url="URL"
 
