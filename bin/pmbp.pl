@@ -490,6 +490,10 @@ sub cpanm ($$) {
           $remove_inc = 1;
         } elsif ($log =~ /^(\S+) version \S+ required--this is only version \S+/m) {
           push @required_install, PMBP::Module->new_from_package ($1);
+        } elsif ($log =~ /^cc: Internal error: Killed \(program cc1\)/m and
+                 @module_arg and $module_arg[0] eq 'Net::SSLeay') {
+          push @required_install, PMBP::Module->new_from_module_arg
+              ('Net::SSLeay~1.36=http://search.cpan.org/CPAN/authors/id/F/FL/FLORA/Net-SSLeay-1.36.tar.gz');
         }
         $failed = 1;
       } elsif (/^! Couldn\'t find module or a distribution Date::Parse \(/) {
