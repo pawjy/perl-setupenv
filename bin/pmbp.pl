@@ -2,7 +2,7 @@ use strict;
 use warnings;
 use Config;
 use Cwd qw(abs_path);
-use File::Path qw(make_path remove_tree);
+use File::Path qw(mkpath rmtree);
 use File::Copy qw(copy move);
 use File::Temp ();
 use File::Spec ();
@@ -134,6 +134,9 @@ $perl_version =~ s/^v//;
 unless ($perl_version =~ /\A5\.[0-9]+\.[0-9]+\z/) {
   die "Invalid Perl version: $perl_version\n";
 }
+
+sub make_path ($) { mkpath $_[0] }
+sub rmtree ($) { remove_tree $_[0] }
 
 make_path $root_dir_name;
 $root_dir_name = abs_path $root_dir_name;
