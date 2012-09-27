@@ -136,7 +136,7 @@ unless ($perl_version =~ /\A5\.[0-9]+\.[0-9]+\z/) {
 }
 
 sub make_path ($) { mkpath $_[0] }
-sub rmtree ($) { remove_tree $_[0] }
+sub remove_tree ($) { rmtree $_[0] }
 
 make_path $root_dir_name;
 $root_dir_name = abs_path $root_dir_name;
