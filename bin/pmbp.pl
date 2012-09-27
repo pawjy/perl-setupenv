@@ -545,8 +545,13 @@ sub cpanm ($$) {
                debian_name => 'libdb-dev'};
         } # $log
         $failed = 1;
-      } elsif (/^! Couldn\'t find module or a distribution Date::Parse \(/) {
-        push @required_install, PMBP::Module->new_from_package ('Date::Parse');
+      } elsif (/^! Couldn\'t find module or a distribution (\S+) \(/) {
+        my $mod = {
+          'Date::Parse' => 'Date::Parse',
+          'Test::Builder::Tester' => 'Test::Simple', # Test-Simple 0.98 < TBT 1.07
+        }->{$1};
+        push @required_install,
+            PMBP::Module->new_from_package ($mod) if $mod;
       }
     }
     info 2, "cpanm done";
