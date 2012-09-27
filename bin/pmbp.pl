@@ -129,7 +129,7 @@ GetOptions (
   )),
 ) or die "Usage: $0 options... (See source for details)\n";
 
-$perl_version ||= `@{[quotemeta $perl]} -e 'print \$^V'`;
+$perl_version ||= `@{[quotemeta $perl]} -e 'printf "%vd", \$^V'`;
 $perl_version =~ s/^v//;
 unless ($perl_version =~ /\A5\.[0-9]+\.[0-9]+\z/) {
   die "Invalid Perl version: $perl_version\n";
