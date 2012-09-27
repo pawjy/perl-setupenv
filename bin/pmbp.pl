@@ -321,7 +321,7 @@ sub load_json ($) {
       } else {
         info 0, $env . '$ ' . join ' ', @$cmd;
         local $ENV{DEBIAN_FRONTEND} = "noninteractive";
-        return run_command $cmd;
+        return run_command $cmd, info_level => 0;
       }
     } else {
       info 0, "Install following packages and retry:";
