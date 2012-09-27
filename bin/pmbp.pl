@@ -25,6 +25,7 @@ my @CPANMirror = qw(
 );
 my $Verbose = 0;
 my $PreserveInfoFile = 0;
+my $ExecuteSystemPackageInstaller = $ENV{TRAVIS} || 0;
 
 my @Argument = @ARGV;
 
@@ -40,6 +41,7 @@ GetOptions (
   '--perl-version=s' => \$perl_version,
   '--verbose' => sub { $Verbose++ },
   '--preserve-info-file' => \$PreserveInfoFile,
+  '--execute-system-package-installer' => \$ExecuteSystemPackageInstaller,
 
   '--install-module=s' => sub {
     my $module = PMBP::Module->new_from_module_arg ($_[1]);
@@ -291,6 +293,40 @@ sub load_json ($) {
   return $json;
 } # load_json
 
+## ------ Install system packages ------
+
+{
+  my $HasAPT;
+  my $HasYUM;
+  sub install_system_packages ($) {
+    my $packages = $_[0];
+    return unless @$packages;
+    
+    $HasAPT = `which apt-get` =~ /apt/ ? 1 : 0 if not defined $HasAPT;
+    $HasYUM = `which yum` =~ /yum/ ? 1 : 0 if not defined $HasYUM;
+
+    my $cmd;
+    if ($HasAPT) {
+      $cmd = ['sudo', '--', 'apt-get', 'install', '-y', map { $_->{debian_name} || $_->{name} } @$packages];
+    } elsif ($HasYUM) {
+      $cmd = ['sudo', '--', 'yum', 'install', '-y', map { $_->{redhat_name} || $_->{name} } @$packages];
+    }
+
+    if ($cmd) {
+      if (not $ExecuteSystemPackageInstaller) {
+        info 0, "Execute following command and retry:";
+        info 0, '  $ ' . join ' ', @$cmd;
+      } else {
+        info 0, '$ ' . join ' ', @$cmd;
+        run_command $cmd;
+      }
+    } else {
+      info 0, "Install following packages and retry:";
+      info 0, "  " . join ' ', map { $_->{name} } @$packages;
+    }
+  } # install_system_packages
+}
+
 ## ------ Installing Perl ------
 
 my $LatestPerlVersion;
@@ -378,6 +414,7 @@ sub cpanm ($$) {
     my @required_cpanm;
     my @required_install;
     my @required_install2;
+    my @required_system;
 
     my @perl_option = ('-I' . $cpanm_lib_dir_name);
 
@@ -390,7 +427,7 @@ sub cpanm ($$) {
         not ($args->{scandeps} or $args->{info});
 
     my @module_arg = map {
-        {'GD::Image' => 'GD'}->{$_} || $_;
+      {'GD::Image' => 'GD'}->{$_} || $_;
     } map {
       ref $_ ? $_->as_cpanm_arg ($pmtar_dir_name) : $_;
     } @$modules;
@@ -493,8 +530,11 @@ sub cpanm ($$) {
         } elsif ($log =~ /^cc: Internal error: Killed \(program cc1\)/m and
                  @module_arg and $module_arg[0] eq 'Net::SSLeay') {
           push @required_install, PMBP::Module->new_from_module_arg
-              ('Net::SSLeay~1.36=http://search.cpan.org/CPAN/authors/id/F/FL/FLORA/Net-SSLeay-1.36.tar.gz');
-        }
+              ('Net::SSLeay~1.36=http://search.cpan.org/CPAN/authors/id/F/FL/FLORA/Net-SSLeay-1.36.tar.gz'); # XXX
+        } elsif ($log =~ /^Could not find gdlib-config in the search path. Please install libgd /m) {
+          push @required_system,
+              {name => 'gd-devel', debian_name => 'libgd2-xpm-dev'};
+        } # $log
         $failed = 1;
       } elsif (/^! Couldn\'t find module or a distribution Date::Parse \(/) {
         push @required_install, PMBP::Module->new_from_package ('Date::Parse');
@@ -508,6 +548,10 @@ sub cpanm ($$) {
             @module_arg and $module_arg[0] =~ m{/} and
             -d "$module_arg[0]/inc") {
           remove_tree "$module_arg[0]/inc";
+          $redo = 1;
+        }
+        if (@required_system) {
+          install_system_packages \@required_system;
           $redo = 1;
         }
         if (@required_cpanm) {
