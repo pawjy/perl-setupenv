@@ -236,10 +236,18 @@ sub copy_log_file ($$) {
 
 ## ------ Commands ------
 
+sub _quote_dq ($) {
+  my $s = shift;
+  $s =~ s/\"/\\\"/g;
+  return $s;
+} # _quote_dq
+
 sub run_command ($;%) {
   my ($command, %args) = @_;
   my $prefix = defined $args{prefix} ? $args{prefix} : '';
-  info 2, "$prefix\$ @$command";
+  my $envs = $args{envs} || {};
+  info 2, "$prefix\$ @{[map { $_ . '="' . _quote_dq $envs->{$_} . '" ' } sort { $a cmp $b } keys %$envs]}@$command";
+  local %ENV = (%ENV, %$envs);
   open my $cmd, "-|", (join ' ', map quotemeta, @$command) . " 2>&1"
       or die "$0: $command->[0]: $!";
   while (<$cmd>) {
@@ -367,7 +375,6 @@ sub install_perlbrew () {
 
 sub install_perl () {
   install_perlbrew;
-  local $ENV{PERLBREW_ROOT} = abs_path "$root_dir_name/local/perlbrew";
   my $i = 0;
   PERLBREW: {
     $i++;
@@ -378,6 +385,7 @@ sub install_perl () {
                  '--notest',
                  '--as' => 'perl-' . $perl_version,
                  '-j' => $PerlbrewParallelCount],
+                envs => {PERLBREW_ROOT => abs_path "$root_dir_name/local/perlbrew"},
                 prefix => "perlbrew($i): ",
                 onoutput => sub {
                   if ($_[0] =~ qr{^  tail -f (.+?/perlbrew/build.perl-.+?\.log)}) {
