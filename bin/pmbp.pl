@@ -1018,9 +1018,9 @@ sub read_carton_lock ($$) {
 
 ## ------ Detecting application dependency ------
 
-sub read_install_list ($$);
-sub read_install_list ($$) {
-  my ($dir_name => $module_index) = @_;
+sub read_install_list ($$;%);
+sub read_install_list ($$;%) {
+  my ($dir_name => $module_index, %args) = @_;
 
   THIS: {
     ## pmb install list format
@@ -1069,10 +1069,12 @@ sub read_install_list ($$) {
   } # THIS
 
   ## Submodules
+  return unless $args{recursive};
   for my $dir_name (map { glob "$dir_name/$_" } qw(
     modules/* t_deps/modules/* local/submodules/*
   )) {
-    read_install_list $dir_name => $module_index;
+    read_install_list $dir_name => $module_index,
+        recursive => $args{recursive} ? $args{recursive} - 1 : 0;
   }
 } # read_install_list
 
@@ -1269,7 +1271,8 @@ while (@command) {
     if (defined $command->{file_name}) {
       read_pmb_install_list $command->{file_name} => $module_index;
     } else {
-      read_install_list $root_dir_name => $module_index;
+      read_install_list $root_dir_name => $module_index,
+          recursive => 1;
     }
     select_module $global_module_index => $_ => $selected_module_index,
         module_index_file_name => $module_index_file_name
