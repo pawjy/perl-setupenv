@@ -406,9 +406,13 @@ sub install_perl () {
     copy_log_file $log_file_name => "perl-$perl_version"
         if defined $log_file_name;
     unless (-f "$root_dir_name/local/perlbrew/perls/perl-$perl_version/bin/perl") {
-      info_die "perlbrew($i): Failed to install perl-$perl_version";
+      if ($redo and $i < 10) {
+        info 0, "perlbrew($i): Failed to install perl-$perl_version; retrying...";
+        redo PERLBREW;
+      } else {
+        info_die "perlbrew($i): Failed to install perl-$perl_version";
+      }
     }
-    redo PERLBREW if $redo and $i < 10;
   } # PERLBREW
 } # install_perl
 
