@@ -148,6 +148,7 @@ my $temp_dir_name = $pmb_dir_name . '/tmp';
 my $cpanm_dir_name = $temp_dir_name . '/cpanm';
 my $cpanm_home_dir_name = $cpanm_dir_name . '/tmp';
 my $cpanm = $cpanm_dir_name . '/bin/cpanm';
+my $CPANMWrapper = $cpanm_dir_name . '/bin/cpanmwrapper';
 my $cpanm_lib_dir_name = $cpanm_dir_name . '/lib/perl5';
 unshift @INC, $cpanm_lib_dir_name; ## Should not use XS modules.
 my $installed_dir_name = $local_dir_name . '/pm';
@@ -199,7 +200,8 @@ my $deps_txt_dir_name = $pmtar_dir_name . '/deps';
   sub info_die ($) {
     $InfoNeedNewline--, print STDERR "\n" if $InfoNeedNewline;
     print $InfoFile $_[0] =~ /\n\z/ ? $_[0] : "$_[0]\n";
-    die $_[0] =~ /\n\z/ ? $_[0] : "$_[0]\n";
+    print STDERR $_[0] =~ /\n\z/ ? $_[0] : "$_[0]\n";
+    die "$0 failed; See $InfoFileName for details\n";
   } # info_die
 
   sub info_writing ($$$) {
@@ -395,13 +397,41 @@ sub install_cpanm () {
   save_url $cpanm_url => $cpanm;
 } # install_cpanm
 
+sub install_cpanm_wrapper () {
+  return if -f $CPANMWrapper;
+  install_cpanm;
+  info_writing 1, "cpanm_wrapper", $CPANMWrapper;
+  mkdir_for_file $CPANMWrapper;
+  open my $file, '>', $CPANMWrapper or die "$0: $CPANMWrapper: $!";
+  printf $file q{#!/usr/bin/perl
+    BEGIN { require "%s" };
+
+    my $orig_search_module = \&App::cpanminus::script::search_module;
+    *App::cpanminus::script::search_module = sub {
+      my ($self, $module, $version) = @_;
+      if ($module eq 'ExtUtils::MakeMaker' and
+          defined $version and
+          $version =~ /^(\d+)\.(\d{2})(\d{2})$/) {
+        $version = "$1.$2\_$3";
+        warn "$module $1.$2$3 -> $version rewritten\n";
+      }
+      return $orig_search_module->($self, $module, $version);
+    }; # search_module
+    
+    my $app = App::cpanminus::script->new;
+    $app->parse_options (@ARGV);
+    $app->doit or exit 1;
+  }, $cpanm;
+  close $file;
+} # install_cpanm_wrapper
+
 our $CPANMDepth = 0;
 my $cpanm_init = 0;
 sub cpanm ($$);
 sub cpanm ($$) {
   my ($args, $modules) = @_;
   my $result = {};
-  install_cpanm;
+  install_cpanm_wrapper;
 
   my $perl_lib_dir_name = $args->{perl_lib_dir_name}
       || ($args->{info} ? $cpanm_lib_dir_name : undef)
@@ -463,7 +493,7 @@ sub cpanm ($$) {
     local $ENV{PERLBREW_CONFIGURE_FLAGS} = "-de -Duserelocatableinc ccflags=-fPIC"; # 5.15.5+
     my @cmd = ($perl, 
                @perl_option,
-               $cpanm,
+               $CPANMWrapper,
                @option,
                @module_arg);
     info $args->{info} ? 2 : 1,
