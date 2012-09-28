@@ -379,6 +379,7 @@ sub install_perl () {
   PERLBREW: {
     $i++;
     my $log_file_name;
+    my $redo;
     run_command ["$root_dir_name/local/perlbrew/bin/perlbrew",
                  'install',
                  'perl-' . $perl_version,
@@ -388,10 +389,13 @@ sub install_perl () {
                 envs => {PERLBREW_ROOT => abs_path "$root_dir_name/local/perlbrew"},
                 prefix => "perlbrew($i): ",
                 onoutput => sub {
-                  if ($_[0] =~ qr{^  tail -f (.+?/perlbrew/build.perl-.+?\.log)}) {
+                  if ($_[0] =~ m{^  tail -f (.+?/perlbrew/build.perl-.+?\.log)}) {
                     $log_file_name = $1;
                     $log_file_name =~ s{^~/}{$ENV{HOME}/} if defined $ENV{HOME};
                     return 0;
+                  } elsif ($_[0] =~ /^It is possible that the compressed file\(s\) have become corrupted/) {
+                    remove_tree "$root_dir_name/local/perlbrew/dists";
+                    $redo = 1;
                   } else {
                     return 1;
                   }
@@ -399,16 +403,8 @@ sub install_perl () {
     
     copy_log_file $log_file_name => "perl-$perl_version"
         if defined $log_file_name;
-    my $redo;
     unless (-f "$root_dir_name/local/perlbrew/perls/perl-$perl_version/bin/perl") {
       info_die "perlbrew($i): Failed to install perl-$perl_version";
-      open my $log_file, '<', $log_file_name or die "$0: $log_file_name: $!";
-      while (<$log_file>) {
-        if (/^It is possible that the compressed file\(s\) have become corrupted/) {
-          remove_tree "$root_dir_name/local/perlbrew/dists";
-          $redo = 1;
-        }
-      }
     }
     redo PERLBREW if $redo and $i < 10;
   } # PERLBREW
