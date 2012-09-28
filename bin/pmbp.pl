@@ -224,7 +224,7 @@ sub mkdir_for_file ($) {
 sub copy_log_file ($$) {
   my ($file_name, $module_name) = @_;
   my $log_file_name = $module_name;
-  $log_file_name =~ s/::/-/;
+  $log_file_name =~ s/::/-/g;
   $log_file_name = "$log_dir_name/@{[time]}-$log_file_name.log";
   mkdir_for_file $log_file_name;
   copy $file_name => $log_file_name or die "Can't save log file: $!\n";
@@ -468,6 +468,19 @@ sub cpanm ($$) {
     info 1, "cpanm invocation for package |perl| skipped";
     return {};
   }
+
+  local $ENV{HOME} = do {
+    ## For Module::Build-based packages (e.g. Class::Accessor::Lvalue)
+    require Digest::MD5;
+    my $key = Digest::MD5::md5_hex ($perl_lib_dir_name);
+    my $home_dir_name = "$cpanm_home_dir_name/$key";
+    my $file_name = "$home_dir_name/.modulebuildrc";
+    mkdir_for_file $file_name;
+    open my $file, '>', $file_name or die "$0: $file_name: $!";
+    print $file "install --install-base $perl_lib_dir_name";
+    close $file;
+    $home_dir_name
+  };
 
   my $redo = 0;
   COMMAND: {
