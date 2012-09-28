@@ -395,7 +395,9 @@ sub install_perl () {
                     return 0;
                   } elsif ($_[0] =~ /^It is possible that the compressed file\(s\) have become corrupted/) {
                     remove_tree "$root_dir_name/local/perlbrew/dists";
+                    make_path "$root_dir_name/local/perlbrew/dists";
                     $redo = 1;
+                    return 1;
                   } else {
                     return 1;
                   }
