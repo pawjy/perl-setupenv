@@ -921,9 +921,11 @@ sub copy_pmpp_modules () {
       info 2, "Copying file $rel...";
       unlink $dest if -f $dest;
       copy $_ => $dest or die "$0: $dest: $!";
+      chmod ((stat $_)[2], $dest);
     } elsif (-d $_) {
       info 2, "Copying directory $rel...";
       make_path $dest;
+      chmod ((stat $_)[2], $dest);
     }
   }, $_) for grep { -d $_ } "$pmpp_dir_name/bin", "$pmpp_dir_name/lib";
 } # copy_pmpp_modules
