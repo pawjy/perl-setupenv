@@ -246,7 +246,7 @@ sub run_command ($;%) {
   my ($command, %args) = @_;
   my $prefix = defined $args{prefix} ? $args{prefix} : '';
   my $envs = $args{envs} || {};
-  info 2, "$prefix\$ @{[map { $_ . '="' . _quote_dq $envs->{$_} . '" ' } sort { $a cmp $b } keys %$envs]}@$command";
+  info 2, qq{$prefix\$ @{[map { $_ . '="' . (_quote_dq $envs->{$_}) . '" ' } sort { $a cmp $b } keys %$envs]}@$command};
   local %ENV = (%ENV, %$envs);
   open my $cmd, "-|", (join ' ', map quotemeta, @$command) . " 2>&1"
       or die "$0: $command->[0]: $!";
