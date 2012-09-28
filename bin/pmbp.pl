@@ -1138,6 +1138,7 @@ sub scan_dependency_from_directory ($) {
   );
   for (keys %$modules) {
     delete $modules->{$_} unless /\A[0-9A-Za-z_]+(?:::[0-9A-Za-z_]+)*\z/;
+    delete $modules->{$_} if /^[0-9._]+$/;
   }
 
   return $modules;

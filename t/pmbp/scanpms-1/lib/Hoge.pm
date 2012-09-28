@@ -1,4 +1,5 @@
 package Hoge;
+use 5.8.8;
 require Carp;
 use Submod1;
 
