@@ -395,7 +395,7 @@ sub install_perl () {
       info_die "perlbrew($i): Failed to install perl-$perl_version";
       open my $log_file, '<', $log_file_name or die "$0: $log_file_name: $!";
       while (<$log_file>) {
-        if (/^It is possible that the compressed file(s) have become corrupted/) {
+        if (/^It is possible that the compressed file\(s\) have become corrupted/) {
           remove_tree "$root_dir_name/local/perlbrew/dists";
           $redo = 1;
         }
