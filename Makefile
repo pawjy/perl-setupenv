@@ -1,6 +1,11 @@
+GIT = git
+
 all:
 
 deps:
+
+git-submodules:
+	$(GIT) submodule update --init
 
 ## ------ Tests ------
 
@@ -8,7 +13,7 @@ PROVE = prove
 
 test: test-deps test-startproxy test-main test-stopproxy
 
-test-deps: deps test-proxy-deps
+test-deps: git-submodules deps test-proxy-deps
 
 test-proxy-deps:
 	perl bin/pmbp.pl \
