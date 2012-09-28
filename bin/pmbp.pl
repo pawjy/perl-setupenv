@@ -520,7 +520,7 @@ sub cpanm ($$) {
       unshift @option, '--mirror' => abs_path $cpanm_dir_name;
     }
 
-    #push @option, '--mirror' => abs_path supplemental_module_index ();
+    push @option, '--mirror' => abs_path supplemental_module_index ();
 
     ## Let cpanm not use Web API, as it slows down operations.
     push @option, '--mirror-only';
@@ -707,14 +707,12 @@ sub get_default_mirror_file_name () {
 } # get_default_mirror_file_name
 
 sub supplemental_module_index () {
-  return undef;
-
   my $dir_name = "$temp_dir_name/supplemental";
   my $file_name = "$dir_name/modules/02packages.details.txt";
   return $dir_name if -f ($file_name . '.gz') and
       [stat ($file_name . '.gz')]->[9] + 24 * 60 * 60 > time;
   my $index =  PMBP::ModuleIndex->new_from_arrayref ([
-    PMBP::Module->new_from_module_arg ('...'),
+    PMBP::Module->new_from_module_arg ('ExtUtils::MakeMaker~6.6302=http://search.cpan.org/CPAN/authors/id/M/MS/MSCHWERN/ExtUtils-MakeMaker-6.63_02.tar.gz'),
   ]);
   write_module_index ($index => $file_name);
   run_command ['gzip', '-f', $file_name];
