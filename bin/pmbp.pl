@@ -1061,6 +1061,7 @@ sub read_install_list ($$) {
     my $mod_names = scan_dependency_from_directory ($dir_name);
     my $modules = [];
     for (keys %$mod_names) {
+      info 2, "$dir_name requires $_";
       push @$modules, PMBP::Module->new_from_package ($_);
     }
     $module_index->merge_modules ($modules);
