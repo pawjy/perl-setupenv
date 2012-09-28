@@ -239,6 +239,7 @@ sub copy_log_file ($$) {
 sub run_command ($;%) {
   my ($command, %args) = @_;
   my $prefix = defined $args{prefix} ? $args{prefix} : '';
+  info 2, "$prefix\$ @$command";
   open my $cmd, "-|", (join ' ', map quotemeta, @$command) . " 2>&1"
       or die "$0: $command->[0]: $!";
   while (<$cmd>) {
