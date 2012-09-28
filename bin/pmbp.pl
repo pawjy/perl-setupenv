@@ -646,7 +646,7 @@ sub supplemental_module_index () {
     PMBP::Module->new_from_module_arg ('ExtUtils::MakeMaker~6.6302=http://search.cpan.org/CPAN/authors/id/M/MS/MSCHWERN/ExtUtils-MakeMaker-6.63_02.tar.gz'),
   ]);
   write_module_index ($index => $file_name);
-  run_command ['gzip', $file_name];
+  run_command ['gzip', '-f', $file_name];
   return $dir_name;
 } # supplemental_module_index
 
