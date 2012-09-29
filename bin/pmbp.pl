@@ -894,8 +894,8 @@ sub scandeps ($$;%) {
   _scandeps_write_result ($result, $module, $module_index);
 } # scandeps
 
-sub _scandeps_write_result ($$$) {
-  my ($result, $module, $module_index) = @_;
+sub _scandeps_write_result ($$$;%) {
+  my ($result, $module, $module_index, %args) = @_;
 
   my $convert_list;
   $convert_list = sub {
@@ -948,9 +948,10 @@ sub _scandeps_write_result ($$$) {
     }
     open my $file, '>', $file_name or die "$0: $file_name: $!";
     print $file encode_json $m;
+    $args{onadd}->($m) if $args{onadd};
   }
   $module_index->merge_modules ([map { $_->[0] } @$result]);
-} # scandeps
+} # _scandeps_write_result
 
 sub load_deps ($$) {
   my ($module_index, $input_module) = @_;
@@ -1130,6 +1131,7 @@ sub read_pmb_install_list ($$;%) {
         ),
       }->{$module->package || ''};
       push @$modules, $module;
+      $args{onadd}->($module) if $args{onadd};
     }
   }
   $module_index->merge_modules ($modules);
@@ -1161,12 +1163,14 @@ sub write_install_module_index ($$) {
   write_module_index $module_index => $file_name;
 } # write_install_module_index
 
-sub read_carton_lock ($$) {
-  my ($file_name => $module_index) = @_;
+sub read_carton_lock ($$;%) {
+  my ($file_name => $module_index, %args) = @_;
   my $json = load_json $file_name;
   my $modules = [];
   for (values %{$json->{modules}}) {
-    push @$modules, PMBP::Module->new_from_carton_lock_entry ($_);
+    my $module = PMBP::Module->new_from_carton_lock_entry ($_);
+    push @$modules, $module;
+    $args{onadd}->($module) if $args{onadd};
   }
   $module_index->merge_modules ($modules);
 } # read_carton_lock
@@ -1177,18 +1181,26 @@ sub read_install_list ($$;%);
 sub read_install_list ($$;%) {
   my ($dir_name => $module_index, %args) = @_;
 
+  my $onadd = sub { my $source = shift; return sub {
+    info 1, sprintf '%s requires %s', $source, $_[0]->as_short;
+  } }; # $onadd
+
   THIS: {
     ## pmb install list format
     my @file = map { (glob "$_/config/perl/modules*.txt") } $dir_name;
     if (@file) {
-      read_pmb_install_list $_ => $module_index for @file;
+      for my $file_name (@file) {
+        read_pmb_install_list $file_name => $module_index,
+            onadd => $onadd->($file_name);
+      }
       last THIS;
     }
 
     ## carton.lock
     my $file_name = "$dir_name/carton.lock";
     if (-f $file_name) {
-      read_carton_lock $file_name => $module_index;
+      read_carton_lock $file_name => $module_index,
+          onadd => $onadd->($file_name);
       last THIS;
     }
 
@@ -1197,7 +1209,9 @@ sub read_install_list ($$;%) {
       ## At the time of writing, cpanm can't be used to obtain list of
       ## required modules from cpanfile (though it does support
       ## cpanfile for module installation).
-      get_dependency_from_cpanfile ("$dir_name/cpanfile" => $module_index);
+      get_dependency_from_cpanfile
+          ("$dir_name/cpanfile" => $module_index,
+           onadd => $onadd->("$dir_name/cpanfile"));
       last THIS;
     }
     
@@ -1208,7 +1222,8 @@ sub read_install_list ($$;%) {
                           temp_dir => $temp_dir,
                           scandeps => {module_index => $module_index}},
                          [$dir_name];
-      _scandeps_write_result ($result, undef, $module_index);
+      _scandeps_write_result ($result, undef, $module_index,
+                              onadd => $onadd->($dir_name));
       last THIS;
     }
 
@@ -1216,8 +1231,9 @@ sub read_install_list ($$;%) {
     my $mod_names = scan_dependency_from_directory ($dir_name);
     my $modules = [];
     for (keys %$mod_names) {
-      info 2, "$dir_name requires $_";
-      push @$modules, PMBP::Module->new_from_package ($_);
+      my $mod = PMBP::Module->new_from_package ($_);
+      push @$modules, $mod;
+      $onadd->($dir_name)->($mod);
     }
     $module_index->merge_modules ($modules);
     last THIS;
@@ -1233,8 +1249,8 @@ sub read_install_list ($$;%) {
   }
 } # read_install_list
 
-sub get_dependency_from_cpanfile ($$) {
-  my ($file_name => $module_index) = @_;
+sub get_dependency_from_cpanfile ($$;%) {
+  my ($file_name => $module_index, %args) = @_;
 
   install_support_module PMBP::Module->new_from_package ('Module::CPANfile');
   install_support_module PMBP::Module->new_from_package ('CPAN::Meta::Prereqs'); # loaded by Module::CPANfile
@@ -1252,7 +1268,9 @@ sub get_dependency_from_cpanfile ($$) {
 
   my $modules = [];
   for (keys %{$req->as_string_hash}) {
-    push @$modules, PMBP::Module->new_from_package ($_);
+    my $module = PMBP::Module->new_from_package ($_);
+    push @$modules, $module;
+    $args{onadd}->($module) if $args{onadd};
   }
   $module_index->merge_modules ($modules);
 } # get_dependency_from_cpanfile
@@ -1408,7 +1426,7 @@ while (@command) {
     if (defined $command->{file_name}) {
       read_pmb_install_list $command->{file_name} => $module_index;
     } else {
-      read_install_list $root_dir_name => $module_index;
+      read_install_list $root_dir_name => $module_index, recursive => 1;
     }
     for ($module_index->to_list) {
       info 0, "Installing @{[$_->as_short]}...";
@@ -1427,7 +1445,7 @@ while (@command) {
     if (defined $command->{file_name}) {
       read_pmb_install_list $command->{file_name} => $module_index;
     } else {
-      read_install_list $root_dir_name => $module_index;
+      read_install_list $root_dir_name => $module_index, recursive => 1;
     }
     for ($module_index->to_list) {
       info 0, "Installing @{[$_->as_short]} to pmpp...";

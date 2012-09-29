@@ -17,9 +17,7 @@ echo Exporter::Lite > $tempdir/modules/hoge/config/perl/modules.txt
 
 perl $pmbp --root-dir-name="$tempdir" \
     --install-modules-by-list \
-    --write-libs-txt "$tempdir/libs.txt" --verbose
-
-cat "$tempdir/libs.txt"
+    --write-libs-txt "$tempdir/libs.txt"
 
 (
 PERL5LIB="`cat $tempdir/libs.txt`" perl -MTest::Differences \
