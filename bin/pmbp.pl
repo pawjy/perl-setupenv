@@ -391,7 +391,7 @@ sub install_perl () {
                  '--notest',
                  '--as' => 'perl-' . $perl_version,
                  '-j' => $PerlbrewParallelCount],
-                envs => {PERLBREW_ROOT => abs_path "$root_dir_name/local/perlbrew",
+                envs => {PERLBREW_ROOT => (abs_path "$root_dir_name/local/perlbrew"),
                          PERLBREW_CONFIGURE_FLAGS => "-de -Duserelocatableinc ccflags=-fPIC"}, # 5.15.5+
                 prefix => "perlbrew($i): ",
                 onoutput => sub {
