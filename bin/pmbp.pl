@@ -393,7 +393,10 @@ sub install_perlbrew () {
   save_url $PerlbrewInstallerURL
       => "$root_dir_name/local/install.perlbrew";
   local $ENV{PERLBREW_ROOT} = abs_path "$root_dir_name/local/perlbrew";
-  run_command ['sh', "$root_dir_name/local/install.perlbrew"];
+  run_command
+      ['sh', "$root_dir_name/local/install.perlbrew"],
+      envs => {PERLBREW_ROOT => (abs_path "$root_dir_name/local/perlbrew"),
+               PERLBREW_CONFIGURE_FLAGS => "-de -Duserelocatableinc ccflags=-fPIC"}; # 5.15.5+
   unless (-f "$root_dir_name/local/perlbrew/bin/perlbrew") {
     info_die "Can't install perlbrew";
   }
