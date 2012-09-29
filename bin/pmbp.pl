@@ -132,7 +132,7 @@ GetOptions (
     update install
     install-perl
     print-latest-perl-version
-    print-libs print-pmtar-dir-name
+    print-libs print-pmtar-dir-name print-perl-path
   )),
 ) or die "Usage: $0 options... (See source for details)\n";
 
@@ -422,6 +422,24 @@ sub install_perl () {
   } # PERLBREW
 } # install_perl
 
+{
+  my $EnvPath;
+  sub get_env_path () {
+    return $EnvPath ||= (abs_path "$root_dir_name/local/perlbrew/perls/perl-$perl_version/bin") . ':' . $ENV{PATH};
+  } # get_env_path
+
+  sub get_perl_path () {
+    local $ENV{PATH} = get_env_path;
+    my $output;
+    if (run_command ['which', 'perl'], onoutput => sub { $output = $_[0]; 3 }) {
+      if (defined $output and $output =~ m{^(\S+/perl)$}) {
+        return abs_path $1;
+      }
+    }
+    info_die "Can't get path to |perl|";
+  } # get_perl_path
+}
+
 ## ------ cpanm ------
 
 sub install_cpanm () {
@@ -533,7 +551,7 @@ sub cpanm ($$) {
 
     local $ENV{LANG} = 'C';
     local $ENV{PERL_CPANM_HOME} = $cpanm_home_dir_name;
-    local $ENV{PATH} = (abs_path "$root_dir_name/local/perlbrew/perls/perl-$perl_version/bin") . ':' . $ENV{PATH};
+    local $ENV{PATH} = get_env_path;
 
     ## mod_perl support (incomplete...)
     local $ENV{MP_APXS} = $ENV{MP_APXS} || (-f '/usr/sbin/apxs' ? '/usr/sbin/apxs' : undef);
@@ -1269,7 +1287,7 @@ sub get_module_version ($) {
   my $package = $module->package;
   return undef unless defined $package;
   
-  local $ENV{PATH} = (abs_path "$root_dir_name/local/perlbrew/perls/perl-$perl_version/bin") . ':' . $ENV{PATH};
+  local $ENV{PATH} = get_env_path;
   local $ENV{PERL5LIB} = join ':', (get_lib_dir_names);
   my $result;
   my $return = run_command
@@ -1471,6 +1489,8 @@ while (@command) {
   } elsif ($command->{type} eq 'print-module-version') {
     my $ver = get_module_version $command->{module};
     print $ver if defined $ver;
+  } elsif ($command->{type} eq 'print-perl-path') {
+    print get_perl_path;
   } elsif ($command->{type} eq 'print') {
     print $command->{string};
   } else {
@@ -1805,6 +1825,13 @@ command has no effect.
 This command should be invoked before any other command where
 possible.  In particular, installing modules before the
 C<--install-perl> command could make the installed module broken.
+
+=item --print-perl-path
+
+Print the absolute path to the C<perl> command to be used for
+installation and other commands.  Please note that this command should
+not be invoked before C<--install-perl> command as its value could be
+different between before and after the C<--install-perl> execution.
 
 =item --print-perl-core-version="Perl::Module::Name"
 
