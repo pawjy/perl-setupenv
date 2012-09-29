@@ -951,7 +951,7 @@ sub _scandeps_write_result ($$$;%) {
     }
     open my $file, '>', $file_name or die "$0: $file_name: $!";
     print $file encode_json $m;
-    $args{onadd}->($m) if $args{onadd};
+    $args{onadd}->($m->[0]) if $args{onadd};
   }
   $module_index->merge_modules ([map { $_->[0] } @$result]);
 } # _scandeps_write_result
