@@ -557,6 +557,17 @@ sub cpanm ($$) {
     local $ENV{MP_APXS} = $ENV{MP_APXS} || (-f '/usr/sbin/apxs' ? '/usr/sbin/apxs' : undef);
     local $ENV{MP_USE_MY_EXTUTILS_EMBED} = 1;
 
+    my $envs = {};
+
+    if (@module_arg and $module_arg[0] eq 'GD') {
+      ## <http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=636649>
+      $envs->{PERL_MM_OPT} = $ENV{PERL_MM_OPT};
+      $envs->{PERL_MM_OPT} = '' unless defined $envs->{PERL_MM_OPT};
+      $envs->{PERL_MM_OPT} .= ' -Wformat=0 ' . $Config{ccflags};
+    }
+
+    local %ENV = (%ENV, %$envs);
+
     my @cmd = ($perl, 
                @perl_option,
                $CPANMWrapper,
