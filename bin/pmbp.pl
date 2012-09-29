@@ -25,6 +25,7 @@ my @CPANMirror = qw(
 );
 my $Verbose = 0;
 my $PreserveInfoFile = 0;
+my $DumpInfoFileBeforeDie = $ENV{TRAVIS} || 0;
 my $ExecuteSystemPackageInstaller = $ENV{TRAVIS} || 0;
 
 my @Argument = @ARGV;
@@ -41,6 +42,7 @@ GetOptions (
   '--perl-version=s' => \$perl_version,
   '--verbose' => sub { $Verbose++ },
   '--preserve-info-file' => \$PreserveInfoFile,
+  '--dump-info-file-before-die' => \$DumpInfoFileBeforeDie,
   '--execute-system-package-installer' => \$ExecuteSystemPackageInstaller,
 
   '--install-module=s' => sub {
@@ -206,7 +208,20 @@ my $deps_txt_dir_name = $pmtar_dir_name . '/deps';
     $InfoNeedNewline--, print STDERR "\n" if $InfoNeedNewline;
     print $InfoFile $_[0] =~ /\n\z/ ? $_[0] : "$_[0]\n";
     print STDERR $_[0] =~ /\n\z/ ? $_[0] : "$_[0]\n";
-    die "$0 failed; See $InfoFileName for details\n";
+    close $InfoFile;
+    if ($DumpInfoFileBeforeDie) {
+      open my $info_file, '<', $InfoFileName
+          or die "$0: $InfoFileName: $!";
+      local $/ = undef;
+      print STDERR "\n";
+      print STDERR "========== Start - $InfoFileName ==========\n";
+      print STDERR <$info_file>;
+      print STDERR "========== End - $InfoFileName ==========\n";
+      print STDERR "\n";
+      die "$0 failed\n";
+    } else {
+      die "$0 failed; See $InfoFileName for details\n";
+    }
   } # info_die
 
   sub info_writing ($$$) {
@@ -236,7 +251,13 @@ sub copy_log_file ($$) {
   info_writing 0, "install log file", $log_file_name;
   open my $file, '<', $file_name or die "$0: $file_name: $!";
   local $/ = undef;
-  return <$file>;
+  my $content = <$file>;
+  info 5, "";
+  info 5, "========== Start - $log_file_name ==========";
+  info 5, $content;
+  info 5, "========== End - $log_file_name ==========";
+  info 5, "";
+  return $content;
 } # copy_log_file
 
 ## ------ Commands ------
@@ -662,7 +683,10 @@ sub cpanm ($$) {
       } elsif ($log =~ /^Expat.xs:.+?: error: expat.h: No such file or directory/m) {
         push @required_system,
             {name => 'expat-devel', debian_name => 'libexpat1-dev'};
-      } elsif (/^! Couldn\'t find module or a distribution (\S+) \(/) {
+      } elsif ($log =~ /^ERROR: proj library not found, where is cs2cs\?/m) {
+        push @required_system,
+            {name => 'proj-devel', debian_name => 'libproj-dev'};
+      } elsif ($log =~ /^! Couldn\'t find module or a distribution (\S+) \(/m) {
         my $mod = {
           'Date::Parse' => 'Date::Parse',
           'Test::Builder::Tester' => 'Test::Simple', # Test-Simple 0.98 < TBT 1.07
@@ -1811,6 +1835,23 @@ C<http://install.perlbrew.pl/>.
 
 Specify the number of parallel processes of perlbrew (used for the
 C<-j> option to the C<perlbrew>'s C<install> command).
+
+=item --preserve-info-file
+
+If the option is specified, the "info file", i.e. the log file to
+which progress and any output from underlying C<perlbrew> and C<cpanm>
+commands are written is I<not> deleted even when the processing by the
+script has ended successfully.  If the option is not specified, the
+file is deleted when the processing has been succeeded.
+
+=item --dump-info-file-before-die
+
+If the option is specified or the C<TRAVIS> environment variable is
+set to a true value, the content of the "info file" is printed to the
+standard error output before the script aborts due to some error.
+This option is particularly useful if you don't have access to the
+info file but you does have access to the output of the script
+(e.g. in some CI environment).
 
 =back
 
