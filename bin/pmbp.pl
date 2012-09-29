@@ -113,11 +113,16 @@ GetOptions (
   '--print-scanned-dependency=s' => sub {
     push @command, {type => 'print-scanned-dependency', dir_name => $_[1]};
   },
-  '--print-module-pathname=s' => sub {
-    my $module = PMBP::Module->new_from_module_arg ($_[1]);
-    push @command, {type => 'print-module-pathname',
-                    module => $module};
+  '--print=s' => sub {
+    push @command, {type => 'print', string => $_[1]};
   },
+  (map {
+    my $n = $_;
+    ("--$n=s" => sub {
+      my $module = PMBP::Module->new_from_module_arg ($_[1]);
+      push @command, {type => $n, module => $module};
+    });
+  } qw(print-module-pathname print-module-version)),
   (map {
     my $n = $_;
     ("--$n" => sub {
@@ -528,7 +533,7 @@ sub cpanm ($$) {
     local $ENV{LANG} = 'C';
     local $ENV{PERL_CPANM_HOME} = $cpanm_home_dir_name;
     local $ENV{PATH} = (abs_path "$root_dir_name/local/perlbrew/perls/perl-$perl_version/bin") . ':' . $ENV{PATH};
-    local $ENV{MP_APXS} = '/usr/sbin/apxs';
+    local $ENV{MP_APXS} = '/usr/sbin/apxs'; # XXX
     local $ENV{PERLBREW_CONFIGURE_FLAGS} = "-de -Duserelocatableinc ccflags=-fPIC"; # 5.15.5+
     my @cmd = ($perl, 
                @perl_option,
@@ -1241,6 +1246,27 @@ sub get_libs_txt_file_name () {
   return "$root_dir_name/local/config/perl/libs-$perl_version-$Config{archname}.txt";
 } # get_libs_txt_file_name
 
+## ------ Perl modules ------
+
+sub get_module_version ($) {
+  my $module = shift;
+  my $package = $module->package;
+  return undef unless defined $package;
+  
+  local $ENV{PATH} = (abs_path "$root_dir_name/local/perlbrew/perls/perl-$perl_version/bin") . ':' . $ENV{PATH};
+  local $ENV{PERL5LIB} = join ':', (get_lib_dir_names);
+  my $result;
+  my $return = run_command
+      [$perl, '-M' . $package, '-e', sprintf 'print $%s::VERSION', $package],
+      info_level => 3,
+      onoutput => sub {
+        $result = $_[0];
+        return 3;
+      };
+  return undef unless $return;
+  return $result;
+} # get_module_version
+
 ## ------ Cleanup ------
 
 sub destroy () {
@@ -1426,6 +1452,11 @@ while (@command) {
   } elsif ($command->{type} eq 'print-module-pathname') {
     my $pathname = $command->{module}->pathname;
     print $pathname if defined $pathname;
+  } elsif ($command->{type} eq 'print-module-version') {
+    my $ver = get_module_version $command->{module};
+    print $ver if defined $ver;
+  } elsif ($command->{type} eq 'print') {
+    print $command->{string};
   } else {
     die "Command |$command->{type}| is not defined";
   }
@@ -1767,6 +1798,20 @@ C<5.007003> is printed if the module specified is C<Encode>.  The
 L<Module::CoreList> module is automatically installed for the script
 if not available.  If the specified module is not part of core Perl
 distribution, nothing is printed.
+
+=item --print-module-version="Perl::Module::Name"
+
+Print the version of the specified module, if installed.  If the
+specified module is not installed, nothing is printed.
+
+The version of the module is extracted from the module by C<use>ing
+the module and then accessing to the C<$VERSION> variable in the
+package of the module.
+
+=item --print="string"
+
+Print the string.  Any string can be specified as the argument.  This
+command might be useful to combine multiple C<--print-*> commands.
 
 =back
 
