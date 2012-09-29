@@ -544,79 +544,80 @@ sub cpanm ($$) {
                               ? ' > ' . quotemeta $json_temp_file : '') .
                          ' < /dev/null')
         or die "Failed to execute @cmd - $!\n";
-    my $current_module_name = '';
     my $failed;
     my $remove_inc;
-    while (<$cmd>) {
-      if (/^! Couldn\'t find module or a distribution /) {
-        info 0, "cpanm($CPANMDepth/$redo): $_";
-      } else {
-        info 1, "cpanm($CPANMDepth/$redo): $_";
-      }
-      
-      if (/Can\'t locate (\S+\.pm) in \@INC/) {
+
+    my $scan_errors; $scan_errors = sub ($$) {
+      my ($level, $log) = @_;
+      if ($log =~ /Can\'t locate (\S+\.pm) in \@INC/m) {
         push @required_cpanm, PMBP::Module->new_from_pm_file_name ($1);
-      } elsif (/^Building version-\S+ \.\.\. FAIL/) {
+      } elsif ($log =~ /^Building version-\S+ \.\.\. FAIL/m) {
         push @required_install,
             map { PMBP::Module->new_from_package ($_) }
             qw{ExtUtils::MakeMaker ExtUtils::ParseXS};
-      } elsif (/^--> Working on (\S)+$/) {
-        $current_module_name = $1;
-      } elsif (/^skipping .+\/perl-/) {
+      } elsif ($log =~ /^skipping .+\/perl-/m) {
         if (@module_arg and $module_arg[0] eq 'Module::Metadata') {
           push @required_install, PMBP::Module->new_from_module_arg
               ('Module::Metadata=http://search.cpan.org/CPAN/authors/id/A/AP/APEIRON/Module-Metadata-1.000011.tar.gz');
           $failed = 1;
         }
-      } elsif (/^! (?:Installing|Configuring) (\S+) failed\. See (.+?) for details\.$/ or
-               /^! Configure failed for (\S+). See (.+?) for details\.$/) {
+      } elsif ($level == 1 and
+               ($log =~ /^! (?:Installing|Configuring) (\S+) failed\. See (.+?) for details\.$/m or
+                $log =~ /^! Configure failed for (\S+). See (.+?) for details\.$/m)) {
         my $log = copy_log_file $2 => $1;
-        if ($log =~ m{^make(?:\[[0-9]+\])?: .+?ExtUtils/xsubpp}m or
-            $log =~ m{^Can\'t open perl script "ExtUtils/xsubpp"}m) {
-          push @required_install,
-              map { PMBP::Module->new_from_package ($_) }
-              qw{ExtUtils::MakeMaker ExtUtils::ParseXS};
-        } elsif ($log =~ /^only nested arrays of non-refs are supported at .*?\/ExtUtils\/MakeMaker.pm/m) {
-          push @required_install, PMBP::Module->new_from_package ('ExtUtils::MakeMaker');
-        } elsif ($log =~ /^Can\'t locate (\S+\.pm) in \@INC/m) {
-          push @required_install, PMBP::Module->new_from_pm_file_name ($1);
-        } elsif ($log =~ /^String found where operator expected at Makefile.PL line [0-9]+, near \"([0-9A-Za-z_]+)/m) {
-          my $module_name = {
-              author_tests => 'Module::Install::AuthorTests',
-              readme_from => 'Module::Install::ReadmeFromPod',
-              readme_markdown_from => 'Module::Install::ReadmeMarkdownFromPod',
-          }->{$1};
-          push @required_install, PMBP::Module->new_from_package ($module_name)
-              if $module_name;
-        } elsif ($log =~ /^Bareword "([0-9A-Za-z_]+)" not allowed while "strict subs" in use at Makefile.PL /m) {
-          my $module_name = {
-              auto_set_repository => 'Module::Install::Repository',
-              githubmeta => 'Module::Install::GithubMeta',
-              use_test_base => 'Module::Install::TestBase',
-          }->{$1};
-          push @required_install, PMBP::Module->new_from_package ($module_name)
-              if $module_name;
-        } elsif ($log =~ /^Can\'t call method "load_all_extensions" on an undefined value at inc\/Module\/Install.pm /m) {
-          $remove_inc = 1;
-        } elsif ($log =~ /^(\S+) version \S+ required--this is only version \S+/m) {
-          push @required_install, PMBP::Module->new_from_package ($1);
-        } elsif ($log =~ /^cc: Internal error: Killed \(program cc1\)/m and
-                 @module_arg and $module_arg[0] eq 'Net::SSLeay') {
-          push @required_install, PMBP::Module->new_from_module_arg
-              ('Net::SSLeay~1.36=http://search.cpan.org/CPAN/authors/id/F/FL/FLORA/Net-SSLeay-1.36.tar.gz'); # XXX
-        } elsif ($log =~ /^Could not find gdlib-config in the search path. Please install libgd /m) {
-          push @required_system,
-              {name => 'gd-devel', debian_name => 'libgd2-xpm-dev'};
-        } elsif ($log =~ /^version.c:.+?: error: db.h: No such file or directory/m and
-                 $log =~ /^-> FAIL Installing DB_File failed/m) {
-          push @required_system,
-              {name => 'bdb-devel', redhat_name => 'db-devel',
-               debian_name => 'libdb-dev'};
-        } elsif ($log =~ /^Expat.xs:.+?: error: expat.h: No such file or directory/m) {
-          push @required_system,
-              {name => 'expat-devel', debian_name => 'libexpat1-dev'};
-        } # $log
+        $scan_errors->($level + 1, $log);
         $failed = 1;
+      } elsif ($log =~ m{^make(?:\[[0-9]+\])?: .+?ExtUtils/xsubpp}m or
+               $log =~ m{^Can\'t open perl script "ExtUtils/xsubpp"}m) {
+        push @required_install,
+            map { PMBP::Module->new_from_package ($_) }
+            qw{ExtUtils::MakeMaker ExtUtils::ParseXS};
+      } elsif ($log =~ /^only nested arrays of non-refs are supported at .*?\/ExtUtils\/MakeMaker.pm/m) {
+        push @required_install, PMBP::Module->new_from_package ('ExtUtils::MakeMaker');
+      } elsif ($log =~ /^Can\'t locate (\S+\.pm) in \@INC/m) {
+        push @required_install, PMBP::Module->new_from_pm_file_name ($1);
+      } elsif ($log =~ /^String found where operator expected at Makefile.PL line [0-9]+, near \"([0-9A-Za-z_]+)/m) {
+        my $module_name = {
+          author_tests => 'Module::Install::AuthorTests',
+          readme_from => 'Module::Install::ReadmeFromPod',
+          readme_markdown_from => 'Module::Install::ReadmeMarkdownFromPod',
+        }->{$1};
+        push @required_install, PMBP::Module->new_from_package ($module_name)
+            if $module_name;
+      } elsif ($log =~ /^Bareword "([0-9A-Za-z_]+)" not allowed while "strict subs" in use at Makefile.PL /m) {
+        my $module_name = {
+          auto_set_repository => 'Module::Install::Repository',
+          githubmeta => 'Module::Install::GithubMeta',
+          use_test_base => 'Module::Install::TestBase',
+        }->{$1};
+        push @required_install, PMBP::Module->new_from_package ($module_name)
+            if $module_name;
+      } elsif ($log =~ /^Can\'t call method "load_all_extensions" on an undefined value at inc\/Module\/Install.pm /m) {
+        $remove_inc = 1;
+      } elsif ($log =~ /^(\S+) version \S+ required--this is only version \S+/m) {
+        push @required_install, PMBP::Module->new_from_package ($1);
+      } elsif ($log =~ /^cc: Internal error: Killed \(program cc1\)/m and
+               @module_arg and $module_arg[0] eq 'Net::SSLeay') {
+        ## In some environment latest version of Net::SSLeay fails to
+        ## compile.  According to Google-sensei |nice| could resolve
+        ## the problem but I can't confirm it.  Downgrading to 1.36 or
+        ## earlier and installing outside of cpanm succeeded (so some
+        ## environment variable set by cpanm affects the building
+        ## process?).  (Therefore the line below is incomplete, but I
+        ## can no longer reproduce the problem.)
+        push @required_install, PMBP::Module->new_from_module_arg
+            ('Net::SSLeay~1.36=http://search.cpan.org/CPAN/authors/id/F/FL/FLORA/Net-SSLeay-1.36.tar.gz');
+      } elsif ($log =~ /^Could not find gdlib-config in the search path. Please install libgd /m) {
+        push @required_system,
+            {name => 'gd-devel', debian_name => 'libgd2-xpm-dev'};
+      } elsif ($log =~ /^version.c:.+?: error: db.h: No such file or directory/m and
+               $log =~ /^-> FAIL Installing DB_File failed/m) {
+        push @required_system,
+            {name => 'bdb-devel', redhat_name => 'db-devel',
+             debian_name => 'libdb-dev'};
+      } elsif ($log =~ /^Expat.xs:.+?: error: expat.h: No such file or directory/m) {
+        push @required_system,
+            {name => 'expat-devel', debian_name => 'libexpat1-dev'};
       } elsif (/^! Couldn\'t find module or a distribution (\S+) \(/) {
         my $mod = {
           'Date::Parse' => 'Date::Parse',
@@ -625,6 +626,15 @@ sub cpanm ($$) {
         push @required_install,
             PMBP::Module->new_from_package ($mod) if $mod;
       }
+    }; # $scan_errors
+
+    while (<$cmd>) {
+      if (/^! Couldn\'t find module or a distribution /) {
+        info 0, "cpanm($CPANMDepth/$redo): $_";
+      } else {
+        info 1, "cpanm($CPANMDepth/$redo): $_";
+      }
+      $scan_errors->(1, $_);
     }
     info 2, "cpanm done";
     (close $cmd and not $failed) or do {
