@@ -391,7 +391,8 @@ sub install_perl () {
                  '--notest',
                  '--as' => 'perl-' . $perl_version,
                  '-j' => $PerlbrewParallelCount],
-                envs => {PERLBREW_ROOT => abs_path "$root_dir_name/local/perlbrew"},
+                envs => {PERLBREW_ROOT => abs_path "$root_dir_name/local/perlbrew",
+                         PERLBREW_CONFIGURE_FLAGS => "-de -Duserelocatableinc ccflags=-fPIC"}, # 5.15.5+
                 prefix => "perlbrew($i): ",
                 onoutput => sub {
                   if ($_[0] =~ m{^  tail -f (.+?/perlbrew/build.perl-.+?\.log)}) {
@@ -533,8 +534,11 @@ sub cpanm ($$) {
     local $ENV{LANG} = 'C';
     local $ENV{PERL_CPANM_HOME} = $cpanm_home_dir_name;
     local $ENV{PATH} = (abs_path "$root_dir_name/local/perlbrew/perls/perl-$perl_version/bin") . ':' . $ENV{PATH};
-    local $ENV{MP_APXS} = '/usr/sbin/apxs'; # XXX
-    local $ENV{PERLBREW_CONFIGURE_FLAGS} = "-de -Duserelocatableinc ccflags=-fPIC"; # 5.15.5+
+
+    ## mod_perl support (incomplete...)
+    local $ENV{MP_APXS} = $ENV{MP_APXS} || (-f '/usr/sbin/apxs' ? '/usr/sbin/apxs' : undef);
+    local $ENV{MP_USE_MY_EXTUTILS_EMBED} = 1;
+
     my @cmd = ($perl, 
                @perl_option,
                $CPANMWrapper,
@@ -551,11 +555,19 @@ sub cpanm ($$) {
         or die "Failed to execute @cmd - $!\n";
     my $failed;
     my $remove_inc;
-
+    my $install_extutils_embed;
     my $scan_errors; $scan_errors = sub ($$) {
       my ($level, $log) = @_;
       if ($log =~ /Can\'t locate (\S+\.pm) in \@INC/m) {
-        push @required_cpanm, PMBP::Module->new_from_pm_file_name ($1);
+        my $mod = PMBP::Module->new_from_pm_file_name ($1);
+        if (defined $mod->package and $mod->package eq 'ExtUtils::Embed') {
+          $install_extutils_embed = 1;
+          $failed = 1;
+        } elsif ($level == 1) {
+          push @required_cpanm, $mod;
+        } else {
+          push @required_install, $mod;
+        }
       } elsif ($log =~ /^Building version-\S+ \.\.\. FAIL/m) {
         push @required_install,
             map { PMBP::Module->new_from_package ($_) }
@@ -579,8 +591,6 @@ sub cpanm ($$) {
             qw{ExtUtils::MakeMaker ExtUtils::ParseXS};
       } elsif ($log =~ /^only nested arrays of non-refs are supported at .*?\/ExtUtils\/MakeMaker.pm/m) {
         push @required_install, PMBP::Module->new_from_package ('ExtUtils::MakeMaker');
-      } elsif ($log =~ /^Can\'t locate (\S+\.pm) in \@INC/m) {
-        push @required_install, PMBP::Module->new_from_pm_file_name ($1);
       } elsif ($log =~ /^String found where operator expected at Makefile.PL line [0-9]+, near \"([0-9A-Za-z_]+)/m) {
         my $module_name = {
           author_tests => 'Module::Install::AuthorTests',
@@ -653,6 +663,12 @@ sub cpanm ($$) {
         }
         if (@required_system) {
           $redo = 1 if install_system_packages \@required_system;
+        }
+        if ($install_extutils_embed) {
+          my $pm = "$perl_lib_dir_name/lib/perl5/ExtUtils/Embed.pm";
+          save_url q<http://perl5.git.perl.org/perl.git/blob_plain/HEAD:/lib/ExtUtils/Embed.pm> => $pm;
+          undef $install_extutils_embed;
+          $redo = 1;
         }
         if (@required_cpanm) {
           local $CPANMDepth = $CPANMDepth + 1;
