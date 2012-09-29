@@ -388,15 +388,17 @@ sub get_latest_perl_version () {
   }
 } # get_latest_perl_version
 
+sub get_perlbrew_envs () {
+  return {PERLBREW_ROOT => (abs_path "$root_dir_name/local/perlbrew")}
+} # get_perlbrew_envs
+
 sub install_perlbrew () {
   return if -f "$root_dir_name/local/perlbrew/bin/perlbrew";
   save_url $PerlbrewInstallerURL
       => "$root_dir_name/local/install.perlbrew";
-  local $ENV{PERLBREW_ROOT} = abs_path "$root_dir_name/local/perlbrew";
   run_command
       ['sh', "$root_dir_name/local/install.perlbrew"],
-      envs => {PERLBREW_ROOT => (abs_path "$root_dir_name/local/perlbrew"),
-               PERLBREW_CONFIGURE_FLAGS => "-de -Duserelocatableinc ccflags=-fPIC"}; # 5.15.5+
+      envs => get_perlbrew_envs;
   unless (-f "$root_dir_name/local/perlbrew/bin/perlbrew") {
     info_die "Can't install perlbrew";
   }
@@ -415,8 +417,7 @@ sub install_perl () {
                  '--notest',
                  '--as' => 'perl-' . $perl_version,
                  '-j' => $PerlbrewParallelCount],
-                envs => {PERLBREW_ROOT => (abs_path "$root_dir_name/local/perlbrew"),
-                         PERLBREW_CONFIGURE_FLAGS => "-de -Duserelocatableinc ccflags=-fPIC"}, # 5.15.5+
+                envs => get_perlbrew_envs,
                 prefix => "perlbrew($i): ",
                 onoutput => sub {
                   if ($_[0] =~ m{^  tail -f (.+?/perlbrew/build.perl-.+?\.log)}) {
