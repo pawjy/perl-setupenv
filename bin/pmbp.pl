@@ -26,7 +26,7 @@ my @CPANMirror = qw(
   http://cpan.metacpan.org/
   http://backpan.perl.org/
 );
-my $Verbose = 0;
+my $Verbose = $ENV{PMBP_VERBOSE} || 0;
 my $PreserveInfoFile = 0;
 my $DumpInfoFileBeforeDie = $ENV{TRAVIS} || 0;
 my $ExecuteSystemPackageInstaller = $ENV{TRAVIS} || 0;
@@ -1368,11 +1368,11 @@ sub get_module_version ($) {
   my $package = $module->package;
   return undef unless defined $package;
   
-  local $ENV{PATH} = get_env_path;
-  local $ENV{PERL5LIB} = join ':', (get_lib_dir_names);
   my $result;
   my $return = run_command
       [$perl, '-M' . $package, '-e', sprintf 'print $%s::VERSION', $package],
+      envs => {PATH => get_env_path,
+               PERL5LIB => (join ':', (get_lib_dir_names))},
       info_level => 3,
       onoutput => sub {
         $result = $_[0];
@@ -1396,7 +1396,7 @@ my $module_index_file_name;
 my $pmpp_touched;
 my $start_time = time;
 open_info_file;
-info 6, '$ ' . join ' ', @Argument;
+info 6, '$ ' . join ' ', $0, @Argument;
 info 6, sprintf 'Perl %vd (%s)', $^V, $Config{archname};
 info 6, '@INC = ' . join ' ', @INC;
 
@@ -1910,6 +1910,27 @@ C<http://install.perlbrew.pl/>.
 Specify the number of parallel processes of perlbrew (used for the
 C<-j> option to the C<perlbrew>'s C<install> command).
 
+=back
+
+=head2 Options for progress and logs
+
+=over 4
+
+=item --verbose
+
+Increase the level of verbosity by one.  This option can be specified
+multiple times.  By default the verbosity level is zero (0).  In this
+default mode, only most useful progress messages are printed to the
+standard error output.  If the verbosity level is two (2) or greater,
+the C<cpanm> command is also invoked with the C<---verbose> option
+specifed.
+
+The verbosity level can also be specified as integer by the
+C<PMBP_VERBOSE> environment variable.  If both the environment
+variable and C<--verbose> option(s) are specified, the effective
+verbosity level is C<PMBP_VERBOSE> increased by the number of
+C<--verbose> options.
+
 =item --preserve-info-file
 
 If the option is specified, the "info file", i.e. the log file to
@@ -1981,6 +2002,23 @@ package of the module.
 
 Print the string.  Any string can be specified as the argument.  This
 command might be useful to combine multiple C<--print-*> commands.
+
+=back
+
+=head1 ENVIRONMENT VARIABLES
+
+=over 4
+
+=item PMBP_VERBOSE
+
+Set the default verbosity level.  See C<--verbose> option for details.
+
+=item TRAVIS
+
+The C<TRAVIS> environment variable affects log level.  Additionally,
+the C<TRAVIS> environment variable enables automatical installation of
+Debian apt packages, if required.  See description for related options
+for more information.
 
 =back
 
