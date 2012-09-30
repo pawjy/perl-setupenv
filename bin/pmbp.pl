@@ -405,8 +405,8 @@ sub load_json ($) {
   sub get_env_path ($) {
     my $perl_version = shift;
     my $perl_path = "$RootDirName/local/perlbrew/perls/perl-$perl_version/bin";
-    $perl_path = (abs_path $perl_path) || $perl_path;
-    return $EnvPath->{$perl_version} ||= $perl_path . ':' . $ENV{PATH};
+    my $pm_path = get_pm_dir_name ($perl_version) . "/bin";
+    return $EnvPath->{$perl_version} ||= "$pm_path:$perl_path:$ENV{PATH}";
   } # get_env_path
 
   sub which ($$) {
