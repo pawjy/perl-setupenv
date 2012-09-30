@@ -444,7 +444,10 @@ sub load_json ($) {
 
 sub init_perl_version ($) {
   my $perl_version = shift;
-  $perl_version ||= `@{[quotemeta $PerlCommand]} -e 'printf "%vd", \$^V'`;
+  unless ($perl_version) {
+    run_command [$PerlCommand, '-e', 'printf "%vd", $^V'],
+        onoutput => sub { $perl_version = $_[0]; 2 };
+  }
   $perl_version = get_latest_perl_version if $perl_version eq 'latest';
   $perl_version =~ s/^v//;
   unless ($perl_version =~ /\A5\.[0-9]+\.[0-9]+\z/) {
