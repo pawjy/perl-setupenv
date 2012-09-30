@@ -11,6 +11,9 @@ use Getopt::Long;
 my $perl = 'perl';
 my $perl_version;
 my $wget = 'wget';
+my $SudoCommand = 'sudo';
+my $AptGetCommand = 'apt-get';
+my $YumCommand = 'yum';
 my $PerlbrewInstallerURL = q<http://install.perlbrew.pl/>;
 my $PerlbrewParallelCount = 1;
 my $cpanm_url = q<http://cpanmin.us/>;
@@ -33,6 +36,9 @@ my @Argument = @ARGV;
 GetOptions (
   '--perl-command=s' => \$perl,
   '--wget-command=s' => \$wget,
+  '--sudo-command=s' => \$SudoCommand,
+  '--apt-get-command=s' => \$AptGetCommand,
+  '--yum-command=s' => \$YumCommand,
   '--perlbrew-installer-url=s' => \$PerlbrewInstallerURL,
   '--perlbrew-parallel-count=s' => \$PerlbrewParallelCount,
   '--cpanm-url=s' => \$cpanm_url,
@@ -138,6 +144,7 @@ GetOptions (
   )),
 ) or die "Usage: $0 options... (See source for details)\n";
 
+## Note that |run_command| function is not ready yet.
 $perl_version ||= `@{[quotemeta $perl]} -e 'printf "%vd", \$^V'`;
 $perl_version =~ s/^v//;
 unless ($perl_version =~ /\A5\.[0-9]+\.[0-9]+\z/) {
@@ -345,16 +352,16 @@ sub load_json ($) {
     my $packages = $_[0];
     return unless @$packages;
     
-    $HasAPT = `which apt-get` =~ /apt/ ? 1 : 0 if not defined $HasAPT;
-    $HasYUM = `which yum` =~ /yum/ ? 1 : 0 if not defined $HasYUM;
+    $HasAPT = which $AptGetCommand ? 1 : 0 if not defined $HasAPT;
+    $HasYUM = which $YumCommand ? 1 : 0 if not defined $HasYUM;
 
     my $cmd;
     my $env = '';
     if ($HasAPT) {
-      $cmd = ['sudo', '--', 'apt-get', 'install', '-y', map { $_->{debian_name} || $_->{name} } @$packages];
+      $cmd = [$SudoCommand, '--', $AptGetCommand, 'install', '-y', map { $_->{debian_name} || $_->{name} } @$packages];
       $env = 'DEBIAN_FRONTEND="noninteractive" ';
     } elsif ($HasYUM) {
-      $cmd = ['sudo', '--', 'yum', 'install', '-y', map { $_->{redhat_name} || $_->{name} } @$packages];
+      $cmd = [$SudoCommand, '--', $YumCommand, 'install', '-y', map { $_->{redhat_name} || $_->{name} } @$packages];
     }
 
     if ($cmd) {
@@ -362,9 +369,11 @@ sub load_json ($) {
         info 0, "Execute following command and retry:";
         info 0, '  ' . $env . '$ ' . join ' ', @$cmd;
       } else {
-        info 0, $env . '$ ' . join ' ', @$cmd;
-        local $ENV{DEBIAN_FRONTEND} = "noninteractive";
-        return run_command $cmd, info_level => 0, accept_input => -t STDIN;
+        return run_command $cmd,
+            info_level => 0,
+            info_command_level => 0,
+            envs => {DEBIAN_FRONTEND => "noninteractive"},
+            accept_input => -t STDIN;
       }
     } else {
       info 0, "Install following packages and retry:";
@@ -372,6 +381,26 @@ sub load_json ($) {
     }
     return 0;
   } # install_system_packages
+}
+
+{
+  my $EnvPath;
+  sub get_env_path () {
+    return $EnvPath ||= (abs_path "$root_dir_name/local/perlbrew/perls/perl-$perl_version/bin") . ':' . $ENV{PATH};
+  } # get_env_path
+
+  sub which ($) {
+    my $command = shift;
+    my $output;
+    if (run_command ['which', $command],
+            envs => {PATH => get_env_path},
+            onoutput => sub { $output = $_[0]; 3 }) {
+      if (defined $output and $output =~ m{^(\S*\Q$command\E)$}) {
+        return abs_path $1;
+      }
+    }
+    return undef;
+  } # which
 }
 
 ## ------ Installing Perl ------
@@ -452,23 +481,9 @@ sub install_perl () {
   } # PERLBREW
 } # install_perl
 
-{
-  my $EnvPath;
-  sub get_env_path () {
-    return $EnvPath ||= (abs_path "$root_dir_name/local/perlbrew/perls/perl-$perl_version/bin") . ':' . $ENV{PATH};
-  } # get_env_path
-
-  sub get_perl_path () {
-    local $ENV{PATH} = get_env_path;
-    my $output;
-    if (run_command ['which', $perl], onoutput => sub { $output = $_[0]; 3 }) {
-      if (defined $output and $output =~ m{^(\S+/perl)$}) {
-        return abs_path $1;
-      }
-    }
-    info_die "Can't get path to |perl|";
-  } # get_perl_path
-}
+sub get_perl_path () {
+  return which $perl || info_die "Can't get path to |perl|";
+} # get_perl_path
 
 ## ------ cpanm ------
 
@@ -1869,6 +1884,21 @@ standard input of the script is connected to tty.  Otherwise the
 C<sudo> command would fail (unless your password is the empty string
 or you are the root).  Installer are executed with options to disable
 any prompt.
+
+=item --sudo-command="path/to/sudo"
+
+Specify the path to the C<sudo> command.  If this option is not
+specified, the C<sudo> command in the default search path is used.
+
+=item --apt-get-command="path/to/apt-get"
+
+Specify the path to the C<apt-get> command.  If this option is not
+specified, the C<apt-get> command in the default search path is used.
+
+=item --yum-command="path/to/yum"
+
+Specify the path to the C<yum> command.  If this option is not
+specified, the C<yum> command in the default search path is used.
 
 =item --perlbrew-installer-url="URL"
 
