@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 echo "1..2"
 basedir=`dirname $0`/../..
 pmbp=$basedir/bin/pmbp.pl
@@ -15,7 +15,11 @@ perl $pmbp --root-dir-name "$tempdir" \
     --install \
     --create-perl-command-shortcut hogehoge && echo "ok 1"
 
-PERL5LIB="`perl $pmbp --root-dir-name \"$tempdir\" --print-libs`" \
-perl -MPath::Class -e "(\$Path::Class::VERSION && `$tempdir/hogehoge` eq \$Path::Class::VERSION) ? print qq{ok 2\n} : print qq{not ok 2\n}"
+$tempdir/hogehoge > "$tempdir/result1"
+
+perl $pmbp --root-dir-name \"$tempdir\" --print-libs > "$tempdir/libs.txt"
+
+PERL5LIB=`cat $tempdir/libs.txt` \
+perl -MPath::Class -e "(\$Path::Class::VERSION && <> eq \$Path::Class::VERSION) ? print qq{ok 2\n} : print qq{not ok 2\n}" "$tempdir/result1"
 
 rm -fr $tempdir
