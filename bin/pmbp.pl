@@ -8,19 +8,19 @@ use File::Temp ();
 use File::Spec ();
 use Getopt::Long;
 
-my $perl = 'perl';
-my $specified_perl_version;
-my $wget = 'wget';
+my $PerlCommand = 'perl';
+my $SpecifiedPerlVersion;
+my $WgetCommand = 'wget';
 my $SudoCommand = 'sudo';
 my $AptGetCommand = 'apt-get';
 my $YumCommand = 'yum';
 my $PerlbrewInstallerURL = q<http://install.perlbrew.pl/>;
 my $PerlbrewParallelCount = 1;
-my $cpanm_url = q<http://cpanmin.us/>;
-my $root_dir_name = '.';
-my $pmtar_dir_name;
-my $pmpp_dir_name;
-my @command;
+my $CPANMURL = q<http://cpanmin.us/>;
+my $RootDirName = '.';
+my $PMTarDirName;
+my $PMPPDirName;
+my @Command;
 my @CPANMirror = qw(
   http://search.cpan.org/CPAN
   http://cpan.metacpan.org/
@@ -34,18 +34,18 @@ my $ExecuteSystemPackageInstaller = $ENV{TRAVIS} || 0;
 my @Argument = @ARGV;
 
 GetOptions (
-  '--perl-command=s' => \$perl,
-  '--wget-command=s' => \$wget,
+  '--perl-command=s' => \$PerlCommand,
+  '--wget-command=s' => \$WgetCommand,
   '--sudo-command=s' => \$SudoCommand,
   '--apt-get-command=s' => \$AptGetCommand,
   '--yum-command=s' => \$YumCommand,
   '--perlbrew-installer-url=s' => \$PerlbrewInstallerURL,
   '--perlbrew-parallel-count=s' => \$PerlbrewParallelCount,
-  '--cpanm-url=s' => \$cpanm_url,
-  '--root-dir-name=s' => \$root_dir_name,
-  '--pmtar-dir-name=s' => \$pmtar_dir_name,
-  '--pmpp-dir-name=s' => \$pmpp_dir_name,
-  '--perl-version=s' => \$specified_perl_version,
+  '--cpanm-url=s' => \$CPANMURL,
+  '--root-dir-name=s' => \$RootDirName,
+  '--pmtar-dir-name=s' => \$PMTarDirName,
+  '--pmpp-dir-name=s' => \$PMPPDirName,
+  '--perl-version=s' => \$SpecifiedPerlVersion,
   '--verbose' => sub { $Verbose++ },
   '--preserve-info-file' => \$PreserveInfoFile,
   '--dump-info-file-before-die' => \$DumpInfoFileBeforeDie,
@@ -53,88 +53,88 @@ GetOptions (
 
   '--install-module=s' => sub {
     my $module = PMBP::Module->new_from_module_arg ($_[1]);
-    push @command, {type => 'install-module', module => $module};
+    push @Command, {type => 'install-module', module => $module};
   },
   '--install-modules-by-file-name=s' => sub {
-    push @command, {type => 'install-modules-by-list', file_name => $_[1]};
+    push @Command, {type => 'install-modules-by-list', file_name => $_[1]};
   },
   '--install-modules-by-list' => sub {
-    push @command, {type => 'install-modules-by-list'};
+    push @Command, {type => 'install-modules-by-list'};
   },
   '--install-to-pmpp=s' => sub {
     my $module = PMBP::Module->new_from_module_arg ($_[1]);
-    push @command, {type => 'install-to-pmpp', module => $module};
+    push @Command, {type => 'install-to-pmpp', module => $module};
   },
   '--install-by-pmpp' => sub {
-    push @command, {type => 'install-by-pmpp'};
+    push @Command, {type => 'install-by-pmpp'};
   },
   '--update-pmpp-by-file-name=s' => sub {
-    push @command, {type => 'update-pmpp-by-list', file_name => $_[1]};
+    push @Command, {type => 'update-pmpp-by-list', file_name => $_[1]};
   },
   '--update-pmpp-by-list' => sub {
-    push @command, {type => 'update-pmpp-by-list'};
+    push @Command, {type => 'update-pmpp-by-list'};
   },
   '--scandeps=s' => sub {
     my $module = PMBP::Module->new_from_module_arg ($_[1]);
-    push @command, {type => 'scandeps', module => $module};
+    push @Command, {type => 'scandeps', module => $module};
   },
   '--select-module=s' => sub {
     my $module = PMBP::Module->new_from_module_arg ($_[1]);
-    push @command, {type => 'select-module', module => $module};
+    push @Command, {type => 'select-module', module => $module};
   },
   '--select-modules-by-file-name=s' => sub {
-    push @command, {type => 'select-modules-by-list', file_name => $_[1]};
+    push @Command, {type => 'select-modules-by-list', file_name => $_[1]};
   },
   '--select-modules-by-list' => sub {
-    push @command, {type => 'select-modules-by-list'};
+    push @Command, {type => 'select-modules-by-list'};
   },
   '--read-module-index=s' => sub {
-    push @command, {type => 'read-module-index', file_name => $_[1]};
+    push @Command, {type => 'read-module-index', file_name => $_[1]};
   },
   '--read-carton-lock=s' => sub {
-    push @command, {type => 'read-carton-lock', file_name => $_[1]};
+    push @Command, {type => 'read-carton-lock', file_name => $_[1]};
   },
   '--write-module-index=s' => sub {
-    push @command, {type => 'write-module-index', file_name => $_[1]};
+    push @Command, {type => 'write-module-index', file_name => $_[1]};
   },
   '--write-pmb-install-list=s' => sub {
-    push @command, {type => 'write-pmb-install-list', file_name => $_[1]};
+    push @Command, {type => 'write-pmb-install-list', file_name => $_[1]};
   },
   '--write-install-module-index=s' => sub {
-    push @command, {type => 'write-install-module-index', file_name => $_[1]};
+    push @Command, {type => 'write-install-module-index', file_name => $_[1]};
   },
   '--write-libs-txt=s' => sub {
-    push @command, {type => 'write-libs-txt', file_name => $_[1]};
+    push @Command, {type => 'write-libs-txt', file_name => $_[1]};
   },
   '--write-makefile-pl=s' => sub {
-    push @command, {type => 'write-makefile-pl', file_name => $_[1]};
+    push @Command, {type => 'write-makefile-pl', file_name => $_[1]};
   },
   '--print-perl-core-version=s' => sub {
-    push @command, {type => 'print-perl-core-version', module_name => $_[1]};
+    push @Command, {type => 'print-perl-core-version', module_name => $_[1]};
   },
   '--set-module-index=s' => sub {
-    push @command, {type => 'set-module-index', file_name => $_[1]};
+    push @Command, {type => 'set-module-index', file_name => $_[1]};
   },
   '--prepend-mirror=s' => sub {
-    push @command, {type => 'prepend-mirror', url => $_[1]};
+    push @Command, {type => 'prepend-mirror', url => $_[1]};
   },
   '--print-scanned-dependency=s' => sub {
-    push @command, {type => 'print-scanned-dependency', dir_name => $_[1]};
+    push @Command, {type => 'print-scanned-dependency', dir_name => $_[1]};
   },
   '--print=s' => sub {
-    push @command, {type => 'print', string => $_[1]};
+    push @Command, {type => 'print', string => $_[1]};
   },
   (map {
     my $n = $_;
     ("--$n=s" => sub {
       my $module = PMBP::Module->new_from_module_arg ($_[1]);
-      push @command, {type => $n, module => $module};
+      push @Command, {type => $n, module => $module};
     });
   } qw(print-module-pathname print-module-version)),
   (map {
     my $n = $_;
     ("--$n" => sub {
-      push @command, {type => $n};
+      push @Command, {type => $n};
     });
   } qw(
     update install
@@ -146,27 +146,24 @@ GetOptions (
 
 # {root}
 sub make_path ($);
-make_path ($root_dir_name);
-$root_dir_name = abs_path $root_dir_name;
+make_path ($RootDirName);
+$RootDirName = abs_path $RootDirName;
 
 # {root}/local/cpanm
-my $CPANMDirName = "$root_dir_name/local/cpanm";
+my $CPANMDirName = "$RootDirName/local/cpanm";
 my $CPANMHomeDirName = "$CPANMDirName/tmp";
 my $CPANMCommand = "$CPANMDirName/bin/cpanm";
 my $CPANMWrapper = "$CPANMDirName/bin/cpanmwrapper";
 
 # {root}/local/pmbp
-my $PMBPDirName = "$root_dir_name/local/pmbp";
+my $PMBPDirName = "$RootDirName/local/pmbp";
 my $PMBPLogDirName = "$PMBPDirName/logs";
 
 # {root}/deps
-$pmtar_dir_name ||= $root_dir_name . '/deps/pmtar';
-$pmpp_dir_name ||= $root_dir_name . '/deps/pmpp';
-make_path $pmtar_dir_name;
-make_path $pmpp_dir_name;
-my $packages_details_file_name = $pmtar_dir_name . '/modules/02packages.details.txt';
-my $install_json_dir_name = $pmtar_dir_name . '/meta';
-my $deps_json_dir_name = $pmtar_dir_name . '/deps';
+$PMTarDirName ||= $RootDirName . '/deps/pmtar';
+$PMPPDirName ||= $RootDirName . '/deps/pmpp';
+make_path $PMTarDirName;
+my $DepsJSONDirName = "$PMTarDirName/deps";
 
 ## ------ Logging ------
 
@@ -239,7 +236,7 @@ my $deps_json_dir_name = $pmtar_dir_name . '/deps';
   
   sub init_pmbp () {
     $PMBPLibDirName = sprintf '%s/local/perl-%vd/pmbp/self',
-        $root_dir_name, $^V;
+        $RootDirName, $^V;
     unshift @INC,
         "$PMBPLibDirName/lib/perl5/$Config{archname}",
         "$PMBPLibDirName/lib/perl5";
@@ -319,7 +316,7 @@ sub run_command ($;%) {
 sub _save_url {
   mkdir_for_file $_[1];
   info 1, "Downloading <$_[0]>...";
-  run_command [$wget, '-O', $_[1], $_[0]], info_level => 2;
+  run_command [$WgetCommand, '-O', $_[1], $_[0]], info_level => 2;
   return -f $_[1];
 } # _save_url
 
@@ -407,7 +404,7 @@ sub load_json ($) {
   my $EnvPath = {};
   sub get_env_path ($) {
     my $perl_version = shift;
-    return $EnvPath->{$perl_version} ||= (abs_path "$root_dir_name/local/perlbrew/perls/perl-$perl_version/bin") . ':' . $ENV{PATH};
+    return $EnvPath->{$perl_version} ||= (abs_path "$RootDirName/local/perlbrew/perls/perl-$perl_version/bin") . ':' . $ENV{PATH};
   } # get_env_path
 
   sub which ($$) {
@@ -447,7 +444,7 @@ sub load_json ($) {
 
 sub init_perl_version ($) {
   my $perl_version = shift;
-  $perl_version ||= `@{[quotemeta $perl]} -e 'printf "%vd", \$^V'`;
+  $perl_version ||= `@{[quotemeta $PerlCommand]} -e 'printf "%vd", \$^V'`;
   $perl_version = get_latest_perl_version if $perl_version eq 'latest';
   $perl_version =~ s/^v//;
   unless ($perl_version =~ /\A5\.[0-9]+\.[0-9]+\z/) {
@@ -457,17 +454,17 @@ sub init_perl_version ($) {
 } # init_perl_version
 
 sub get_perlbrew_envs () {
-  return {PERLBREW_ROOT => (abs_path "$root_dir_name/local/perlbrew")}
+  return {PERLBREW_ROOT => (abs_path "$RootDirName/local/perlbrew")}
 } # get_perlbrew_envs
 
 sub install_perlbrew () {
-  return if -f "$root_dir_name/local/perlbrew/bin/perlbrew";
+  return if -f "$RootDirName/local/perlbrew/bin/perlbrew";
   save_url $PerlbrewInstallerURL
-      => "$root_dir_name/local/install.perlbrew";
+      => "$RootDirName/local/install.perlbrew";
   run_command
-      ['sh', "$root_dir_name/local/install.perlbrew"],
+      ['sh', "$RootDirName/local/install.perlbrew"],
       envs => get_perlbrew_envs;
-  unless (-f "$root_dir_name/local/perlbrew/bin/perlbrew") {
+  unless (-f "$RootDirName/local/perlbrew/bin/perlbrew") {
     info_die "Can't install perlbrew";
   }
 } # install_perlbrew
@@ -480,7 +477,7 @@ sub install_perl ($) {
     $i++;
     my $log_file_name;
     my $redo;
-    run_command ["$root_dir_name/local/perlbrew/bin/perlbrew",
+    run_command ["$RootDirName/local/perlbrew/bin/perlbrew",
                  'install',
                  'perl-' . $perl_version,
                  '--notest',
@@ -494,8 +491,8 @@ sub install_perl ($) {
                     $log_file_name =~ s{^~/}{$ENV{HOME}/} if defined $ENV{HOME};
                     return 0;
                   } elsif ($_[0] =~ /^It is possible that the compressed file\(s\) have become corrupted/) {
-                    remove_tree "$root_dir_name/local/perlbrew/dists";
-                    make_path "$root_dir_name/local/perlbrew/dists";
+                    remove_tree "$RootDirName/local/perlbrew/dists";
+                    make_path "$RootDirName/local/perlbrew/dists";
                     $redo = 1;
                     return 1;
                   } else {
@@ -505,7 +502,7 @@ sub install_perl ($) {
     
     copy_log_file $log_file_name => "perl-$perl_version"
         if defined $log_file_name;
-    unless (-f "$root_dir_name/local/perlbrew/perls/perl-$perl_version/bin/perl") {
+    unless (-f "$RootDirName/local/perlbrew/perls/perl-$perl_version/bin/perl") {
       if ($redo and $i < 10) {
         info 0, "perlbrew($i): Failed to install perl-$perl_version; retrying...";
         redo PERLBREW;
@@ -518,7 +515,7 @@ sub install_perl ($) {
 
 sub get_perl_path ($) {
   my $perl_version = shift;
-  return which ($perl, $perl_version)
+  return which ($PerlCommand, $perl_version)
       || info_die "Can't get path to |perl|";
 } # get_perl_path
 
@@ -526,7 +523,7 @@ sub get_perl_path ($) {
 
 sub install_cpanm () {
   return if -f $CPANMCommand;
-  save_url $cpanm_url => $CPANMCommand;
+  save_url $CPANMURL => $CPANMCommand;
 } # install_cpanm
 
 sub install_cpanm_wrapper () {
@@ -600,7 +597,7 @@ sub cpanm ($$) {
     my @required_install2;
     my @required_system;
 
-    my $cpanm_lib_dir_name = "$root_dir_name/local/perl-$args->{perl_version}/cpanm";
+    my $cpanm_lib_dir_name = "$RootDirName/local/perl-$args->{perl_version}/cpanm";
     my @perl_option = ("-I$cpanm_lib_dir_name/lib/perl5/$Config{archname}",
                        "-I$cpanm_lib_dir_name/lib/perl5");
 
@@ -615,14 +612,14 @@ sub cpanm ($$) {
     my @module_arg = map {
       {'GD::Image' => 'GD'}->{$_} || $_;
     } map {
-      ref $_ ? $_->as_cpanm_arg ($pmtar_dir_name) : $_;
+      ref $_ ? $_->as_cpanm_arg ($PMTarDirName) : $_;
     } @$modules;
     if (grep { not m{/misc/[^/]+\.tar\.gz$} } @module_arg) {
-      push @option, '--save-dists' => $pmtar_dir_name;
+      push @option, '--save-dists' => $PMTarDirName;
     }
 
     push @option,
-        '--mirror' => (abs_path $pmtar_dir_name),
+        '--mirror' => (abs_path $PMTarDirName),
         map { ('--mirror' => $_) } @CPANMirror;
 
     if (defined $args->{module_index_file_name}) {
@@ -747,7 +744,7 @@ sub cpanm ($$) {
       }
     }; # $scan_errors
 
-    my @cmd = ($args->{perl_command} || $perl, 
+    my @cmd = ($args->{perl_command} || $PerlCommand, 
                @perl_option,
                $CPANMWrapper,
                @option,
@@ -883,7 +880,7 @@ sub get_local_copy_if_necessary ($) {
   my $url = $module->url;
 
   if (defined $path and defined $url) {
-    $path = "$pmtar_dir_name/authors/id/$path";
+    $path = "$PMTarDirName/authors/id/$path";
     if (not -f $path) {
       save_url $url => $path;
     }
@@ -893,9 +890,9 @@ sub get_local_copy_if_necessary ($) {
 sub save_by_pathname ($$) {
   my ($pathname => $module) = @_;
 
-  my $dest_file_name = "$pmtar_dir_name/authors/id/$pathname";
+  my $dest_file_name = "$PMTarDirName/authors/id/$pathname";
   if (-f $dest_file_name) {
-    $module->{url} = 'file://' . abs_path "$pmtar_dir_name/authors/id/$pathname";
+    $module->{url} = 'file://' . abs_path "$PMTarDirName/authors/id/$pathname";
     $module->{pathname} = $pathname;
     return 1;
   }
@@ -926,20 +923,22 @@ sub save_by_pathname ($$) {
 ## ------ pmtar and pmpp repositories ------
 
 sub init_pmtar_git () {
-  return if -f "$pmtar_dir_name/.git/config";
-  run_command ['sh', '-c', "cd \Q$pmtar_dir_name\E && git init"];
+  return if -f "$PMTarDirName/.git/config";
+  run_command ['sh', '-c', "cd \Q$PMTarDirName\E && git init"];
 } # init_pmtar_git
 
 sub init_pmpp_git () {
-  return if -f "$pmpp_dir_name/.git/config";
-  run_command ['sh', '-c', "cd \Q$pmpp_dir_name\E && git init"];
+  return if -f "$PMPPDirName/.git/config";
+  make_path $PMPPDirName;
+  run_command ['sh', '-c', "cd \Q$PMPPDirName\E && git init"];
 } # init_pmpp_git
 
 sub copy_pmpp_modules ($) {
   my $perl_version = shift;
+  return unless -d $PMPPDirName;
   delete_pmpp_arch_dir ();
   require File::Find;
-  my $from_base_path = abs_path $pmpp_dir_name;
+  my $from_base_path = abs_path $PMPPDirName;
   my $to_base_path = get_pm_dir_name ($perl_version);
   make_path $to_base_path;
   $to_base_path = abs_path $to_base_path;
@@ -956,28 +955,28 @@ sub copy_pmpp_modules ($) {
       make_path $dest;
       chmod ((stat $_)[2], $dest);
     }
-  }, $_) for grep { -d $_ } "$pmpp_dir_name/bin", "$pmpp_dir_name/lib";
+  }, $_) for grep { -d $_ } "$PMPPDirName/bin", "$PMPPDirName/lib";
 } # copy_pmpp_modules
 
 sub delete_pmpp_arch_dir () {
-  info 1, "rm -fr $pmpp_dir_name/lib/perl5/$Config{archname}";
-  remove_tree "$pmpp_dir_name/lib/perl5/$Config{archname}";
+  info 1, "rm -fr $PMPPDirName/lib/perl5/$Config{archname}";
+  remove_tree "$PMPPDirName/lib/perl5/$Config{archname}";
 } # delete_pmpp_arch_dir
 
 ## ------ Local Perl module directories ------
 
 sub get_pm_dir_name ($) {
   my $perl_version = shift;
-  return "$root_dir_name/local/perl-$perl_version/pm";
+  return "$RootDirName/local/perl-$perl_version/pm";
 } # get_pm_dir_name
 
 sub get_lib_dir_names ($) {
   my $perl_version = shift;
   my $pm_dir_name = get_pm_dir_name ($perl_version);
   my @lib = grep { defined } map { abs_path $_ } map { glob $_ }
-      qq{$root_dir_name/lib},
-      qq{$root_dir_name/modules/*/lib},
-      qq{$root_dir_name/local/submodules/*/lib},
+      qq{$RootDirName/lib},
+      qq{$RootDirName/modules/*/lib},
+      qq{$RootDirName/local/submodules/*/lib},
       qq{$pm_dir_name/lib/perl5/$Config{archname}},
       qq{$pm_dir_name/lib/perl5};
   return @lib;
@@ -985,7 +984,7 @@ sub get_lib_dir_names ($) {
 
 sub get_libs_txt_file_name ($) {
   my $perl_version = shift;
-  return "$root_dir_name/local/config/perl/libs-$perl_version-$Config{archname}.txt";
+  return "$RootDirName/local/config/perl/libs-$perl_version-$Config{archname}.txt";
 } # get_libs_txt_file_name
 
 ## ------ Perl module dependency detection ------
@@ -998,7 +997,7 @@ sub scandeps ($$$;%) {
     if ($module_in_index) {
       my $name = $module_in_index->distvname;
       if (defined $name) {
-        my $json_file_name = "$deps_json_dir_name/$name.json";
+        my $json_file_name = "$DepsJSONDirName/$name.json";
         return if -f $json_file_name;
       }
     }
@@ -1056,10 +1055,10 @@ sub _scandeps_write_result ($$$;%) {
     } @$result;
   }
 
-  make_path $deps_json_dir_name;
+  make_path $DepsJSONDirName;
   for my $m (@$result) {
     next unless defined $m->[0]->distvname;
-    my $file_name = $deps_json_dir_name . '/' . $m->[0]->distvname . '.json';
+    my $file_name = $DepsJSONDirName . '/' . $m->[0]->distvname . '.json';
     info_writing 1, "json file", $file_name;
     if (-f $file_name) {
       my $json = load_json $file_name;
@@ -1090,7 +1089,7 @@ sub load_deps ($$) {
     my $dist = $module->distvname;
     next if not defined $dist;
     next if $done{$dist}++;
-    my $json_file_name = "$deps_json_dir_name/$dist.json";
+    my $json_file_name = "$DepsJSONDirName/$dist.json";
     unless (-f $json_file_name) {
       info 2, "$json_file_name not found";
       return undef;
@@ -1408,7 +1407,7 @@ sub install_module ($$;%) {
   my ($perl_version, $module, %args) = @_;
   get_local_copy_if_necessary $module;
   cpanm {perl_version => $perl_version,
-         perl_lib_dir_name => $args{pmpp} ? $pmpp_dir_name : get_pm_dir_name ($perl_version),
+         perl_lib_dir_name => $args{pmpp} ? $PMPPDirName : get_pm_dir_name ($perl_version),
          module_index_file_name => $args{module_index_file_name}},
         [$module];
 } # install_module
@@ -1420,7 +1419,8 @@ sub get_module_version ($$) {
   
   my $result;
   my $return = run_command
-      [$perl, '-M' . $package, '-e', sprintf 'print $%s::VERSION', $package],
+      [$PerlCommand, '-M' . $package,
+       '-e', sprintf 'print $%s::VERSION', $package],
       envs => {PATH => get_env_path ($perl_version),
                PERL5LIB => (join ':', (get_lib_dir_names ($perl_version)))},
       info_level => 3,
@@ -1450,15 +1450,15 @@ init_pmbp;
 info 6, '$ ' . join ' ', $0, @Argument;
 info 6, sprintf '%s %vd (%s)', $^X, $^V, $Config{archname};
 info 6, '@INC = ' . join ' ', @INC;
-my $perl_version = init_perl_version ($specified_perl_version);
+my $perl_version = init_perl_version ($SpecifiedPerlVersion);
 info 1, "Target Perl version: $perl_version";
 
-while (@command) {
-  my $command = shift @command;
+while (@Command) {
+  my $command = shift @Command;
   if ($command->{type} eq 'update') {
-    my $module_list_file_name = "$root_dir_name/deps/pmtar/modules/index.txt";
-    my $pmb_install_file_name = "$root_dir_name/config/perl/pmb-install.txt";
-    unshift @command,
+    my $module_list_file_name = "$RootDirName/deps/pmtar/modules/index.txt";
+    my $pmb_install_file_name = "$RootDirName/config/perl/pmb-install.txt";
+    unshift @Command,
         {type => 'read-module-index',
          file_name => $module_list_file_name},
         {type => 'set-module-index'},
@@ -1476,9 +1476,9 @@ while (@command) {
         {type => 'write-module-index',
          file_name => $module_list_file_name};
   } elsif ($command->{type} eq 'install') {
-    my $module_list_file_name = "$root_dir_name/deps/pmtar/modules/index.txt";
-    my $pmb_install_file_name = "$root_dir_name/config/perl/pmb-install.txt";
-    unshift @command,
+    my $module_list_file_name = "$RootDirName/deps/pmtar/modules/index.txt";
+    my $pmb_install_file_name = "$RootDirName/config/perl/pmb-install.txt";
+    unshift @Command,
         {type => 'read-module-index',
          file_name => $module_list_file_name},
         {type => 'set-module-index',
@@ -1507,7 +1507,7 @@ while (@command) {
     if (defined $command->{file_name}) {
       read_pmb_install_list $command->{file_name} => $module_index;
     } else {
-      read_install_list $root_dir_name => $module_index, $perl_version,
+      read_install_list $RootDirName => $module_index, $perl_version,
           recursive => 1;
     }
     for ($module_index->to_list) {
@@ -1528,7 +1528,7 @@ while (@command) {
     if (defined $command->{file_name}) {
       read_pmb_install_list $command->{file_name} => $module_index;
     } else {
-      read_install_list $root_dir_name => $module_index, $perl_version,
+      read_install_list $RootDirName => $module_index, $perl_version,
           recursive => 1;
     }
     for ($module_index->to_list) {
@@ -1552,7 +1552,7 @@ while (@command) {
     if (defined $command->{file_name}) {
       read_pmb_install_list $command->{file_name} => $module_index;
     } else {
-      read_install_list $root_dir_name => $module_index, $perl_version,
+      read_install_list $RootDirName => $module_index, $perl_version,
           recursive => 1;
     }
     select_module $global_module_index =>
@@ -1580,7 +1580,7 @@ while (@command) {
     print $file join ':', (get_lib_dir_names ($perl_version));
   } elsif ($command->{type} eq 'create-libs-txt-symlink') {
     my $real_name = get_libs_txt_file_name ($perl_version);
-    my $link_name = "$root_dir_name/config/perl/libs.txt";
+    my $link_name = "$RootDirName/config/perl/libs.txt";
     mkdir_for_file $link_name;
     unlink $link_name or die "$0: $link_name: $!" if -f $link_name;
     symlink $real_name => $link_name or die "$0: $link_name: $!";
@@ -1612,7 +1612,7 @@ while (@command) {
     }
     unshift @CPANMirror, $command->{url};
   } elsif ($command->{type} eq 'print-pmtar-dir-name') {
-    print $pmtar_dir_name;
+    print $PMTarDirName;
   } elsif ($command->{type} eq 'init-pmtar-git') {
     init_pmtar_git;
   } elsif ($command->{type} eq 'init-pmpp-git') {
@@ -1637,7 +1637,7 @@ while (@command) {
   } else {
     die "Command |$command->{type}| is not defined";
   }
-} # while @command
+} # while @Command
 
 delete_pmpp_arch_dir if $pmpp_touched;
 destroy;
