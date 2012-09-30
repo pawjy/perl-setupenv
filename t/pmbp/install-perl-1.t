@@ -1,5 +1,5 @@
 #!/bin/sh
-echo "1..2"
+echo "1..3"
 basedir=`dirname $0`/../..
 pmbp=$basedir/bin/pmbp.pl
 tempdir=`perl -MFile::Temp=tempdir -e 'print tempdir'`/testapp
@@ -9,5 +9,10 @@ tempdir=`perl -MFile::Temp=tempdir -e 'print tempdir'`/testapp
     --install-perl && echo "ok 1") || echo "not ok 1"
 
 ($tempdir/local/perlbrew/perls/perl-5.12.0/bin/perl -e '$^V eq "v5.12.0" ? print "ok 2\n" : print "not ok 2\n"') || echo "not ok 2"
+
+perl $pmbp --root-dir-name "$tempdir" --perl-version 5.12.0 \
+    --create-perl-command-shortcut perl
+
+$tempdir/perl -e '(sprintf "%vd", $^V) eq "5.12.0" ? print "ok 3\n" : print "not ok 3"'
 
 rm -fr $tempdir

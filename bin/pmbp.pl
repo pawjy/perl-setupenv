@@ -118,8 +118,13 @@ GetOptions (
   '--prepend-mirror=s' => sub {
     push @Command, {type => 'prepend-mirror', url => $_[1]};
   },
+  '--create-perl-command-shortcut=s' => sub {
+    push @Command, {type => 'create-perl-command-shortcut',
+                    command => $_[1]};
+  },
   '--print-scanned-dependency=s' => sub {
-    push @Command, {type => 'print-scanned-dependency', dir_name => $_[1]};
+    push @Command, {type => 'print-scanned-dependency',
+                    dir_name => $_[1]};
   },
   '--print=s' => sub {
     push @Command, {type => 'print', string => $_[1]};
@@ -1028,6 +1033,19 @@ sub get_libs_txt_file_name ($) {
   return "$RootDirName/local/config/perl/libs-$perl_version-$Config{archname}.txt";
 } # get_libs_txt_file_name
 
+sub create_perl_command_shortcut ($$) {
+  my ($perl_version, $command) = @_;
+  my $file_name = "$RootDirName/$command";
+  info_writing 1, "command shortcut", $file_name;
+  open my $file, '>', $file_name or die "$0: $file_name: $!";
+  print $file sprintf qq{\#!/bin/sh\nPATH="%s" PERL5LIB="`cat %s 2> /dev/null`" exec %s "\$\@"\n},
+      _quote_dq get_env_path ($perl_version),
+      _quote_dq get_libs_txt_file_name ($perl_version),
+      $command;
+  close $file;
+  chmod 0755, $file_name or die "$0: $file_name: $!";
+} # create_perl_command_shortcut
+
 ## ------ Perl module dependency detection ------
 
 sub scandeps ($$$;%) {
@@ -1625,6 +1643,8 @@ while (@Command) {
     mkdir_for_file $link_name;
     unlink $link_name or die "$0: $link_name: $!" if -f $link_name;
     symlink $real_name => $link_name or die "$0: $link_name: $!";
+  } elsif ($command->{type} eq 'create-perl-command-shortcut') {
+    create_perl_command_shortcut $perl_version, $command->{command};
   } elsif ($command->{type} eq 'write-makefile-pl') {
     mkdir_for_file $command->{file_name};
     open my $file, '>', $command->{file_name}
@@ -2083,6 +2103,27 @@ Print the absolute path to the C<perl> command to be used for
 installation and other commands.  Please note that this command should
 not be invoked before C<--install-perl> command as its value could be
 different between before and after the C<--install-perl> execution.
+
+=item --create-perl-command-shortcut="command-name"
+
+Create a shell script to invoke a command with environement variables
+C<PATH> and C<PERL5LIB> set to appropriate values for any locally
+installed Perl and its modules under the "root" directory.
+
+For example, by invoking the following command:
+
+  $ perl path/to/pmbp.pl --install \
+        --create-perl-command-shortcut perl \
+        --create-perl-command-shortcut prove
+
+... then two executable files C<perl> and C<prove> are created.
+Therefore,
+
+  $ ./perl bin/myapp.pl
+  $ ./prove t/mymodule-*.t
+
+... would run C<perl> and C<prove> installed by the pmbp script with
+any Perl modules installed by the pmbp script.
 
 =item --print-perl-core-version="Perl::Module::Name"
 
