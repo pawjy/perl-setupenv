@@ -588,6 +588,9 @@ sub cpanm ($$) {
   my $perl_lib_dir_name = $args->{perl_lib_dir_name}
       || ($args->{info} ? $CPANMDirName : undef)
       or die "No |perl_lib_dir_name| specified";
+  my $perl_version = $args->{perl_version}
+      || ($args->{info} ? (sprintf '%vd', $^V) : undef)
+      or die "No |perl_version| specified";
 
   if (not $args->{info} and @$modules == 1 and
       ref $modules->[0] and $modules->[0]->is_perl) {
@@ -602,7 +605,7 @@ sub cpanm ($$) {
     my @required_install2;
     my @required_system;
 
-    my $cpanm_lib_dir_name = "$RootDirName/local/perl-$args->{perl_version}/cpanm";
+    my $cpanm_lib_dir_name = "$RootDirName/local/perl-$perl_version/cpanm";
     my @perl_option = ("-I$cpanm_lib_dir_name/lib/perl5/$Config{archname}",
                        "-I$cpanm_lib_dir_name/lib/perl5");
 
@@ -641,7 +644,7 @@ sub cpanm ($$) {
     push @option, '--mirror-only';
 
     my $envs = {LANG => 'C',
-                PATH => get_env_path ($args->{perl_version}),
+                PATH => get_env_path ($perl_version),
                 HOME => get_cpanm_dummy_home_dir_name ($perl_lib_dir_name),
                 PERL_CPANM_HOME => $CPANMHomeDirName,
                
@@ -780,7 +783,7 @@ sub cpanm ($$) {
         }
         if (@required_system) {
           $redo = 1
-              if install_system_packages $args->{perl_version}, \@required_system;
+              if install_system_packages $perl_version, \@required_system;
         }
         if ($install_extutils_embed) {
           ## ExtUtils::Embed is core module since 5.003_07 and you
@@ -796,7 +799,7 @@ sub cpanm ($$) {
           local $CPANMDepth = $CPANMDepth + 1;
           for my $module (@required_cpanm) {
             get_local_copy_if_necessary ($module);
-            cpanm {perl_version => $args->{perl_version},
+            cpanm {perl_version => $perl_version,
                    perl_lib_dir_name => $cpanm_lib_dir_name,
                    local_option => '-l', skip_satisfied => 1}, [$module];
           }
@@ -807,12 +810,12 @@ sub cpanm ($$) {
             for my $module (@required_install) {
               if ($args->{scandeps}) {
                 scandeps ($args->{scandeps}->{module_index},
-                          $args->{perl_version}, $module,
+                          $perl_version, $module,
                           skip_if_found => 1,
                           module_index_file_name => $args->{module_index_file_name});
                 push @{$result->{additional_deps} ||= []}, $module;
               }
-              cpanm ({perl_version => $args->{perl_version},
+              cpanm ({perl_version => $perl_version,
                       perl_lib_dir_name => $perl_lib_dir_name,
                       module_index_file_name => $args->{module_index_file_name}}, [$module])
                   unless $args->{no_install};
@@ -821,7 +824,7 @@ sub cpanm ($$) {
           } else {
             local $CPANMDepth = $CPANMDepth + 1;
             for my $module (@required_install) {
-              cpanm ({perl_version => $args->{perl_version},
+              cpanm ({perl_version => $perl_version,
                       perl_lib_dir_name => $perl_lib_dir_name,
                       module_index_file_name => $args->{module_index_file_name}}, [$module]);
             }
