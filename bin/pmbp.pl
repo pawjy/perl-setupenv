@@ -461,7 +461,7 @@ sub install_perl () {
   sub get_perl_path () {
     local $ENV{PATH} = get_env_path;
     my $output;
-    if (run_command ['which', 'perl'], onoutput => sub { $output = $_[0]; 3 }) {
+    if (run_command ['which', $perl], onoutput => sub { $output = $_[0]; 3 }) {
       if (defined $output and $output =~ m{^(\S+/perl)$}) {
         return abs_path $1;
       }
@@ -1828,20 +1828,27 @@ current directory is used as the root directory.  If there is no such
 a directory, it is first created by the script.  Anyway, the directory
 must be writable by the user executing the script.
 
+=item --perl-command="perl"
+
+Specify the path to the C<perl> command used by the script.  If this
+option is not specified, the C<perl> command in the default search
+path (determined by the C<PATH> environment variable and the
+C<--perl-version> option) is used.
+
 =item --perl-version="5.n.m"
 
 Specify the Perl version in use.  If the C<--install-perl> command is
 invoked, then the value must be one of Perl versions.  Otherwise, it
-must match the version of the default C<perl> program.  If this option
-is not specified, the version of the default C<perl> program is used.
-In this context, the default C<perl> refers to the C<perl> interpreter
-used when the C<perl> command is invoked under the current C<PATH>
-environment variable.
+must match the version of the default C<perl> command.  If this option
+is not specified, the version of the default C<perl> command is used.
+The default C<perl> command is determined by the C<--perl-command>
+option.
 
 =item --wget-command="wget"
 
-Specify the "wget" command and arguments, if desired.  By default,
-C<wget> is used.
+Specify the path to the "wget" command used to download files from the
+Internet.  If this option is not specified, the C<wget> command in the
+current C<PATH> is used.
 
 =item --execute-system-package-installer
 
