@@ -425,16 +425,6 @@ sub load_json ($) {
 
 ## ------ Perl ------
 
-sub init_perl_version ($) {
-  my $perl_version = shift;
-  $perl_version ||= `@{[quotemeta $perl]} -e 'printf "%vd", \$^V'`;
-  $perl_version =~ s/^v//;
-  unless ($perl_version =~ /\A5\.[0-9]+\.[0-9]+\z/) {
-    info_die "Invalid Perl version: $perl_version\n";
-  }
-  return $perl_version;
-} # init_perl_version
-
 {
   my $LatestPerlVersion;
   sub get_latest_perl_version () {
@@ -453,6 +443,17 @@ sub init_perl_version ($) {
     }
   } # get_latest_perl_version
 }
+
+sub init_perl_version ($) {
+  my $perl_version = shift;
+  $perl_version ||= `@{[quotemeta $perl]} -e 'printf "%vd", \$^V'`;
+  $perl_version = get_latest_perl_version if $perl_version eq 'latest';
+  $perl_version =~ s/^v//;
+  unless ($perl_version =~ /\A5\.[0-9]+\.[0-9]+\z/) {
+    info_die "Invalid Perl version: $perl_version\n";
+  }
+  return $perl_version;
+} # init_perl_version
 
 sub get_perlbrew_envs () {
   return {PERLBREW_ROOT => (abs_path "$root_dir_name/local/perlbrew")}
@@ -1451,6 +1452,7 @@ info 6, '$ ' . join ' ', $0, @Argument;
 info 6, sprintf '%s %vd (%s)', $^X, $^V, $Config{archname};
 info 6, '@INC = ' . join ' ', @INC;
 my $perl_version = init_perl_version ($specified_perl_version);
+info 1, "Target Perl version: $perl_version";
 
 while (@command) {
   my $command = shift @command;
@@ -1917,6 +1919,9 @@ must match the version of the default C<perl> command.  If this option
 is not specified, the version of the default C<perl> command is used.
 The default C<perl> command is determined by the C<--perl-command>
 option.
+
+Perl version string C<latest> represents the latest stable version of
+Perl.
 
 =item --wget-command="wget"
 
