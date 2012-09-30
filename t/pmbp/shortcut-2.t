@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 echo "1..2"
 basedir=`dirname $0`/../..
 pmbp=$basedir/bin/pmbp.pl
