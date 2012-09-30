@@ -12,7 +12,7 @@ print \$Path::Class::VERSION" > "$tempdir/deps/pmpp/bin/hogehoge"
 chmod u+x "$tempdir/deps/pmpp/bin/hogehoge"
 
 perl $pmbp --root-dir-name "$tempdir" \
-    --install \
+    --install-module Path::Class \
     --create-perl-command-shortcut hogehoge && echo "ok 1"
 
 $tempdir/hogehoge > "$tempdir/result1"
