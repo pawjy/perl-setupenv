@@ -144,6 +144,9 @@ GetOptions (
   )),
 ) or die "Usage: $0 options... (See source for details)\n";
 
+sub make_path ($) { mkpath $_[0] }
+sub remove_tree ($) { rmtree $_[0] }
+
 ## Note that |run_command| function is not ready yet.
 $perl_version ||= `@{[quotemeta $perl]} -e 'printf "%vd", \$^V'`;
 $perl_version =~ s/^v//;
@@ -151,22 +154,25 @@ unless ($perl_version =~ /\A5\.[0-9]+\.[0-9]+\z/) {
   die "Invalid Perl version: $perl_version\n";
 }
 
-sub make_path ($) { mkpath $_[0] }
-sub remove_tree ($) { rmtree $_[0] }
-
+# {root}
 make_path $root_dir_name;
 $root_dir_name = abs_path $root_dir_name;
-my $local_dir_name = $root_dir_name . '/local/perl-' . $perl_version;
-my $pmb_dir_name = $local_dir_name . '/pmbp';
-my $temp_dir_name = $pmb_dir_name . '/tmp';
-my $cpanm_dir_name = $temp_dir_name . '/cpanm';
-my $cpanm_home_dir_name = $cpanm_dir_name . '/tmp';
-my $cpanm = $cpanm_dir_name . '/bin/cpanm';
-my $CPANMWrapper = $cpanm_dir_name . '/bin/cpanmwrapper';
-my $cpanm_lib_dir_name = $cpanm_dir_name . '/lib/perl5';
-unshift @INC, $cpanm_lib_dir_name; ## Should not use XS modules.
-my $installed_dir_name = $local_dir_name . '/pm';
-my $log_dir_name = $temp_dir_name . '/logs';
+
+# {root}/local/perl-{perl_version}
+my $VersionedPMDirName = "$root_dir_name/local/perl-$perl_version/pm";
+my $CPANMVersionedDirName = "$root_dir_name/local/perl-$perl_version/cpanm";
+
+# {root}/local/cpanm
+my $CPANMDirName = "$root_dir_name/local/cpanm";
+my $CPANMHomeDirName = "$CPANMDirName/tmp";
+my $CPANMCommand = "$CPANMDirName/bin/cpanm";
+my $CPANMWrapper = "$CPANMDirName/bin/cpanmwrapper";
+
+# {root}/local/pmbp
+my $PMBPDirName = "$root_dir_name/local/pmbp";
+my $PMBPLogDirName = "$PMBPDirName/logs";
+
+# {root}/deps
 $pmtar_dir_name ||= $root_dir_name . '/deps/pmtar';
 $pmpp_dir_name ||= $root_dir_name . '/deps/pmpp';
 make_path $pmtar_dir_name;
@@ -174,7 +180,6 @@ make_path $pmpp_dir_name;
 my $packages_details_file_name = $pmtar_dir_name . '/modules/02packages.details.txt';
 my $install_json_dir_name = $pmtar_dir_name . '/meta';
 my $deps_json_dir_name = $pmtar_dir_name . '/deps';
-my $deps_txt_dir_name = $pmtar_dir_name . '/deps';
 
 ## ------ Logging ------
 
@@ -184,7 +189,7 @@ my $deps_txt_dir_name = $pmtar_dir_name . '/deps';
   my $InfoFileName;
   
   sub open_info_file () {
-    $InfoFileName = "$log_dir_name/pmbp-" . time . "-" . $$ . ".log";
+    $InfoFileName = "$PMBPLogDirName/pmbp-" . time . "-" . $$ . ".log";
     mkdir_for_file ($InfoFileName);
     open $InfoFile, '>', $InfoFileName or die "$0: $InfoFileName: $!";
     info_writing (0, "operation log file", $InfoFileName);
@@ -249,8 +254,8 @@ my $deps_txt_dir_name = $pmtar_dir_name . '/deps';
     $PMBPLibDirName = sprintf '%s/local/perl-%vd/pmbp/self',
         $root_dir_name, $^V;
     unshift @INC,
-        "$PMBPLibDirName/lib/perl5",
-        "$PMBPLibDirName/lib/perl5/$Config{archname}";
+        "$PMBPLibDirName/lib/perl5/$Config{archname}",
+        "$PMBPLibDirName/lib/perl5";
   } # init_pmbp
   
   sub install_pmbp_module ($) {
@@ -274,7 +279,7 @@ sub copy_log_file ($$) {
   my ($file_name, $module_name) = @_;
   my $log_file_name = $module_name;
   $log_file_name =~ s/::/-/g;
-  $log_file_name = "$log_dir_name/@{[time]}-$log_file_name.log";
+  $log_file_name = "$PMBPLogDirName/@{[time]}-$log_file_name.log";
   mkdir_for_file $log_file_name;
   copy $file_name => $log_file_name or die "Can't save log file: $!\n";
   info_writing 0, "install log file", $log_file_name;
@@ -431,7 +436,7 @@ my $LatestPerlVersion;
 sub get_latest_perl_version () {
   return $LatestPerlVersion if $LatestPerlVersion;
 
-  my $file_name = qq<$temp_dir_name/perl.json>;
+  my $file_name = qq<$PMBPDirName/latest-perl.json>;
   save_url q<http://api.metacpan.org/release/perl> => $file_name
       if not -f $file_name or
          [stat $file_name]->[9] + 24 * 60 * 60 < time;
@@ -510,8 +515,8 @@ sub get_perl_path () {
 ## ------ cpanm ------
 
 sub install_cpanm () {
-  return if -f $cpanm;
-  save_url $cpanm_url => $cpanm;
+  return if -f $CPANMCommand;
+  save_url $cpanm_url => $CPANMCommand;
 } # install_cpanm
 
 sub install_cpanm_wrapper () {
@@ -538,7 +543,7 @@ sub install_cpanm_wrapper () {
     my $app = App::cpanminus::script->new;
     $app->parse_options (@ARGV);
     $app->doit or exit 1;
-  }, $cpanm;
+  }, $CPANMCommand;
   close $file;
 } # install_cpanm_wrapper
 
@@ -550,7 +555,7 @@ sub install_cpanm_wrapper () {
       ## For Module::Build-based packages (e.g. Class::Accessor::Lvalue)
       require Digest::MD5;
       my $key = Digest::MD5::md5_hex ($lib_dir_name);
-      my $home_dir_name = "$cpanm_home_dir_name/$key";
+      my $home_dir_name = "$CPANMHomeDirName/$key";
       my $file_name = "$home_dir_name/.modulebuildrc";
       mkdir_for_file $file_name;
       open my $file, '>', $file_name or die "$0: $file_name: $!";
@@ -570,7 +575,7 @@ sub cpanm ($$) {
   install_cpanm_wrapper;
 
   my $perl_lib_dir_name = $args->{perl_lib_dir_name}
-      || ($args->{info} ? $cpanm_lib_dir_name : undef)
+      || ($args->{info} ? $CPANMDirName : undef)
       or die "No |perl_lib_dir_name| specified";
 
   if (not $args->{info} and @$modules == 1 and
@@ -586,7 +591,8 @@ sub cpanm ($$) {
     my @required_install2;
     my @required_system;
 
-    my @perl_option = ('-I' . $cpanm_lib_dir_name);
+    my @perl_option = ("-I$CPANMVersionedDirName/lib/perl5/$Config{archname}",
+                       "-I$CPANMVersionedDirName/lib/perl5");
 
     my @option = ($args->{local_option} || '-L' => $perl_lib_dir_name,
                   ($args->{skip_satisfied} ? '--skip-satisfied' : ()),
@@ -614,7 +620,7 @@ sub cpanm ($$) {
       push @option, '--mirror-index' => $mi if defined $mi;
     } else {
       get_default_mirror_file_name ();
-      unshift @option, '--mirror' => abs_path $cpanm_dir_name;
+      unshift @option, '--mirror' => abs_path $CPANMDirName;
     }
 
     push @option, '--mirror' => abs_path supplemental_module_index ();
@@ -625,7 +631,7 @@ sub cpanm ($$) {
     my $envs = {LANG => 'C',
                 PATH => get_env_path,
                 HOME => get_cpanm_dummy_home_dir_name ($perl_lib_dir_name),
-                PERL_CPANM_HOME => $cpanm_home_dir_name,
+                PERL_CPANM_HOME => $CPANMHomeDirName,
                
                 ## mod_perl support (incomplete...)
                 MP_APXS => $ENV{MP_APXS} || (-f '/usr/sbin/apxs' ? '/usr/sbin/apxs' : undef),
@@ -777,12 +783,12 @@ sub cpanm ($$) {
           local $CPANMDepth = $CPANMDepth + 1;
           for my $module (@required_cpanm) {
             get_local_copy_if_necessary ($module);
-            cpanm {perl_lib_dir_name => $cpanm_dir_name,
+            cpanm {perl_lib_dir_name => $CPANMVersionedDirName,
                    local_option => '-l', skip_satisfied => 1}, [$module];
           }
           $redo = 1;
         } elsif (@required_install) {
-          if ($perl_lib_dir_name ne $cpanm_dir_name) {
+          if ($perl_lib_dir_name ne $CPANMVersionedDirName) {
             local $CPANMDepth = $CPANMDepth + 1;
             for my $module (@required_install) {
               if ($args->{scandeps}) {
@@ -826,13 +832,13 @@ sub cpanm ($$) {
 } # cpanm
 
 sub destroy_cpanm_home () {
-  remove_tree $cpanm_home_dir_name;
+  remove_tree $CPANMHomeDirName;
 } # destroy_cpanm_home
 
 ## ------ Downloading modules ------
 
 sub get_default_mirror_file_name () {
-  my $file_name = qq<$cpanm_dir_name/modules/02packages.details.txt.gz>;
+  my $file_name = qq<$CPANMDirName/modules/02packages.details.txt.gz>;
   if (not -f $file_name or
       [stat $file_name]->[9] + 24 * 60 * 60 < time or
       [stat $file_name]->[7] < 1 * 1024 * 1024) {
@@ -843,7 +849,7 @@ sub get_default_mirror_file_name () {
 } # get_default_mirror_file_name
 
 sub supplemental_module_index () {
-  my $dir_name = "$temp_dir_name/supplemental";
+  my $dir_name = "$PMBPDirName/supplemental";
   my $file_name = "$dir_name/modules/02packages.details.txt";
   return $dir_name if -f ($file_name . '.gz') and
       [stat ($file_name . '.gz')]->[9] + 24 * 60 * 60 > time;
@@ -907,7 +913,7 @@ sub save_by_pathname ($$) {
 sub install_module ($;%) {
   my ($module, %args) = @_;
   get_local_copy_if_necessary $module;
-  cpanm {perl_lib_dir_name => $args{pmpp} ? $pmpp_dir_name : $installed_dir_name,
+  cpanm {perl_lib_dir_name => $args{pmpp} ? $pmpp_dir_name : $VersionedPMDirName,
          module_index_file_name => $args{module_index_file_name}},
         [$module];
 } # install_module
@@ -1043,7 +1049,7 @@ sub copy_pmpp_modules () {
   delete_pmpp_arch_dir ();
   require File::Find;
   my $from_base_path = abs_path $pmpp_dir_name;
-  my $to_base_path = abs_path $installed_dir_name;
+  my $to_base_path = abs_path $VersionedPMDirName;
   File::Find::find (sub {
     my $rel = File::Spec->abs2rel ((abs_path $_), $from_base_path);
     my $dest = File::Spec->rel2abs ($rel, $to_base_path);
@@ -1369,8 +1375,8 @@ sub get_lib_dir_names () {
       qq{$root_dir_name/lib},
       qq{$root_dir_name/modules/*/lib},
       qq{$root_dir_name/local/submodules/*/lib},
-      qq{$installed_dir_name/lib/perl5/$Config{archname}},
-      qq{$installed_dir_name/lib/perl5};
+      qq{$VersionedPMDirName/lib/perl5/$Config{archname}},
+      qq{$VersionedPMDirName/lib/perl5};
   return @lib;
 } # get_lib_dir_names
 
