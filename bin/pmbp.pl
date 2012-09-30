@@ -158,10 +158,6 @@ unless ($perl_version =~ /\A5\.[0-9]+\.[0-9]+\z/) {
 make_path $root_dir_name;
 $root_dir_name = abs_path $root_dir_name;
 
-# {root}/local/perl-{perl_version}
-my $VersionedPMDirName = "$root_dir_name/local/perl-$perl_version/pm";
-my $CPANMVersionedDirName = "$root_dir_name/local/perl-$perl_version/cpanm";
-
 # {root}/local/cpanm
 my $CPANMDirName = "$root_dir_name/local/cpanm";
 my $CPANMHomeDirName = "$CPANMDirName/tmp";
@@ -379,8 +375,10 @@ sub load_json ($) {
     my $packages = $_[0];
     return unless @$packages;
     
-    $HasAPT = which $AptGetCommand ? 1 : 0 if not defined $HasAPT;
-    $HasYUM = which $YumCommand ? 1 : 0 if not defined $HasYUM;
+    $HasAPT = which ($AptGetCommand, $perl_version)
+        ? 1 : 0 if not defined $HasAPT;
+    $HasYUM = which ($YumCommand, $perl_version)
+        ? 1 : 0 if not defined $HasYUM;
 
     my $cmd;
     my $env = '';
@@ -412,15 +410,16 @@ sub load_json ($) {
 
 {
   my $EnvPath;
-  sub get_env_path () {
+  sub get_env_path ($) {
+    my $perl_version = shift;
     return $EnvPath ||= (abs_path "$root_dir_name/local/perlbrew/perls/perl-$perl_version/bin") . ':' . $ENV{PATH};
   } # get_env_path
 
-  sub which ($) {
-    my $command = shift;
+  sub which ($$) {
+    my ($command, $perl_version) = @_;
     my $output;
     if (run_command ['which', $command],
-            envs => {PATH => get_env_path},
+            envs => {PATH => get_env_path ($perl_version)},
             onoutput => sub { $output = $_[0]; 3 }) {
       if (defined $output and $output =~ m{^(\S*\Q$command\E)$}) {
         return abs_path $1;
@@ -465,7 +464,8 @@ sub install_perlbrew () {
   }
 } # install_perlbrew
 
-sub install_perl () {
+sub install_perl ($) {
+  my $perl_version = shift;
   install_perlbrew;
   my $i = 0;
   PERLBREW: {
@@ -508,8 +508,10 @@ sub install_perl () {
   } # PERLBREW
 } # install_perl
 
-sub get_perl_path () {
-  return which $perl || info_die "Can't get path to |perl|";
+sub get_perl_path ($) {
+  my $perl_version = shift;
+  return which ($perl, $perl_version)
+      || info_die "Can't get path to |perl|";
 } # get_perl_path
 
 ## ------ cpanm ------
@@ -591,8 +593,9 @@ sub cpanm ($$) {
     my @required_install2;
     my @required_system;
 
-    my @perl_option = ("-I$CPANMVersionedDirName/lib/perl5/$Config{archname}",
-                       "-I$CPANMVersionedDirName/lib/perl5");
+    my $cpanm_lib_dir_name = "$root_dir_name/local/perl-$perl_version/cpanm";
+    my @perl_option = ("-I$cpanm_lib_dir_name/lib/perl5/$Config{archname}",
+                       "-I$cpanm_lib_dir_name/lib/perl5");
 
     my @option = ($args->{local_option} || '-L' => $perl_lib_dir_name,
                   ($args->{skip_satisfied} ? '--skip-satisfied' : ()),
@@ -629,7 +632,7 @@ sub cpanm ($$) {
     push @option, '--mirror-only';
 
     my $envs = {LANG => 'C',
-                PATH => get_env_path,
+                PATH => get_env_path ($perl_version),
                 HOME => get_cpanm_dummy_home_dir_name ($perl_lib_dir_name),
                 PERL_CPANM_HOME => $CPANMHomeDirName,
                
@@ -783,12 +786,12 @@ sub cpanm ($$) {
           local $CPANMDepth = $CPANMDepth + 1;
           for my $module (@required_cpanm) {
             get_local_copy_if_necessary ($module);
-            cpanm {perl_lib_dir_name => $CPANMVersionedDirName,
+            cpanm {perl_lib_dir_name => $cpanm_lib_dir_name,
                    local_option => '-l', skip_satisfied => 1}, [$module];
           }
           $redo = 1;
         } elsif (@required_install) {
-          if ($perl_lib_dir_name ne $CPANMVersionedDirName) {
+          if ($perl_lib_dir_name ne $cpanm_lib_dir_name) {
             local $CPANMDepth = $CPANMDepth + 1;
             for my $module (@required_install) {
               if ($args->{scandeps}) {
@@ -910,10 +913,15 @@ sub save_by_pathname ($$) {
 
 ## ------ Installing modules ------
 
-sub install_module ($;%) {
-  my ($module, %args) = @_;
+sub get_pm_dir_name ($) {
+  my $perl_version = shift;
+  return "$root_dir_name/local/perl-$perl_version/pm";
+} # get_pm_dir_name
+
+sub install_module ($$;%) {
+  my ($perl_version, $module, %args) = @_;
   get_local_copy_if_necessary $module;
-  cpanm {perl_lib_dir_name => $args{pmpp} ? $pmpp_dir_name : $VersionedPMDirName,
+  cpanm {perl_lib_dir_name => $args{pmpp} ? $pmpp_dir_name : get_pm_dir_name ($perl_version),
          module_index_file_name => $args{module_index_file_name}},
         [$module];
 } # install_module
@@ -1049,7 +1057,9 @@ sub copy_pmpp_modules () {
   delete_pmpp_arch_dir ();
   require File::Find;
   my $from_base_path = abs_path $pmpp_dir_name;
-  my $to_base_path = abs_path $VersionedPMDirName;
+  my $to_base_path = get_pm_dir_name ($perl_version);
+  make_path $to_base_path;
+  $to_base_path = abs_path $to_base_path;
   File::Find::find (sub {
     my $rel = File::Spec->abs2rel ((abs_path $_), $from_base_path);
     my $dest = File::Spec->rel2abs ($rel, $to_base_path);
@@ -1370,32 +1380,35 @@ sub scan_dependency_from_directory ($) {
 
 ## ------ Library paths ------
 
-sub get_lib_dir_names () {
+sub get_lib_dir_names ($) {
+  my $perl_version = shift;
+  my $pm_dir_name = get_pm_dir_name ($perl_version);
   my @lib = grep { defined } map { abs_path $_ } map { glob $_ }
       qq{$root_dir_name/lib},
       qq{$root_dir_name/modules/*/lib},
       qq{$root_dir_name/local/submodules/*/lib},
-      qq{$VersionedPMDirName/lib/perl5/$Config{archname}},
-      qq{$VersionedPMDirName/lib/perl5};
+      qq{$pm_dir_name/lib/perl5/$Config{archname}},
+      qq{$pm_dir_name/lib/perl5};
   return @lib;
 } # get_lib_dir_names
 
-sub get_libs_txt_file_name () {
+sub get_libs_txt_file_name ($) {
+  my $perl_version = shift;
   return "$root_dir_name/local/config/perl/libs-$perl_version-$Config{archname}.txt";
 } # get_libs_txt_file_name
 
 ## ------ Perl modules ------
 
-sub get_module_version ($) {
-  my $module = shift;
+sub get_module_version ($$) {
+  my ($perl_version, $module) = @_;
   my $package = $module->package;
   return undef unless defined $package;
   
   my $result;
   my $return = run_command
       [$perl, '-M' . $package, '-e', sprintf 'print $%s::VERSION', $package],
-      envs => {PATH => get_env_path,
-               PERL5LIB => (join ':', (get_lib_dir_names))},
+      envs => {PATH => get_env_path ($perl_version),
+               PERL5LIB => (join ':', (get_lib_dir_names ($perl_version)))},
       info_level => 3,
       onoutput => sub {
         $result = $_[0];
@@ -1465,12 +1478,12 @@ while (@command) {
     print get_latest_perl_version;
   } elsif ($command->{type} eq 'install-perl') {
     info 0, "Installing Perl $perl_version...";
-    install_perl;
+    install_perl ($perl_version);
 
   } elsif ($command->{type} eq 'install-module') {
     delete_pmpp_arch_dir if $pmpp_touched;
     info 0, "Installing @{[$command->{module}->as_short]}...";
-    install_module $command->{module},
+    install_module $perl_version, $command->{module},
         module_index_file_name => $module_index_file_name;
   } elsif ($command->{type} eq 'install-modules-by-list') {
     delete_pmpp_arch_dir if $pmpp_touched;
@@ -1482,11 +1495,12 @@ while (@command) {
     }
     for ($module_index->to_list) {
       info 0, "Installing @{[$_->as_short]}...";
-      install_module $_, module_index_file_name => $module_index_file_name;
+      install_module $perl_version, $_,
+          module_index_file_name => $module_index_file_name;
     }
   } elsif ($command->{type} eq 'install-to-pmpp') {
     info 0, "Installing @{[$command->{module}->as_short]} to pmpp...";
-    install_module $command->{module},
+    install_module $perl_version, $command->{module},
         module_index_file_name => $module_index_file_name, pmpp => 1;
     $pmpp_touched = 1;
   } elsif ($command->{type} eq 'install-by-pmpp') {
@@ -1501,7 +1515,8 @@ while (@command) {
     }
     for ($module_index->to_list) {
       info 0, "Installing @{[$_->as_short]} to pmpp...";
-      install_module $_, module_index_file_name => $module_index_file_name, pmpp => 1;
+      install_module $perl_version, $_,
+          module_index_file_name => $module_index_file_name, pmpp => 1;
     }
     $pmpp_touched = 1;
   } elsif ($command->{type} eq 'scandeps') {
@@ -1537,13 +1552,14 @@ while (@command) {
     write_install_module_index $selected_module_index => $command->{file_name};
   } elsif ($command->{type} eq 'write-libs-txt') {
     my $file_name = $command->{file_name};
-    $file_name = get_libs_txt_file_name unless defined $file_name;
+    $file_name = get_libs_txt_file_name ($perl_version)
+        unless defined $file_name;
     mkdir_for_file $file_name;
     open my $file, '>', $file_name or die "$0: $file_name: $!";
     info_writing 0, "lib paths", $file_name;
-    print $file join ':', (get_lib_dir_names);
+    print $file join ':', (get_lib_dir_names ($perl_version));
   } elsif ($command->{type} eq 'create-libs-txt-symlink') {
-    my $real_name = get_libs_txt_file_name;
+    my $real_name = get_libs_txt_file_name ($perl_version);
     my $link_name = "$root_dir_name/config/perl/libs.txt";
     mkdir_for_file $link_name;
     unlink $link_name or die "$0: $link_name: $!" if -f $link_name;
@@ -1567,7 +1583,7 @@ while (@command) {
       Meta->write_mymeta_json;
     };
   } elsif ($command->{type} eq 'print-libs') {
-    print join ':', (get_lib_dir_names);
+    print join ':', (get_lib_dir_names ($perl_version));
   } elsif ($command->{type} eq 'set-module-index') {
     $module_index_file_name = $command->{file_name}; # or undef
   } elsif ($command->{type} eq 'prepend-mirror') {
@@ -1592,10 +1608,10 @@ while (@command) {
     my $pathname = $command->{module}->pathname;
     print $pathname if defined $pathname;
   } elsif ($command->{type} eq 'print-module-version') {
-    my $ver = get_module_version $command->{module};
+    my $ver = get_module_version $perl_version, $command->{module};
     print $ver if defined $ver;
   } elsif ($command->{type} eq 'print-perl-path') {
-    print get_perl_path;
+    print get_perl_path ($perl_version);
   } elsif ($command->{type} eq 'print') {
     print $command->{string};
   } else {
