@@ -404,7 +404,9 @@ sub load_json ($) {
   my $EnvPath = {};
   sub get_env_path ($) {
     my $perl_version = shift;
-    return $EnvPath->{$perl_version} ||= (abs_path "$RootDirName/local/perlbrew/perls/perl-$perl_version/bin") . ':' . $ENV{PATH};
+    my $perl_path = "$RootDirName/local/perlbrew/perls/perl-$perl_version/bin";
+    $perl_path = (abs_path $perl_path) || $perl_path;
+    return $EnvPath->{$perl_version} ||= $perl_path . ':' . $ENV{PATH};
   } # get_env_path
 
   sub which ($$) {
@@ -414,7 +416,7 @@ sub load_json ($) {
             envs => {PATH => get_env_path ($perl_version)},
             onoutput => sub { $output = $_[0]; 3 }) {
       if (defined $output and $output =~ m{^(\S*\Q$command\E)$}) {
-        return abs_path $1;
+        return $1;
       }
     }
     return undef;
@@ -945,20 +947,36 @@ sub copy_pmpp_modules ($) {
   my $to_base_path = get_pm_dir_name ($perl_version);
   make_path $to_base_path;
   $to_base_path = abs_path $to_base_path;
-  File::Find::find (sub {
-    my $rel = File::Spec->abs2rel ((abs_path $_), $from_base_path);
-    my $dest = File::Spec->rel2abs ($rel, $to_base_path);
-    if (-f $_) {
-      info 2, "Copying file $rel...";
-      unlink $dest if -f $dest;
-      copy $_ => $dest or die "$0: $dest: $!";
-      chmod ((stat $_)[2], $dest);
-    } elsif (-d $_) {
-      info 2, "Copying directory $rel...";
-      make_path $dest;
-      chmod ((stat $_)[2], $dest);
-    }
-  }, $_) for grep { -d $_ } "$PMPPDirName/bin", "$PMPPDirName/lib";
+  for my $dir_name ("$PMPPDirName/bin", "$PMPPDirName/lib") {
+    next unless -d $dir_name;
+    my $rewrite_shebang = $dir_name =~ /bin$/;
+    my $perl_path = get_perl_path $perl_version;
+    File::Find::find (sub {
+      my $rel = File::Spec->abs2rel ((abs_path $_), $from_base_path);
+      my $dest = File::Spec->rel2abs ($rel, $to_base_path);
+      if (-f $_) {
+        info 2, "Copying file $rel...";
+        unlink $dest if -f $dest;
+        if ($rewrite_shebang) {
+          local $/ = undef;
+          open my $old_file, '<', $_ or die "$0: $_: $!";
+          my $content = <$old_file>;
+          $content =~ s{^#!.*?perl[0-9.]*(?:$|(?=\s))}{#!$perl_path};
+          open my $new_file, '>', $dest or die "$0: $dest: $!";
+          binmode $new_file;
+          print $new_file $content;
+          close $new_file;
+        } else {
+          copy $_ => $dest or die "$0: $dest: $!";
+        }
+        chmod ((stat $_)[2], $dest);
+      } elsif (-d $_) {
+        info 2, "Copying directory $rel...";
+        make_path $dest;
+        chmod ((stat $_)[2], $dest);
+      }
+    }, $dir_name);
+  }
 } # copy_pmpp_modules
 
 sub delete_pmpp_arch_dir () {
@@ -1369,7 +1387,7 @@ sub scan_dependency_from_directory ($) {
 
   my @include_dir_name = qw(bin lib script t t_deps);
   my @exclude_pattern = map { "^$_" } qw(modules t_deps/modules t_deps/projects);
-  for (split /\n/, qx{cd \Q$dir_name\E && find @{[join ' ', grep quotemeta, @include_dir_name]} @{[join ' ', map { "| grep -v $_" } grep quotemeta, @exclude_pattern]} | grep "\\.\\(pm\\|pl\\|t\\)\$" | xargs grep "\\(use\\|require\\) " --no-filename}) {
+  for (split /\n/, qx{cd \Q$dir_name\E && find @{[join ' ', grep quotemeta, @include_dir_name]} 2> /dev/null @{[join ' ', map { "| grep -v $_" } grep quotemeta, @exclude_pattern]} | grep "\\.\\(pm\\|pl\\|t\\)\$" | xargs grep "\\(use\\|require\\) " --no-filename}) {
     s/\#.*$//;
     if (/(?:use|require)\s*(?:base|parent)\s*(.+)/) {
       my $base = $1;
@@ -1384,7 +1402,7 @@ sub scan_dependency_from_directory ($) {
   }
 
   @include_dir_name = map { glob "$dir_name/$_" } qw(lib t/lib modules/*/lib t_deps/modules/*/lib);
-  for (split /\n/, qx{cd \Q$dir_name\E && find @{[join ' ', grep quotemeta, @include_dir_name]} | grep "\\.\\(pm\\|pl\\)\$" | xargs grep "package " --no-filename}) {
+  for (split /\n/, qx{cd \Q$dir_name\E && find @{[join ' ', grep quotemeta, @include_dir_name]} 2> /dev/null | grep "\\.\\(pm\\|pl\\)\$" | xargs grep "package " --no-filename}) {
     if (/package\s*([0-9A-Za-z_:]+)/) {
       delete $modules->{$1};
     }
