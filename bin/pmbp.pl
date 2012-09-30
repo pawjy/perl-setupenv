@@ -144,11 +144,9 @@ GetOptions (
   )),
 ) or die "Usage: $0 options... (See source for details)\n";
 
-sub make_path ($) { mkpath $_[0] }
-sub remove_tree ($) { rmtree $_[0] }
-
 # {root}
-make_path $root_dir_name;
+sub make_path ($);
+make_path ($root_dir_name);
 $root_dir_name = abs_path $root_dir_name;
 
 # {root}/local/cpanm
@@ -259,6 +257,9 @@ my $deps_json_dir_name = $pmtar_dir_name . '/deps';
 
 ## ------ Files and directories ------
 
+sub make_path ($) { mkpath $_[0] }
+sub remove_tree ($) { rmtree $_[0] }
+
 sub mkdir_for_file ($) {
   my $file_name = $_[0];
   $file_name =~ s{[^/\\]+$}{};
@@ -360,7 +361,7 @@ sub load_json ($) {
   return $json;
 } # load_json
 
-## ------ Install system packages ------
+## ------ System environment ------
 
 {
   my $HasAPT = {};
@@ -849,7 +850,7 @@ sub destroy_cpanm_home () {
   remove_tree $CPANMHomeDirName;
 } # destroy_cpanm_home
 
-## ------ Downloading modules ------
+## ------ Module repositories ------
 
 sub get_default_mirror_file_name () {
   my $file_name = qq<$CPANMDirName/modules/02packages.details.txt.gz>;
@@ -922,23 +923,72 @@ sub save_by_pathname ($$) {
   return 0;
 } # save_by_pathname
 
-## ------ Installing modules ------
+## ------ pmtar and pmpp repositories ------
+
+sub init_pmtar_git () {
+  return if -f "$pmtar_dir_name/.git/config";
+  run_command ['sh', '-c', "cd \Q$pmtar_dir_name\E && git init"];
+} # init_pmtar_git
+
+sub init_pmpp_git () {
+  return if -f "$pmpp_dir_name/.git/config";
+  run_command ['sh', '-c', "cd \Q$pmpp_dir_name\E && git init"];
+} # init_pmpp_git
+
+sub copy_pmpp_modules ($) {
+  my $perl_version = shift;
+  delete_pmpp_arch_dir ();
+  require File::Find;
+  my $from_base_path = abs_path $pmpp_dir_name;
+  my $to_base_path = get_pm_dir_name ($perl_version);
+  make_path $to_base_path;
+  $to_base_path = abs_path $to_base_path;
+  File::Find::find (sub {
+    my $rel = File::Spec->abs2rel ((abs_path $_), $from_base_path);
+    my $dest = File::Spec->rel2abs ($rel, $to_base_path);
+    if (-f $_) {
+      info 2, "Copying file $rel...";
+      unlink $dest if -f $dest;
+      copy $_ => $dest or die "$0: $dest: $!";
+      chmod ((stat $_)[2], $dest);
+    } elsif (-d $_) {
+      info 2, "Copying directory $rel...";
+      make_path $dest;
+      chmod ((stat $_)[2], $dest);
+    }
+  }, $_) for grep { -d $_ } "$pmpp_dir_name/bin", "$pmpp_dir_name/lib";
+} # copy_pmpp_modules
+
+sub delete_pmpp_arch_dir () {
+  info 1, "rm -fr $pmpp_dir_name/lib/perl5/$Config{archname}";
+  remove_tree "$pmpp_dir_name/lib/perl5/$Config{archname}";
+} # delete_pmpp_arch_dir
+
+## ------ Local Perl module directories ------
 
 sub get_pm_dir_name ($) {
   my $perl_version = shift;
   return "$root_dir_name/local/perl-$perl_version/pm";
 } # get_pm_dir_name
 
-sub install_module ($$;%) {
-  my ($perl_version, $module, %args) = @_;
-  get_local_copy_if_necessary $module;
-  cpanm {perl_version => $perl_version,
-         perl_lib_dir_name => $args{pmpp} ? $pmpp_dir_name : get_pm_dir_name ($perl_version),
-         module_index_file_name => $args{module_index_file_name}},
-        [$module];
-} # install_module
+sub get_lib_dir_names ($) {
+  my $perl_version = shift;
+  my $pm_dir_name = get_pm_dir_name ($perl_version);
+  my @lib = grep { defined } map { abs_path $_ } map { glob $_ }
+      qq{$root_dir_name/lib},
+      qq{$root_dir_name/modules/*/lib},
+      qq{$root_dir_name/local/submodules/*/lib},
+      qq{$pm_dir_name/lib/perl5/$Config{archname}},
+      qq{$pm_dir_name/lib/perl5};
+  return @lib;
+} # get_lib_dir_names
 
-## ------ Detecting module dependency ------
+sub get_libs_txt_file_name ($) {
+  my $perl_version = shift;
+  return "$root_dir_name/local/config/perl/libs-$perl_version-$Config{archname}.txt";
+} # get_libs_txt_file_name
+
+## ------ Perl module dependency detection ------
 
 sub scandeps ($$$;%) {
   my ($module_index, $perl_version, $module, %args) = @_;
@@ -1054,48 +1104,7 @@ sub load_deps ($$) {
   return $result;
 } # load_deps
 
-## ------ pmtar and pmpp repositories ------
-
-sub init_pmtar_git () {
-  return if -f "$pmtar_dir_name/.git/config";
-  run_command ['sh', '-c', "cd \Q$pmtar_dir_name\E && git init"];
-} # init_pmtar_git
-
-sub init_pmpp_git () {
-  return if -f "$pmpp_dir_name/.git/config";
-  run_command ['sh', '-c', "cd \Q$pmpp_dir_name\E && git init"];
-} # init_pmpp_git
-
-sub copy_pmpp_modules ($) {
-  my $perl_version = shift;
-  delete_pmpp_arch_dir ();
-  require File::Find;
-  my $from_base_path = abs_path $pmpp_dir_name;
-  my $to_base_path = get_pm_dir_name ($perl_version);
-  make_path $to_base_path;
-  $to_base_path = abs_path $to_base_path;
-  File::Find::find (sub {
-    my $rel = File::Spec->abs2rel ((abs_path $_), $from_base_path);
-    my $dest = File::Spec->rel2abs ($rel, $to_base_path);
-    if (-f $_) {
-      info 2, "Copying file $rel...";
-      unlink $dest if -f $dest;
-      copy $_ => $dest or die "$0: $dest: $!";
-      chmod ((stat $_)[2], $dest);
-    } elsif (-d $_) {
-      info 2, "Copying directory $rel...";
-      make_path $dest;
-      chmod ((stat $_)[2], $dest);
-    }
-  }, $_) for grep { -d $_ } "$pmpp_dir_name/bin", "$pmpp_dir_name/lib";
-} # copy_pmpp_modules
-
-sub delete_pmpp_arch_dir () {
-  info 1, "rm -fr $pmpp_dir_name/lib/perl5/$Config{archname}";
-  remove_tree "$pmpp_dir_name/lib/perl5/$Config{archname}";
-} # delete_pmpp_arch_dir
-
-## ------ Module lists ------
+## ------ Perl module lists ------
 
 sub select_module ($$$$;%) {
   my ($src_module_index => $perl_version, $module => $dest_module_index, %args) = @_;
@@ -1250,7 +1259,7 @@ sub read_carton_lock ($$;%) {
   $module_index->merge_modules ($modules);
 } # read_carton_lock
 
-## ------ Detecting application dependency ------
+## ------ Perl application dependency detection ------
 
 sub read_install_list ($$$;%);
 sub read_install_list ($$$;%) {
@@ -1393,26 +1402,16 @@ sub scan_dependency_from_directory ($) {
   return $modules;
 } # scan_dependency_from_directory
 
-## ------ Library paths ------
+## ------ Perl module installation ------
 
-sub get_lib_dir_names ($) {
-  my $perl_version = shift;
-  my $pm_dir_name = get_pm_dir_name ($perl_version);
-  my @lib = grep { defined } map { abs_path $_ } map { glob $_ }
-      qq{$root_dir_name/lib},
-      qq{$root_dir_name/modules/*/lib},
-      qq{$root_dir_name/local/submodules/*/lib},
-      qq{$pm_dir_name/lib/perl5/$Config{archname}},
-      qq{$pm_dir_name/lib/perl5};
-  return @lib;
-} # get_lib_dir_names
-
-sub get_libs_txt_file_name ($) {
-  my $perl_version = shift;
-  return "$root_dir_name/local/config/perl/libs-$perl_version-$Config{archname}.txt";
-} # get_libs_txt_file_name
-
-## ------ Perl modules ------
+sub install_module ($$;%) {
+  my ($perl_version, $module, %args) = @_;
+  get_local_copy_if_necessary $module;
+  cpanm {perl_version => $perl_version,
+         perl_lib_dir_name => $args{pmpp} ? $pmpp_dir_name : get_pm_dir_name ($perl_version),
+         module_index_file_name => $args{module_index_file_name}},
+        [$module];
+} # install_module
 
 sub get_module_version ($$) {
   my ($perl_version, $module) = @_;
