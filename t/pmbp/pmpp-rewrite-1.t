@@ -15,7 +15,7 @@ hoge" > "$tempdir/deps/pmpp/bin/script3"
 echo "#!C:/hoge/fuga/perl
 hoge" > "$tempdir/deps/pmpp/bin/script4"
 echo "#!perl
-print qq{ok 8\n}" > "$tempdir/deps/pmpp/bin/script5"
+print qq{ok 8\\n}" > "$tempdir/deps/pmpp/bin/script5"
 echo "#!/usr/bin/perl5.10.1
 hoge" > "$tempdir/deps/pmpp/bin/fuga/script6"
 echo "#!/hoge/foo/local/perl/bin/perl
