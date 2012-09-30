@@ -444,12 +444,16 @@ sub load_json ($) {
   } # get_latest_perl_version
 }
 
+sub get_perl_version ($) {
+  my $perl_command = shift;
+  my $perl_version;
+  run_command [$perl_command, '-e', 'printf "%vd", $^V'],
+      onoutput => sub { $perl_version = $_[0]; 2 };
+  return $perl_version;
+} # get_perl_version
+
 sub init_perl_version ($) {
-  my $perl_version = shift;
-  unless ($perl_version) {
-    run_command [$PerlCommand, '-e', 'printf "%vd", $^V'],
-        onoutput => sub { $perl_version = $_[0]; 2 };
-  }
+  my $perl_version = shift || get_perl_version ($PerlCommand) || '';
   $perl_version = get_latest_perl_version if $perl_version eq 'latest';
   $perl_version =~ s/^v//;
   unless ($perl_version =~ /\A5\.[0-9]+\.[0-9]+\z/) {
@@ -579,11 +583,18 @@ sub install_cpanm_wrapper () {
 }
 
 our $CPANMDepth = 0;
+my $PerlVersionChecked = {};
 sub cpanm ($$);
 sub cpanm ($$) {
   my ($args, $modules) = @_;
   my $result = {};
   install_cpanm_wrapper;
+
+  if (not $args->{info} and @$modules == 1 and
+      ref $modules->[0] and $modules->[0]->is_perl) {
+    info 1, "cpanm invocation for package |perl| skipped";
+    return {};
+  }
 
   my $perl_lib_dir_name = $args->{perl_lib_dir_name}
       || ($args->{info} ? $CPANMDirName : undef)
@@ -591,11 +602,16 @@ sub cpanm ($$) {
   my $perl_version = $args->{perl_version}
       || ($args->{info} ? (sprintf '%vd', $^V) : undef)
       or die "No |perl_version| specified";
+  my $path = get_env_path ($perl_version);
+  my $perl_command = $args->{perl_command} || $PerlCommand;
 
-  if (not $args->{info} and @$modules == 1 and
-      ref $modules->[0] and $modules->[0]->is_perl) {
-    info 1, "cpanm invocation for package |perl| skipped";
-    return {};
+  unless ($PerlVersionChecked->{$path, $perl_version}) {
+    my $actual_perl_version = get_perl_version ($perl_command) || '?';
+    if ($actual_perl_version eq $perl_version) {
+      $PerlVersionChecked->{$path, $perl_version} = 1;
+    } else {
+      info_die "Perl version mismatch: $actual_perl_version ($perl_version expected)";
+    }
   }
 
   my $redo = 0;
@@ -644,7 +660,7 @@ sub cpanm ($$) {
     push @option, '--mirror-only';
 
     my $envs = {LANG => 'C',
-                PATH => get_env_path ($perl_version),
+                PATH => $path,
                 HOME => get_cpanm_dummy_home_dir_name ($perl_lib_dir_name),
                 PERL_CPANM_HOME => $CPANMHomeDirName,
                
@@ -656,6 +672,7 @@ sub cpanm ($$) {
       ## <http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=636649>
       $envs->{PERL_MM_OPT} = $ENV{PERL_MM_OPT};
       $envs->{PERL_MM_OPT} = '' unless defined $envs->{PERL_MM_OPT};
+      # XXX The following line is wrong
       $envs->{PERL_MM_OPT} .= ' CCFLAGS="-Wformat=0 ' . $Config{ccflags} . '"';
     }
 
@@ -752,7 +769,7 @@ sub cpanm ($$) {
       }
     }; # $scan_errors
 
-    my @cmd = ($args->{perl_command} || $PerlCommand, 
+    my @cmd = ($perl_command,
                @perl_option,
                $CPANMWrapper,
                @option,
