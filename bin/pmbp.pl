@@ -9,7 +9,7 @@ use File::Spec ();
 use Getopt::Long;
 
 my $perl = 'perl';
-my $perl_version;
+my $specified_perl_version;
 my $wget = 'wget';
 my $SudoCommand = 'sudo';
 my $AptGetCommand = 'apt-get';
@@ -45,7 +45,7 @@ GetOptions (
   '--root-dir-name=s' => \$root_dir_name,
   '--pmtar-dir-name=s' => \$pmtar_dir_name,
   '--pmpp-dir-name=s' => \$pmpp_dir_name,
-  '--perl-version=s' => \$perl_version,
+  '--perl-version=s' => \$specified_perl_version,
   '--verbose' => sub { $Verbose++ },
   '--preserve-info-file' => \$PreserveInfoFile,
   '--dump-info-file-before-die' => \$DumpInfoFileBeforeDie,
@@ -146,13 +146,6 @@ GetOptions (
 
 sub make_path ($) { mkpath $_[0] }
 sub remove_tree ($) { rmtree $_[0] }
-
-## Note that |run_command| function is not ready yet.
-$perl_version ||= `@{[quotemeta $perl]} -e 'printf "%vd", \$^V'`;
-$perl_version =~ s/^v//;
-unless ($perl_version =~ /\A5\.[0-9]+\.[0-9]+\z/) {
-  die "Invalid Perl version: $perl_version\n";
-}
 
 # {root}
 make_path $root_dir_name;
@@ -258,6 +251,7 @@ my $deps_json_dir_name = $pmtar_dir_name . '/deps';
     my $module = shift;
     get_local_copy_if_necessary ($module);
     cpanm ({perl_command => $^X,
+            perl_version => (sprintf '%vd', $^V),
             perl_lib_dir_name => $PMBPLibDirName,
             local_option => '-l', skip_satisfied => 1}, [$module]);
   } # install_pmbp_module
@@ -335,11 +329,11 @@ sub save_url ($$) {
 ## ------ JSON ------
 
 {
-  my $json_installed;
+  my $JSONInstalled;
   
   sub encode_json ($) {
-    unless ($json_installed) {
-      $json_installed = 1;
+    unless ($JSONInstalled) {
+      $JSONInstalled = 1;
       eval q{ require JSON } or
       install_pmbp_module (PMBP::Module->new_from_package ('JSON'));
     }
@@ -348,8 +342,8 @@ sub save_url ($$) {
   } # encode_json
 
   sub decode_json ($) {
-    unless ($json_installed) {
-      $json_installed = 1;
+    unless ($JSONInstalled) {
+      $JSONInstalled = 1;
       eval q{ require JSON } or
       install_pmbp_module (PMBP::Module->new_from_package ('JSON'));
     }
@@ -369,23 +363,23 @@ sub load_json ($) {
 ## ------ Install system packages ------
 
 {
-  my $HasAPT;
-  my $HasYUM;
-  sub install_system_packages ($) {
-    my $packages = $_[0];
+  my $HasAPT = {};
+  my $HasYUM = {};
+  sub install_system_packages ($$) {
+    my ($perl_version, $packages) = @_;
     return unless @$packages;
     
-    $HasAPT = which ($AptGetCommand, $perl_version)
+    $HasAPT->{$perl_version} = which ($AptGetCommand, $perl_version)
         ? 1 : 0 if not defined $HasAPT;
-    $HasYUM = which ($YumCommand, $perl_version)
+    $HasYUM->{$perl_version} = which ($YumCommand, $perl_version)
         ? 1 : 0 if not defined $HasYUM;
 
     my $cmd;
     my $env = '';
-    if ($HasAPT) {
+    if ($HasAPT->{$perl_version}) {
       $cmd = [$SudoCommand, '--', $AptGetCommand, 'install', '-y', map { $_->{debian_name} || $_->{name} } @$packages];
       $env = 'DEBIAN_FRONTEND="noninteractive" ';
-    } elsif ($HasYUM) {
+    } elsif ($HasYUM->{$perl_version}) {
       $cmd = [$SudoCommand, '--', $YumCommand, 'install', '-y', map { $_->{redhat_name} || $_->{name} } @$packages];
     }
 
@@ -409,10 +403,10 @@ sub load_json ($) {
 }
 
 {
-  my $EnvPath;
+  my $EnvPath = {};
   sub get_env_path ($) {
     my $perl_version = shift;
-    return $EnvPath ||= (abs_path "$root_dir_name/local/perlbrew/perls/perl-$perl_version/bin") . ':' . $ENV{PATH};
+    return $EnvPath->{$perl_version} ||= (abs_path "$root_dir_name/local/perlbrew/perls/perl-$perl_version/bin") . ':' . $ENV{PATH};
   } # get_env_path
 
   sub which ($$) {
@@ -429,24 +423,36 @@ sub load_json ($) {
   } # which
 }
 
-## ------ Installing Perl ------
+## ------ Perl ------
 
-my $LatestPerlVersion;
-sub get_latest_perl_version () {
-  return $LatestPerlVersion if $LatestPerlVersion;
-
-  my $file_name = qq<$PMBPDirName/latest-perl.json>;
-  save_url q<http://api.metacpan.org/release/perl> => $file_name
-      if not -f $file_name or
-         [stat $file_name]->[9] + 24 * 60 * 60 < time;
-  my $json = load_json $file_name;
-  if (ref $json eq 'HASH' and $json->{name} and
-      $json->{name} =~ /^perl-([0-9A-Za-z._-]+)$/) {
-    return $LatestPerlVersion = $1;
-  } else {
-    return $LatestPerlVersion = '5.16.1';
+sub init_perl_version ($) {
+  my $perl_version = shift;
+  $perl_version ||= `@{[quotemeta $perl]} -e 'printf "%vd", \$^V'`;
+  $perl_version =~ s/^v//;
+  unless ($perl_version =~ /\A5\.[0-9]+\.[0-9]+\z/) {
+    info_die "Invalid Perl version: $perl_version\n";
   }
-} # get_latest_perl_version
+  return $perl_version;
+} # init_perl_version
+
+{
+  my $LatestPerlVersion;
+  sub get_latest_perl_version () {
+    return $LatestPerlVersion if $LatestPerlVersion;
+
+    my $file_name = qq<$PMBPDirName/latest-perl.json>;
+    save_url q<http://api.metacpan.org/release/perl> => $file_name
+        if not -f $file_name or
+            [stat $file_name]->[9] + 24 * 60 * 60 < time;
+    my $json = load_json $file_name;
+    if (ref $json eq 'HASH' and $json->{name} and
+        $json->{name} =~ /^perl-([0-9A-Za-z._-]+)$/) {
+      return $LatestPerlVersion = $1;
+    } else {
+      return $LatestPerlVersion = '5.16.1';
+    }
+  } # get_latest_perl_version
+}
 
 sub get_perlbrew_envs () {
   return {PERLBREW_ROOT => (abs_path "$root_dir_name/local/perlbrew")}
@@ -569,7 +575,6 @@ sub install_cpanm_wrapper () {
 }
 
 our $CPANMDepth = 0;
-my $cpanm_init = 0;
 sub cpanm ($$);
 sub cpanm ($$) {
   my ($args, $modules) = @_;
@@ -593,7 +598,7 @@ sub cpanm ($$) {
     my @required_install2;
     my @required_system;
 
-    my $cpanm_lib_dir_name = "$root_dir_name/local/perl-$perl_version/cpanm";
+    my $cpanm_lib_dir_name = "$root_dir_name/local/perl-$args->{perl_version}/cpanm";
     my @perl_option = ("-I$cpanm_lib_dir_name/lib/perl5/$Config{archname}",
                        "-I$cpanm_lib_dir_name/lib/perl5");
 
@@ -632,7 +637,7 @@ sub cpanm ($$) {
     push @option, '--mirror-only';
 
     my $envs = {LANG => 'C',
-                PATH => get_env_path ($perl_version),
+                PATH => get_env_path ($args->{perl_version}),
                 HOME => get_cpanm_dummy_home_dir_name ($perl_lib_dir_name),
                 PERL_CPANM_HOME => $CPANMHomeDirName,
                
@@ -770,7 +775,8 @@ sub cpanm ($$) {
           $redo = 1;
         }
         if (@required_system) {
-          $redo = 1 if install_system_packages \@required_system;
+          $redo = 1
+              if install_system_packages $args->{perl_version}, \@required_system;
         }
         if ($install_extutils_embed) {
           ## ExtUtils::Embed is core module since 5.003_07 and you
@@ -786,7 +792,8 @@ sub cpanm ($$) {
           local $CPANMDepth = $CPANMDepth + 1;
           for my $module (@required_cpanm) {
             get_local_copy_if_necessary ($module);
-            cpanm {perl_lib_dir_name => $cpanm_lib_dir_name,
+            cpanm {perl_version => $args->{perl_version},
+                   perl_lib_dir_name => $cpanm_lib_dir_name,
                    local_option => '-l', skip_satisfied => 1}, [$module];
           }
           $redo = 1;
@@ -795,12 +802,14 @@ sub cpanm ($$) {
             local $CPANMDepth = $CPANMDepth + 1;
             for my $module (@required_install) {
               if ($args->{scandeps}) {
-                scandeps ($args->{scandeps}->{module_index}, $module,
+                scandeps ($args->{scandeps}->{module_index},
+                          $args->{perl_version}, $module,
                           skip_if_found => 1,
                           module_index_file_name => $args->{module_index_file_name});
                 push @{$result->{additional_deps} ||= []}, $module;
               }
-              cpanm ({perl_lib_dir_name => $perl_lib_dir_name,
+              cpanm ({perl_version => $args->{perl_version},
+                      perl_lib_dir_name => $perl_lib_dir_name,
                       module_index_file_name => $args->{module_index_file_name}}, [$module])
                   unless $args->{no_install};
             }
@@ -808,7 +817,8 @@ sub cpanm ($$) {
           } else {
             local $CPANMDepth = $CPANMDepth + 1;
             for my $module (@required_install) {
-              cpanm ({perl_lib_dir_name => $perl_lib_dir_name,
+              cpanm ({perl_version => $args->{perl_version},
+                      perl_lib_dir_name => $perl_lib_dir_name,
                       module_index_file_name => $args->{module_index_file_name}}, [$module]);
             }
             $redo = 1;
@@ -921,15 +931,16 @@ sub get_pm_dir_name ($) {
 sub install_module ($$;%) {
   my ($perl_version, $module, %args) = @_;
   get_local_copy_if_necessary $module;
-  cpanm {perl_lib_dir_name => $args{pmpp} ? $pmpp_dir_name : get_pm_dir_name ($perl_version),
+  cpanm {perl_version => $perl_version,
+         perl_lib_dir_name => $args{pmpp} ? $pmpp_dir_name : get_pm_dir_name ($perl_version),
          module_index_file_name => $args{module_index_file_name}},
         [$module];
 } # install_module
 
 ## ------ Detecting module dependency ------
 
-sub scandeps ($$;%) {
-  my ($module_index, $module, %args) = @_;
+sub scandeps ($$$;%) {
+  my ($module_index, $perl_version, $module, %args) = @_;
 
   if ($args{skip_if_found}) {
     my $module_in_index = $module_index->find_by_module ($module);
@@ -945,7 +956,8 @@ sub scandeps ($$;%) {
   my $temp_dir = $args{temp_dir} || File::Temp->newdir;
 
   get_local_copy_if_necessary $module;
-  my $result = cpanm {perl_lib_dir_name => $temp_dir->dirname,
+  my $result = cpanm {perl_version => $perl_version,
+                      perl_lib_dir_name => $temp_dir->dirname,
                       temp_dir => $temp_dir,
                       module_index_file_name => $args{module_index_file_name},
                       scandeps => {module_index => $module_index}}, [$module];
@@ -1053,7 +1065,8 @@ sub init_pmpp_git () {
   run_command ['sh', '-c', "cd \Q$pmpp_dir_name\E && git init"];
 } # init_pmpp_git
 
-sub copy_pmpp_modules () {
+sub copy_pmpp_modules ($) {
+  my $perl_version = shift;
   delete_pmpp_arch_dir ();
   require File::Find;
   my $from_base_path = abs_path $pmpp_dir_name;
@@ -1083,20 +1096,20 @@ sub delete_pmpp_arch_dir () {
 
 ## ------ Module lists ------
 
-sub select_module ($$$;%) {
-  my ($src_module_index => $module => $dest_module_index, %args) = @_;
+sub select_module ($$$$;%) {
+  my ($src_module_index => $perl_version, $module => $dest_module_index, %args) = @_;
   
   my $mods = load_deps $src_module_index => $module;
   unless ($mods) {
     info 0, "Scanning dependency of @{[$module->as_short]}...";
-    scandeps $src_module_index, $module, %args;
+    scandeps $src_module_index, $perl_version, $module, %args;
     $mods = load_deps $src_module_index => $module;
     unless ($mods) {
       if ($module->is_perl) {
         $mods = [];
       } elsif (defined $module->pathname) {
         if (save_by_pathname $module->pathname => $module) {
-          scandeps $src_module_index, $module, %args;
+          scandeps $src_module_index, $perl_version, $module, %args;
           $mods = load_deps $src_module_index => $module;
         }
       } elsif (defined $module->package and defined $module->version) {
@@ -1107,7 +1120,7 @@ sub select_module ($$$;%) {
           my $path = $current_module->pathname;
           if (defined $path and $path =~ s{-[0-9A-Za-z.+-]+\.(tar\.(?:gz|bz2)|zip)$}{-@{[$module->version]}.$1}) {
             if (save_by_pathname $path => $module) {
-              scandeps $src_module_index, $module, %args;
+              scandeps $src_module_index, $module, $perl_version, %args;
               $mods = load_deps $src_module_index => $module;
             }
           }
@@ -1238,9 +1251,9 @@ sub read_carton_lock ($$;%) {
 
 ## ------ Detecting application dependency ------
 
-sub read_install_list ($$;%);
-sub read_install_list ($$;%) {
-  my ($dir_name => $module_index, %args) = @_;
+sub read_install_list ($$$;%);
+sub read_install_list ($$$;%) {
+  my ($dir_name => $module_index, $perl_version, %args) = @_;
 
   my $onadd = sub { my $source = shift; return sub {
     info 1, sprintf '%s requires %s', $source, $_[0]->as_short;
@@ -1279,7 +1292,8 @@ sub read_install_list ($$;%) {
     ## CPAN package configuration scripts
     if (-f "$dir_name/Build.PL" or -f "$dir_name/Makefile.PL") {
       my $temp_dir = File::Temp->newdir;
-      my $result = cpanm {perl_lib_dir_name => $temp_dir->dirname,
+      my $result = cpanm {perl_version => $perl_version,
+                          perl_lib_dir_name => $temp_dir->dirname,
                           temp_dir => $temp_dir,
                           scandeps => {module_index => $module_index}},
                          [$dir_name];
@@ -1305,7 +1319,7 @@ sub read_install_list ($$;%) {
   for my $dir_name (map { glob "$dir_name/$_" } qw(
     modules/* t_deps/modules/* local/submodules/*
   )) {
-    read_install_list $dir_name => $module_index,
+    read_install_list $dir_name => $module_index, $perl_version,
         recursive => $args{recursive} ? $args{recursive} - 1 : 0;
   }
 } # read_install_list
@@ -1436,6 +1450,7 @@ init_pmbp;
 info 6, '$ ' . join ' ', $0, @Argument;
 info 6, sprintf '%s %vd (%s)', $^X, $^V, $Config{archname};
 info 6, '@INC = ' . join ' ', @INC;
+my $perl_version = init_perl_version ($specified_perl_version);
 
 while (@command) {
   my $command = shift @command;
@@ -1491,7 +1506,8 @@ while (@command) {
     if (defined $command->{file_name}) {
       read_pmb_install_list $command->{file_name} => $module_index;
     } else {
-      read_install_list $root_dir_name => $module_index, recursive => 1;
+      read_install_list $root_dir_name => $module_index, $perl_version,
+          recursive => 1;
     }
     for ($module_index->to_list) {
       info 0, "Installing @{[$_->as_short]}...";
@@ -1505,13 +1521,14 @@ while (@command) {
     $pmpp_touched = 1;
   } elsif ($command->{type} eq 'install-by-pmpp') {
     info 0, "Copying pmpp modules...";
-    copy_pmpp_modules;
+    copy_pmpp_modules ($perl_version);
   } elsif ($command->{type} eq 'update-pmpp-by-list') {
     my $module_index = PMBP::ModuleIndex->new_empty;
     if (defined $command->{file_name}) {
       read_pmb_install_list $command->{file_name} => $module_index;
     } else {
-      read_install_list $root_dir_name => $module_index, recursive => 1;
+      read_install_list $root_dir_name => $module_index, $perl_version,
+          recursive => 1;
     }
     for ($module_index->to_list) {
       info 0, "Installing @{[$_->as_short]} to pmpp...";
@@ -1521,11 +1538,12 @@ while (@command) {
     $pmpp_touched = 1;
   } elsif ($command->{type} eq 'scandeps') {
     info 0, "Scanning dependency of @{[$command->{module}->as_short]}...";
-    scandeps $global_module_index, $command->{module},
+    scandeps $global_module_index, $perl_version, $command->{module},
         skip_if_found => 1,
         module_index_file_name => $module_index_file_name;
   } elsif ($command->{type} eq 'select-module') {
-    select_module $global_module_index => $command->{module} => $selected_module_index,
+    select_module $global_module_index =>
+        $perl_version, $command->{module} => $selected_module_index,
         module_index_file_name => $module_index_file_name;
     $global_module_index->merge_module_index ($selected_module_index);
   } elsif ($command->{type} eq 'select-modules-by-list') {
@@ -1533,10 +1551,11 @@ while (@command) {
     if (defined $command->{file_name}) {
       read_pmb_install_list $command->{file_name} => $module_index;
     } else {
-      read_install_list $root_dir_name => $module_index,
+      read_install_list $root_dir_name => $module_index, $perl_version,
           recursive => 1;
     }
-    select_module $global_module_index => $_ => $selected_module_index,
+    select_module $global_module_index =>
+        $perl_version, $_ => $selected_module_index,
         module_index_file_name => $module_index_file_name
         for ($module_index->to_list);
     $global_module_index->merge_module_index ($selected_module_index);
