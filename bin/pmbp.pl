@@ -240,6 +240,28 @@ my $deps_txt_dir_name = $pmtar_dir_name . '/deps';
   } # info_end
 }
 
+## ------ PMBP ------
+
+{
+  my $PMBPLibDirName;
+  
+  sub init_pmbp () {
+    $PMBPLibDirName = sprintf '%s/local/perl-%vd/pmbp/self',
+        $root_dir_name, $^V;
+    unshift @INC,
+        "$PMBPLibDirName/lib/perl5",
+        "$PMBPLibDirName/lib/perl5/$Config{archname}";
+  } # init_pmbp
+  
+  sub install_pmbp_module ($) {
+    my $module = shift;
+    get_local_copy_if_necessary ($module);
+    cpanm ({perl_command => $^X,
+            perl_lib_dir_name => $PMBPLibDirName,
+            local_option => '-l', skip_satisfied => 1}, [$module]);
+  } # install_pmbp_module
+}
+
 ## ------ Files and directories ------
 
 sub mkdir_for_file ($) {
@@ -318,7 +340,7 @@ sub save_url ($$) {
     unless ($json_installed) {
       $json_installed = 1;
       eval q{ require JSON } or
-      install_support_module (PMBP::Module->new_from_package ('JSON'));
+      install_pmbp_module (PMBP::Module->new_from_package ('JSON'));
     }
     require JSON;
     return JSON->new->utf8->allow_blessed->convert_blessed->allow_nonref->pretty->canonical->encode ($_[0]);
@@ -328,7 +350,7 @@ sub save_url ($$) {
     unless ($json_installed) {
       $json_installed = 1;
       eval q{ require JSON } or
-      install_support_module (PMBP::Module->new_from_package ('JSON'));
+      install_pmbp_module (PMBP::Module->new_from_package ('JSON'));
     }
     require JSON;
     return JSON->new->utf8->allow_blessed->convert_blessed->allow_nonref->pretty->canonical->decode ($_[0]);
@@ -709,7 +731,7 @@ sub cpanm ($$) {
       }
     }; # $scan_errors
 
-    my @cmd = ($perl, 
+    my @cmd = ($args->{perl_command} || $perl, 
                @perl_option,
                $CPANMWrapper,
                @option,
@@ -754,7 +776,9 @@ sub cpanm ($$) {
         if (@required_cpanm) {
           local $CPANMDepth = $CPANMDepth + 1;
           for my $module (@required_cpanm) {
-            install_support_module ($module);
+            get_local_copy_if_necessary ($module);
+            cpanm {perl_lib_dir_name => $cpanm_dir_name,
+                   local_option => '-l', skip_satisfied => 1}, [$module];
           }
           $redo = 1;
         } elsif (@required_install) {
@@ -887,13 +911,6 @@ sub install_module ($;%) {
          module_index_file_name => $args{module_index_file_name}},
         [$module];
 } # install_module
-
-sub install_support_module ($) {
-  my $module = shift;
-  get_local_copy_if_necessary $module;
-  cpanm {perl_lib_dir_name => $cpanm_dir_name,
-         local_option => '-l', skip_satisfied => 1}, [$module];
-} # install_support_module
 
 ## ------ Detecting module dependency ------
 
@@ -1280,9 +1297,9 @@ sub read_install_list ($$;%) {
 sub get_dependency_from_cpanfile ($$;%) {
   my ($file_name => $module_index, %args) = @_;
 
-  install_support_module PMBP::Module->new_from_package ('Module::CPANfile');
-  install_support_module PMBP::Module->new_from_package ('CPAN::Meta::Prereqs'); # loaded by Module::CPANfile
-  install_support_module PMBP::Module->new_from_package ('CPAN::Meta::Requirements');
+  install_pmbp_module PMBP::Module->new_from_package ('Module::CPANfile');
+  install_pmbp_module PMBP::Module->new_from_package ('CPAN::Meta::Prereqs'); # loaded by Module::CPANfile
+  install_pmbp_module PMBP::Module->new_from_package ('CPAN::Meta::Requirements');
 
   require Module::CPANfile;
   my $cpanfile = Module::CPANfile->load ($file_name);
@@ -1396,8 +1413,9 @@ my $module_index_file_name;
 my $pmpp_touched;
 my $start_time = time;
 open_info_file;
+init_pmbp;
 info 6, '$ ' . join ' ', $0, @Argument;
-info 6, sprintf 'Perl %vd (%s)', $^V, $Config{archname};
+info 6, sprintf '%s %vd (%s)', $^X, $^V, $Config{archname};
 info 6, '@INC = ' . join ' ', @INC;
 
 while (@command) {
@@ -1561,7 +1579,7 @@ while (@command) {
     my $mod_names = scan_dependency_from_directory $command->{dir_name};
     print map { $_ . "\n" } sort { $a cmp $b } keys %$mod_names;
   } elsif ($command->{type} eq 'print-perl-core-version') {
-    install_support_module PMBP::Module->new_from_package ('Module::CoreList');
+    install_pmbp_module PMBP::Module->new_from_package ('Module::CoreList');
     require Module::CoreList;
     print Module::CoreList->first_release ($command->{module_name});
   } elsif ($command->{type} eq 'print-module-pathname') {
