@@ -272,9 +272,14 @@ sub run_command ($;%) {
   my ($command, %args) = @_;
   my $prefix = defined $args{prefix} ? $args{prefix} : '';
   my $envs = $args{envs} || {};
-  info 2, qq{$prefix\$ @{[map { $_ . '="' . (_quote_dq $envs->{$_}) . '" ' } sort { $a cmp $b } keys %$envs]}@$command};
+  info ((defined $args{info_command_level} ? $args{info_command_level} : 2),
+        qq{$prefix\$ @{[map { $_ . '="' . (_quote_dq $envs->{$_}) . '" ' } sort { $a cmp $b } keys %$envs]}@$command});
   local %ENV = (%ENV, %$envs);
-  open my $cmd, "-|", (join ' ', map quotemeta, @$command) . " 2>&1"
+  open my $cmd, "-|",
+      (join ' ', map quotemeta, @$command) .
+      " 2>&1" .
+      (defined $args{">"} ? ' > ' . quotemeta $args{">"} : '') .
+      ($args{accept_input} ? '' : ' < /dev/null')
       or die "$0: $command->[0]: $!";
   while (<$cmd>) {
     my $level = defined $args{info_level} ? $args{info_level} : 1;
@@ -359,7 +364,7 @@ sub load_json ($) {
       } else {
         info 0, $env . '$ ' . join ' ', @$cmd;
         local $ENV{DEBIAN_FRONTEND} = "noninteractive";
-        return run_command $cmd, info_level => 0;
+        return run_command $cmd, info_level => 0, accept_input => -t STDIN;
       }
     } else {
       info 0, "Install following packages and retry:";
@@ -500,6 +505,25 @@ sub install_cpanm_wrapper () {
   close $file;
 } # install_cpanm_wrapper
 
+{
+  my $CPANMDummyHomeDirNames = {};
+  sub get_cpanm_dummy_home_dir_name ($) {
+    my $lib_dir_name = shift;
+    return $CPANMDummyHomeDirNames->{$lib_dir_name} ||= do {
+      ## For Module::Build-based packages (e.g. Class::Accessor::Lvalue)
+      require Digest::MD5;
+      my $key = Digest::MD5::md5_hex ($lib_dir_name);
+      my $home_dir_name = "$cpanm_home_dir_name/$key";
+      my $file_name = "$home_dir_name/.modulebuildrc";
+      mkdir_for_file $file_name;
+      open my $file, '>', $file_name or die "$0: $file_name: $!";
+      print $file "install --install-base $lib_dir_name";
+      close $file;
+      $home_dir_name;
+    };
+  } # get_cpanm_dummy_home_dir_name
+}
+
 our $CPANMDepth = 0;
 my $cpanm_init = 0;
 sub cpanm ($$);
@@ -517,19 +541,6 @@ sub cpanm ($$) {
     info 1, "cpanm invocation for package |perl| skipped";
     return {};
   }
-
-  local $ENV{HOME} = do {
-    ## For Module::Build-based packages (e.g. Class::Accessor::Lvalue)
-    require Digest::MD5;
-    my $key = Digest::MD5::md5_hex ($perl_lib_dir_name);
-    my $home_dir_name = "$cpanm_home_dir_name/$key";
-    my $file_name = "$home_dir_name/.modulebuildrc";
-    mkdir_for_file $file_name;
-    open my $file, '>', $file_name or die "$0: $file_name: $!";
-    print $file "install --install-base $perl_lib_dir_name";
-    close $file;
-    $home_dir_name
-  };
 
   my $redo = 0;
   COMMAND: {
@@ -574,39 +585,22 @@ sub cpanm ($$) {
     ## Let cpanm not use Web API, as it slows down operations.
     push @option, '--mirror-only';
 
-    local $ENV{LANG} = 'C';
-    local $ENV{PERL_CPANM_HOME} = $cpanm_home_dir_name;
-    local $ENV{PATH} = get_env_path;
-
-    ## mod_perl support (incomplete...)
-    local $ENV{MP_APXS} = $ENV{MP_APXS} || (-f '/usr/sbin/apxs' ? '/usr/sbin/apxs' : undef);
-    local $ENV{MP_USE_MY_EXTUTILS_EMBED} = 1;
-
-    my $envs = {};
+    my $envs = {LANG => 'C',
+                PATH => get_env_path,
+                HOME => get_cpanm_dummy_home_dir_name ($perl_lib_dir_name),
+                PERL_CPANM_HOME => $cpanm_home_dir_name,
+               
+                ## mod_perl support (incomplete...)
+                MP_APXS => $ENV{MP_APXS} || (-f '/usr/sbin/apxs' ? '/usr/sbin/apxs' : undef),
+                MP_USE_MY_EXTUTILS_EMBED => 1};
 
     if (@module_arg and $module_arg[0] eq 'GD') {
       ## <http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=636649>
       $envs->{PERL_MM_OPT} = $ENV{PERL_MM_OPT};
       $envs->{PERL_MM_OPT} = '' unless defined $envs->{PERL_MM_OPT};
-      $envs->{PERL_MM_OPT} .= ' -Wformat=0 ' . $Config{ccflags};
+      $envs->{PERL_MM_OPT} .= ' CCFLAGS="-Wformat=0 ' . $Config{ccflags} . '"';
     }
 
-    local %ENV = (%ENV, %$envs);
-
-    my @cmd = ($perl, 
-               @perl_option,
-               $CPANMWrapper,
-               @option,
-               @module_arg);
-    info $args->{info} ? 2 : 1,
-        join ' ', 'PERL_CPANM_HOME=' . $cpanm_home_dir_name, @cmd;
-    my $json_temp_file = File::Temp->new;
-    open my $cmd, '-|', ((join ' ', map { quotemeta } @cmd) .
-                         ' 2>&1 ' .
-                         ($args->{scandeps} || $args->{info}
-                              ? ' > ' . quotemeta $json_temp_file : '') .
-                         ' < /dev/null')
-        or die "Failed to execute @cmd - $!\n";
     my $failed;
     my $remove_inc;
     my $install_extutils_embed;
@@ -700,16 +694,27 @@ sub cpanm ($$) {
       }
     }; # $scan_errors
 
-    while (<$cmd>) {
-      if (/^! Couldn\'t find module or a distribution /) {
-        info 0, "cpanm($CPANMDepth/$redo): $_";
-      } else {
-        info 1, "cpanm($CPANMDepth/$redo): $_";
-      }
-      $scan_errors->(1, $_);
-    }
+    my @cmd = ($perl, 
+               @perl_option,
+               $CPANMWrapper,
+               @option,
+               @module_arg);
+    my $json_temp_file = File::Temp->new;
+    my $cpanm_ok = run_command \@cmd,
+        envs => $envs,
+        info_command_level => $args->{info} ? 2 : 1,
+        prefix => "cpanm($CPANMDepth/$redo): ",
+        '>' => ($args->{scandeps} || $args->{info} ? $json_temp_file : undef),
+        onoutput => sub {
+          my $info_level = 1;
+          if ($_[0] =~ /^! Couldn\'t find module or a distribution /) {
+            $info_level = 0;
+          }
+          $scan_errors->(1, $_);
+          return $info_level;
+        };
     info 2, "cpanm done";
-    (close $cmd and not $failed) or do {
+    ($cpanm_ok and not $failed) or do {
       unless ($CPANMDepth > 100 or $redo++ > 10) {
         my $redo;
         if ($remove_inc and
@@ -722,6 +727,10 @@ sub cpanm ($$) {
           $redo = 1 if install_system_packages \@required_system;
         }
         if ($install_extutils_embed) {
+          ## ExtUtils::Embed is core module since 5.003_07 and you
+          ## should have the module installed.  Newer versions of the
+          ## module is not distributed at CPAN.  Nevertheless, on some
+          ## system the module is not installed...
           my $pm = "$perl_lib_dir_name/lib/perl5/ExtUtils/Embed.pm";
           save_url q<http://perl5.git.perl.org/perl.git/blob_plain/HEAD:/lib/ExtUtils/Embed.pm> => $pm;
           undef $install_extutils_embed;
@@ -1847,6 +1856,12 @@ error output and the installer is not automatically invoked.
 
 At the time of writing, C<apt-get> (for Debian) and C<yum> (for
 Fedora) are supported.
+
+The C<sudo> command would ask you to input the password if the
+standard input of the script is connected to tty.  Otherwise the
+C<sudo> command would fail (unless your password is the empty string
+or you are the root).  Installer are executed with options to disable
+any prompt.
 
 =item --perlbrew-installer-url="URL"
 
