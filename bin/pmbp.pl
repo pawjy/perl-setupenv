@@ -291,6 +291,7 @@ sub copy_log_file ($$) {
 
 sub _quote_dq ($) {
   my $s = shift;
+  no warnings 'uninitialized';
   $s =~ s/\"/\\\"/g;
   return $s;
 } # _quote_dq
@@ -299,8 +300,11 @@ sub run_command ($;%) {
   my ($command, %args) = @_;
   my $prefix = defined $args{prefix} ? $args{prefix} : '';
   my $envs = $args{envs} || {};
-  info ((defined $args{info_command_level} ? $args{info_command_level} : 2),
-        qq{$prefix\$ @{[map { $_ . '="' . (_quote_dq $envs->{$_}) . '" ' } sort { $a cmp $b } keys %$envs]}@$command});
+  {
+    no warnings 'uninitialized';
+    info ((defined $args{info_command_level} ? $args{info_command_level} : 2),
+          qq{$prefix\$ @{[map { $_ . '="' . (_quote_dq $envs->{$_}) . '" ' } sort { $a cmp $b } keys %$envs]}@$command});
+  }
   local %ENV = (%ENV, %$envs);
   open my $cmd, "-|",
       (join ' ', map quotemeta, @$command) .
