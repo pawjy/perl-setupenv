@@ -651,7 +651,8 @@ sub cpanm ($$) {
         '--mirror' => (abs_path $PMTarDirName),
         map { ('--mirror' => $_) } @CPANMirror;
 
-    if (defined $args->{module_index_file_name}) {
+    if (defined $args->{module_index_file_name} and
+        -f $args->{module_index_file_name}) {
       my $mi = abs_path $args->{module_index_file_name};
       push @option, '--mirror-index' => $mi if defined $mi;
     } else {
