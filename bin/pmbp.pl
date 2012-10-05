@@ -1432,9 +1432,9 @@ sub scan_dependency_from_directory ($) {
 
   my @include_dir_name = qw(bin lib script t t_deps);
   my @exclude_pattern = map { "^$_" } qw(modules t_deps/modules t_deps/projects);
-  for (split /\n/, qx{cd \Q$dir_name\E && find @{[join ' ', grep quotemeta, @include_dir_name]} 2> /dev/null @{[join ' ', map { "| grep -v $_" } grep quotemeta, @exclude_pattern]} | grep "\\.\\(pm\\|pl\\|t\\)\$" | xargs grep "\\(use\\|require\\) " --no-filename}) {
+  for (split /\n/, qx{cd \Q$dir_name\E && find @{[join ' ', grep quotemeta, @include_dir_name]} 2> /dev/null @{[join ' ', map { "| grep -v $_" } grep quotemeta, @exclude_pattern]} | grep "\\.\\(pm\\|pl\\|t\\)\$" | xargs grep "\\(use\\|require\\|extends\\) " --no-filename}) {
     s/\#.*$//;
-    if (/(?:use|require)\s*(?:base|parent)\s*(.+)/) {
+    if (/\b(?:(?:use|require)\s*(?:base|parent)|extends)\s*(.+)/) {
       my $base = $1;
       while ($base =~ /([0-9A-Za-z_:]+)/g) {
         $modules->{$1} = 1;
