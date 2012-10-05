@@ -265,7 +265,7 @@ sub remove_tree ($) { rmtree $_[0] }
 sub mkdir_for_file ($) {
   my $file_name = $_[0];
   $file_name =~ s{[^/\\]+$}{};
-  make_path $file_name;
+  make_path $file_name or die "$0: $file_name: $!";
 } # mkdir_for_file
 
 sub copy_log_file ($$) {
@@ -1040,7 +1040,9 @@ sub get_libs_txt_file_name ($) {
 
 sub create_perl_command_shortcut ($$) {
   my ($perl_version, $command) = @_;
-  my $file_name = "$RootDirName/$command";
+  my $file_name = $command =~ m{/} ? $command : "$RootDirName/$command";
+  mkdir_for_file $file_name;
+  $command = $1 if $command =~ m{/([^/]*)$};
   info_writing 1, "command shortcut", $file_name;
   open my $file, '>', $file_name or die "$0: $file_name: $!";
   print $file sprintf qq{\#!/bin/sh\nPATH="%s" PERL5LIB="`cat %s 2> /dev/null`" exec %s "\$\@"\n},
@@ -2114,6 +2116,11 @@ different between before and after the C<--install-perl> execution.
 Create a shell script to invoke a command with environement variables
 C<PATH> and C<PERL5LIB> set to appropriate values for any locally
 installed Perl and its modules under the "root" directory.
+
+The command name can be prefixed by path
+(e.g. C<hoge/fuga/command-name>).  If path is specified, the shell
+script is created within that directory instead (i.e. in C<hoge/fuga>
+in the example).
 
 For example, by invoking the following command:
 
