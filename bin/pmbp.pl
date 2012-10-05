@@ -265,7 +265,7 @@ sub remove_tree ($) { rmtree $_[0] }
 sub mkdir_for_file ($) {
   my $file_name = $_[0];
   $file_name =~ s{[^/\\]+$}{};
-  make_path $file_name or die "$0: $file_name: $!";
+  make_path $file_name;
 } # mkdir_for_file
 
 sub copy_log_file ($$) {
