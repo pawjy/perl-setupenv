@@ -2417,6 +2417,11 @@ command might be useful to combine multiple C<--print-*> commands.
 
 =over 4
 
+=item http_proxy
+
+Specify the proxy host.  See documentation for the C<wget> command for
+more information.
+
 =item PMBP_PARALLEL_COUNT
 
 Set the default value for the C<--perlbrew-parallel-count> option.
