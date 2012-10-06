@@ -2386,6 +2386,15 @@ file is placed under the C<config/perl> directory for backward
 compatibility.  You might want to add the file name to the
 C<.gitignore> file.
 
+=head2 local/bin/pmbp.pl
+
+It is recommended that the pmbp.pl script should be placed in the
+C<local/bin> directory under the root directory.  Additionally, before
+the installation process, you should run the following command to keep
+the script up-to-date:
+
+  $ perl local/bin/pmbp.pl --update-pmbp-pl
+
 =head2 local/perl-latest
 
 The C<--install> command generates (or overwrites) the C<perl-latest>
