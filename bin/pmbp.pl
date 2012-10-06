@@ -1554,7 +1554,8 @@ while (@Command) {
          file_name => -f $pmb_install_file_name
                           ? $pmb_install_file_name : undef},
         {type => 'write-libs-txt'},
-        {type => 'create-libs-txt-symlink'};
+        {type => 'create-libs-txt-symlink'},
+        {type => 'create-local-perl-latest-symlink'};
 
   } elsif ($command->{type} eq 'print-latest-perl-version') {
     print get_latest_perl_version;
@@ -1647,8 +1648,16 @@ while (@Command) {
   } elsif ($command->{type} eq 'create-libs-txt-symlink') {
     my $real_name = get_libs_txt_file_name ($perl_version);
     my $link_name = "$RootDirName/config/perl/libs.txt";
+    info_writing 3, 'libs.txt symlink', $link_name;
     mkdir_for_file $link_name;
     unlink $link_name or die "$0: $link_name: $!" if -f $link_name;
+    symlink $real_name => $link_name or die "$0: $link_name: $!";
+  } elsif ($command->{type} eq 'create-local-perl-latest-symlink') {
+    my $real_name = "$RootDirName/local/perl-$perl_version";
+    my $link_name = "$RootDirName/local/perl-latest";
+    info_writing 3, 'perl-latest symlink', $link_name;
+    make_path $real_name;
+    remove_tree $link_name;
     symlink $real_name => $link_name or die "$0: $link_name: $!";
   } elsif ($command->{type} eq 'create-perl-command-shortcut') {
     create_perl_command_shortcut $perl_version, $command->{command};
@@ -1954,6 +1963,10 @@ sub TO_JSON ($) {
 
 __END__
 
+=head1 NAME
+
+pmbp.pl - Perl application environment manager
+
 =head1 OPTIONS
 
 XXX
@@ -2179,6 +2192,35 @@ for more information.
 
 =back
 
+=head1 FILES
+
+XXX
+
+=head2 config/perl/libs.txt
+
+The C<--install> command generates (or overwrites) the file
+C<config/perl/libs.txt>, which contains C<:>-separated list of paths
+to C<lib>, C<modules/*/lib>, and locally-installed Perl modules.  This
+file is intended to be used as value of the C<PERL5LIB> environment
+variable, like:
+
+  PERL5LIB="`cat config/perl/libs.txt`" perl ...
+
+In fact this file is a symlink to
+C<local/config/perl/libs-$perl_version-$Config{archname}.txt>.  This
+file is placed under the C<config/perl> directory for backward
+compatibility.  You might want to add the file name to the
+C<.gitignore> file.
+
+=head2 local/perl-latest
+
+The C<--install> command generates (or overwrites) the C<perl-latest>
+symlink, which points to the C<local/perl-{perl-version}> directory.
+In other word, C<local/perl-latest/> contains files of the last
+C<--install>ation of Perl modules.  Originally the directory was
+intended to contain files for "latest" version of Perl, which is why
+the symlink is named C<perl-latest>.
+
 =head1 DEPENDENCY
 
 Perl 5.8 or later is supported by this script.  Core modules of Perl
@@ -2190,6 +2232,10 @@ In addition, the C<wget> command must be available.  Some of commands
 Though the script depends on C<perlbrew> and C<cpanm> commands, they
 are automatically downloaded from the Internet such that you don't
 have to prepare these scripts.
+
+=head1 AUTHOR
+
+Wakaba <wakaba@suikawiki.org>.
 
 =head1 LICENSE
 
