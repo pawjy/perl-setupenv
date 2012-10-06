@@ -4,11 +4,10 @@ basedir=`dirname $0`/../..
 pmbp=$basedir/bin/pmbp.pl
 tempdir=`perl -MFile::Temp=tempdir -e 'print tempdir'`/testapp
 
-mkdir -p "$tempdir"
-echo latest > "$tempdir/version.txt"
+mkdir -p "$tempdir/config/perl"
+echo latest > "$tempdir/config/perl/version.txt"
 
 perl $pmbp --root-dir-name "$tempdir" \
-    --perl-version-by-file-name "$tempdir/version.txt" \
     --print-selected-perl-version > "$tempdir/selversion.txt"
 
 perl $pmbp --root-dir-name "$tempdir" \

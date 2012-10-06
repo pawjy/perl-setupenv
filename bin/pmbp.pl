@@ -10,7 +10,6 @@ use Getopt::Long;
 
 my $PerlCommand = 'perl';
 my $SpecifiedPerlVersion;
-my $PerlVersionFileName;
 my $WgetCommand = 'wget';
 my $SudoCommand = 'sudo';
 my $AptGetCommand = 'apt-get';
@@ -47,7 +46,6 @@ GetOptions (
   '--pmtar-dir-name=s' => \$PMTarDirName,
   '--pmpp-dir-name=s' => \$PMPPDirName,
   '--perl-version=s' => \$SpecifiedPerlVersion,
-  '--perl-version-by-file-name=s' => \$PerlVersionFileName,
   '--verbose' => sub { $Verbose++ },
   '--preserve-info-file' => \$PreserveInfoFile,
   '--dump-info-file-before-die' => \$DumpInfoFileBeforeDie,
@@ -1530,7 +1528,7 @@ info 6, sprintf '%s %vd (%s)', $^X, $^V, $Config{archname};
 info 6, '@INC = ' . join ' ', @INC;
 my $perl_version =
     defined $SpecifiedPerlVersion ? init_perl_version $SpecifiedPerlVersion :
-    defined $PerlVersionFileName ? init_perl_version_by_file_name $PerlVersionFileName :
+    -f "$RootDirName/config/perl/version.txt" ? init_perl_version_by_file_name "$RootDirName/config/perl/version.txt" :
     init_perl_version undef;
 info 1, "Target Perl version: $perl_version";
 
@@ -2013,21 +2011,21 @@ C<--perl-version> option) is used.
 Specify the Perl version to be used for processing of the script.  If
 the C<--install-perl> command is invoked, then the value must be one
 of Perl versions.  Otherwise, it must match the version of the default
-C<perl> command.  If this option is not specified, the version of the
-default C<perl> command is used.  The default C<perl> command is
-determined by the C<--perl-command> option.
+C<perl> command.
+
+Otherwise, if this option is not specified but there is
+C<config/perl/version.txt> in the root directory, then the content of
+the file is used as the version instead.  The content of the file must
+be a valid value for the C<--perl-version> option, optionally followed
+by a newline.
+
+Otherwise, if this option is not specified and there is no
+C<config/perl/version.txt>, the version of the default C<perl> command
+is used.  The default C<perl> command is determined by the
+C<--perl-command> option.
 
 Perl version string C<latest> represents the latest stable version of
 Perl.
-
-=item --perl-version-by-file-name="path/to/file"
-
-Specify the path to the file containing the Perl version to be used
-for processing of the script.  The specified file must contain the
-value allowed for the C<--perl-version> option, optionally followed by
-a newline.  The value has same effect as the C<--perl-version> option.
-If both C<--perl-version> and C<--perl-version-by-file-name> options
-are specified, the C<--perl-version> value takes precedence.
 
 =item --wget-command="wget"
 
