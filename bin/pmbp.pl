@@ -21,7 +21,7 @@ my $SudoCommand = 'sudo';
 my $AptGetCommand = 'apt-get';
 my $YumCommand = 'yum';
 my $PerlbrewInstallerURL = q<http://install.perlbrew.pl/>;
-my $PerlbrewParallelCount = $ENV{PMBP_PARALLEL_COUNT} || 1;
+my $PerlbrewParallelCount = $ENV{PMBP_PARALLEL_COUNT} || ($ENV{TRAVIS} ? 4 : 1);
 my $CPANMURL = q<http://cpanmin.us/>;
 my $RootDirName = '.';
 my $PMTarDirName;
@@ -2280,6 +2280,7 @@ command might be useful to combine multiple C<--print-*> commands.
 =item PMBP_PARALLEL_COUNT
 
 Set the default value for the C<--perlbrew-parallel-count> option.
+Defaulted to C<4> if the environment variable C<TRAVIS> is set.
 
 =item PMBP_VERBOSE
 

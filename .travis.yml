@@ -1,8 +1,6 @@
 perl:
   - "5.16"
   - "5.10"
-env:
-  - PMBP_PARALLEL_COUNT=4
 before_install: git submodule update --init
 install: "make test-deps"
 script: "make test"
