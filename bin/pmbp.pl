@@ -271,7 +271,7 @@ my $DepsJSONDirName = "$PMTarDirName/deps";
     cpanm ({perl_command => $^X,
             perl_version => (sprintf '%vd', $^V),
             perl_lib_dir_name => $PMBPLibDirName,
-            local_option => '-l', skip_satisfied => 1}, [$module]);
+            skip_satisfied => 1}, [$module]);
   } # install_pmbp_module
 }
 
