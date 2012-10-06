@@ -21,7 +21,7 @@ my $SudoCommand = 'sudo';
 my $AptGetCommand = 'apt-get';
 my $YumCommand = 'yum';
 my $PerlbrewInstallerURL = q<http://install.perlbrew.pl/>;
-my $PerlbrewParallelCount = 1;
+my $PerlbrewParallelCount = $ENV{PMBP_PARALLEL_COUNT} || 1;
 my $CPANMURL = q<http://cpanmin.us/>;
 my $RootDirName = '.';
 my $PMTarDirName;
@@ -547,7 +547,8 @@ sub install_perl ($) {
     
     copy_log_file $log_file_name => "perl-$perl_version"
         if defined $log_file_name;
-    unless (-f "$RootDirName/local/perlbrew/perls/perl-$perl_version/bin/perl") {
+    my $perl_path = "$RootDirName/local/perlbrew/perls/perl-$perl_version/bin/perl";
+    unless (-f $perl_path) {
       if ($redo and $i < 10) {
         info 0, "perlbrew($i): Failed to install perl-$perl_version; retrying...";
         redo PERLBREW;
@@ -555,6 +556,7 @@ sub install_perl ($) {
         info_die "perlbrew($i): Failed to install perl-$perl_version";
       }
     }
+    $PerlCommand = $perl_path;
   } # PERLBREW
 } # install_perl
 
@@ -641,12 +643,14 @@ sub cpanm ($$) {
   my $path = get_env_path ($perl_version);
   my $perl_command = $args->{perl_command} || $PerlCommand;
 
-  unless ($PerlVersionChecked->{$path, $perl_version}) {
-    my $actual_perl_version = get_perl_version ($perl_command) || '?';
-    if ($actual_perl_version eq $perl_version) {
-      $PerlVersionChecked->{$path, $perl_version} = 1;
-    } else {
-      info_die "Perl version mismatch: $actual_perl_version ($perl_version expected)";
+  unless ($args->{info}) {
+    unless ($PerlVersionChecked->{$path, $perl_version}) {
+      my $actual_perl_version = get_perl_version ($perl_command) || '?';
+      if ($actual_perl_version eq $perl_version) {
+        $PerlVersionChecked->{$path, $perl_version} = 1;
+      } else {
+        info_die "Perl version mismatch: $actual_perl_version ($perl_version expected)";
+      }
     }
   }
 
@@ -2114,7 +2118,9 @@ C<http://install.perlbrew.pl/>.
 =item --perlbrew-parallel-count="integer"
 
 Specify the number of parallel processes of perlbrew (used for the
-C<-j> option to the C<perlbrew>'s C<install> command).
+C<-j> option to the C<perlbrew>'s C<install> command).  The default
+value is the value of the environment variable C<PMBP_PARALLEL_COUNT>,
+or C<1>.
 
 =back
 
@@ -2270,6 +2276,10 @@ command might be useful to combine multiple C<--print-*> commands.
 =head1 ENVIRONMENT VARIABLES
 
 =over 4
+
+=item PMBP_PARALLEL_COUNT
+
+Set the default value for the C<--perlbrew-parallel-count> option.
 
 =item PMBP_VERBOSE
 
