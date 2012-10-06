@@ -22,6 +22,7 @@ my $AptGetCommand = 'apt-get';
 my $YumCommand = 'yum';
 my $PerlbrewInstallerURL = q<http://install.perlbrew.pl/>;
 my $PerlbrewParallelCount = $ENV{PMBP_PARALLEL_COUNT} || ($ENV{TRAVIS} ? 4 : 1);
+my $CPANModuleIndexURL = q<http://search.cpan.org/CPAN/modules/02packages.details.txt.gz>;
 my $CPANMURL = q<http://cpanmin.us/>;
 my $PMBPURL = q<https://github.com/wakaba/perl-setupenv/raw/master/bin/pmbp.pl>;
 my $RootDirName = '.';
@@ -969,12 +970,20 @@ sub destroy_cpanm_home () {
 
 sub get_default_mirror_file_name () {
   my $file_name = qq<$CPANMDirName/modules/02packages.details.txt.gz>;
+  my $txt_file_name = qq<$CPANMDirName/modules/02packages.details.txt>;
+  my $updated;
   if (not -f $file_name or
       [stat $file_name]->[9] + 24 * 60 * 60 < time or
       [stat $file_name]->[7] < 1 * 1024 * 1024) {
-    save_url q<http://ftp.jaist.ac.jp/pub/CPAN/modules/02packages.details.txt.gz> => $file_name;
+    save_url $CPANModuleIndexURL => $file_name;
     utime time, time, $file_name;
+    $updated = 1;
   }
+  if ($updated or not -f $txt_file_name) {
+    info_writing 2, "decompressed module index", $txt_file_name;
+    run_command ['sh', '-c', "zcat \Q$file_name\E > \Q$txt_file_name\E"];
+  }
+  PMBP::Module->set_module_index_file_name ($txt_file_name);
   return abs_path $file_name;
 } # get_default_mirror_file_name
 
@@ -1292,22 +1301,31 @@ sub select_module ($$$$;%) {
 
 sub read_module_index ($$) {
   my ($file_name => $module_index) = @_;
+  my $modules = [];
+  _read_module_index ($file_name => sub {
+    push @$modules, PMBP::Module->new_from_indexable ($_[0]);
+  });
+  $module_index->merge_modules ($modules);
+} # read_module_index
+
+sub _read_module_index ($$) {
+  my ($file_name => $code) = @_;
   unless (-f $file_name) {
     info 0, "$file_name not found; skipped\n";
     return;
   }
+  info 2, "Reading module index $file_name...";
   open my $file, '<', $file_name or die "$0: $file_name: $!";
   my $has_blank_line;
-  my $modules = [];
   while (<$file>) {
     if ($has_blank_line and /^(\S+)\s+(\S+)\s+(\S+)/) {
-      push @$modules, PMBP::Module->new_from_indexable ([$1, $2, $3]);
+      $code->([$1, $2, $3]);
     } elsif (/^$/) {
       $has_blank_line = 1;
     }
   }
-  $module_index->merge_modules ($modules);
-} # read_module_index
+  info 2, "done";
+} # _read_module_index
 
 sub write_module_index ($$) {
   my ($module_index => $file_name) = @_;
@@ -1555,8 +1573,13 @@ sub scan_dependency_from_directory ($) {
 sub install_module ($$;%) {
   my ($perl_version, $module, %args) = @_;
   get_local_copy_if_necessary $module;
+  my $lib_dir_name = $args{pmpp} ? $PMPPDirName : get_pm_dir_name ($perl_version);
+  if (has_module ($perl_version, $module, $lib_dir_name)) {
+    info 1, "Module @{[$module->as_short]} is already installed; skipped";
+    return;
+  }
   cpanm {perl_version => $perl_version,
-         perl_lib_dir_name => $args{pmpp} ? $PMPPDirName : get_pm_dir_name ($perl_version),
+         perl_lib_dir_name => $lib_dir_name,
          module_index_file_name => $args{module_index_file_name}},
         [$module];
 } # install_module
@@ -1580,6 +1603,33 @@ sub get_module_version ($$) {
   return undef unless $return;
   return $result;
 } # get_module_version
+
+sub has_module ($$$) {
+  my ($perl_version, $module, $dir_name) = @_;
+  my $package = $module->package;
+  return 0 unless defined $package;
+  my $version = $module->version;
+
+  my $file_name = $package . '.pm';
+  $file_name =~ s{::}{/}g;
+  
+  for (qq{$dir_name/lib/perl5/$Config{archname}/$file_name},
+       qq{$dir_name/lib/perl5/$file_name}) {
+    next unless -f $_;
+    return 1 if not defined $version;
+    
+    install_pmbp_module PMBP::Module->new_from_package ('Module::Metadata');
+    install_pmbp_module PMBP::Module->new_from_package ('version');
+    require Module::Metadata;
+    require version;
+
+    my $meta = Module::Metadata->new_from_file ($_) or next;
+    my $actual_version = $meta->version;
+    return 1 if $actual_version >= version->new ($version);
+  }
+  
+  return 0;
+} # has_module
 
 ## ------ Cleanup ------
 
@@ -1790,6 +1840,7 @@ while (@Command) {
     print join ':', (get_lib_dir_names ($perl_version));
   } elsif ($command->{type} eq 'set-module-index') {
     $module_index_file_name = $command->{file_name}; # or undef
+    PMBP::Module->set_module_index_file_name ($command->{file_name});
   } elsif ($command->{type} eq 'prepend-mirror') {
     if ($command =~ m{^[^/]}) {
       $command->{url} = abs_path $command->{url};
@@ -1833,6 +1884,18 @@ delete_info_file unless $PreserveInfoFile;
 
 package PMBP::Module;
 use Carp;
+
+my $ModulePackagePathnameMapping;
+my $LoadedModuleIndexFileName;
+
+sub set_module_index_file_name ($$) {
+  my (undef, $file_name) = @_;
+  return unless defined $file_name;
+  return if $LoadedModuleIndexFileName->{$file_name};
+  main::_read_module_index $file_name => sub {
+    $ModulePackagePathnameMapping->{$_[0]->[0]} = $_[0]->[2];
+  };
+} # set_module_index_file_name
 
 sub new_from_package ($$) {
   return bless {package => $_[1]}, $_[0];
@@ -1920,6 +1983,12 @@ sub pathname ($) {
   return $_[0]->{pathname} if exists $_[0]->{pathname};
 
   if (defined $_[0]->{package}) {
+    main::get_default_mirror_file_name unless $ModulePackagePathnameMapping;
+    my $pathname = $ModulePackagePathnameMapping->{$_[0]->{package}};
+    if (defined $pathname) {
+      return $_[0]->{pathname} = $pathname;
+    }
+
     my $result = main::cpanm {info => 1}, [$_[0]];
     if (defined $result->{output_text} and
         $result->{output_text} =~ m{^([A-Z0-9]+)/((?:modules/)?[A-Za-z0-9_.+-]+)$}) {
