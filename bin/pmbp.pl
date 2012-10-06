@@ -1,3 +1,9 @@
+=head1 NAME
+
+pmbp.pl - Perl application environment manager
+
+=cut
+
 use strict;
 use warnings;
 use Config;
@@ -1555,7 +1561,7 @@ while (@Command) {
         {type => 'write-module-index',
          file_name => $module_list_file_name};
     unless ($ENV{PMBP_NO_PERL_INSTALL}) {
-      unshift @command, {type => 'install-perl-if-necessary'};
+      unshift @Command, {type => 'install-perl-if-necessary'};
     }
   } elsif ($command->{type} eq 'install') {
     my $module_list_file_name = "$RootDirName/deps/pmtar/modules/index.txt";
@@ -1574,7 +1580,7 @@ while (@Command) {
         {type => 'create-local-perl-latest-symlink'};
 
     unless ($ENV{PMBP_NO_PERL_INSTALL}) {
-      unshift @command, {type => 'install-perl-if-necessary'};
+      unshift @Command, {type => 'install-perl-if-necessary'};
     }
 
   } elsif ($command->{type} eq 'print-latest-perl-version') {
@@ -1991,9 +1997,9 @@ sub TO_JSON ($) {
 
 __END__
 
-=head1 NAME
+=head1 DESCRIPTION
 
-pmbp.pl - Perl application environment manager
+XXX
 
 =head1 OPTIONS
 
