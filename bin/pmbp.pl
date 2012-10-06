@@ -36,6 +36,7 @@ my $Verbose = $ENV{PMBP_VERBOSE} || 0;
 my $PreserveInfoFile = 0;
 my $DumpInfoFileBeforeDie = $ENV{TRAVIS} || 0;
 my $ExecuteSystemPackageInstaller = $ENV{TRAVIS} || 0;
+my $HelpLevel;
 
 my @Argument = @ARGV;
 
@@ -56,6 +57,9 @@ GetOptions (
   '--preserve-info-file' => \$PreserveInfoFile,
   '--dump-info-file-before-die' => \$DumpInfoFileBeforeDie,
   '--execute-system-package-installer' => \$ExecuteSystemPackageInstaller,
+
+  '--help' => sub { $HelpLevel = 1 },
+  '--version' => sub { $HelpLevel = {-verbose => 99, -sections => [qw(NAME AUTHOR LICENSE)]} },
 
   '--install-module=s' => sub {
     my $module = PMBP::Module->new_from_module_arg ($_[1]);
@@ -153,7 +157,14 @@ GetOptions (
     print-latest-perl-version print-selected-perl-version
     print-libs print-pmtar-dir-name print-perl-path
   )),
-) or die "Usage: $0 options... (See source for details)\n";
+) or do {
+  $HelpLevel = 2;
+};
+
+if ($HelpLevel) {
+  require Pod::Usage;
+  Pod::Usage::pod2usage ($HelpLevel);
+}
 
 # {root}
 sub make_path ($);
@@ -1997,6 +2008,12 @@ sub TO_JSON ($) {
 
 __END__
 
+=head1 SYNOPSIS
+
+  $ perl bin/pmbp.pl OPTIONS... COMMANDS...
+  $ perl bin/pmbp.pl --help
+  $ perl bin/pmbp.pl --version
+
 =head1 DESCRIPTION
 
 XXX
@@ -2006,6 +2023,8 @@ XXX
 XXX
 
 =head2 Normal options
+
+XXX
 
 =over 4
 
@@ -2101,6 +2120,8 @@ C<-j> option to the C<perlbrew>'s C<install> command).
 
 =head2 Options for progress and logs
 
+XXX
+
 =over 4
 
 =item --verbose
@@ -2137,7 +2158,27 @@ info file but you does have access to the output of the script
 
 =back
 
+=head2 Help options
+
+There are two options to show descriptions of the script.  If one of
+these options are specified, any other options are ignored.  The
+script exits after the descriptions are printed.
+
+=over 4
+
+=item --help
+
+Show usage of various options supported by the script.
+
+=item --version
+
+Show name, author, and license of the script.
+
+=back
+
 =head2 Commands
+
+XXX
 
 =over 4
 
@@ -2283,6 +2324,14 @@ In addition, the C<wget> command must be available.  Some of commands
 Though the script depends on C<perlbrew> and C<cpanm> commands, they
 are automatically downloaded from the Internet such that you don't
 have to prepare these scripts.
+
+=head1 AVAILABILITY
+
+Latest version of the script is available at
+<https://github.com/wakaba/perl-setupenv/blob/master/bin/pmbp.pl>.
+
+Tests are automatically run at Travis CI:
+<https://travis-ci.org/wakaba/perl-setupenv>.
 
 =head1 AUTHOR
 
