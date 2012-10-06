@@ -1538,6 +1538,7 @@ while (@Command) {
     my $module_list_file_name = "$RootDirName/deps/pmtar/modules/index.txt";
     my $pmb_install_file_name = "$RootDirName/config/perl/pmb-install.txt";
     unshift @Command,
+        {type => 'install-perl-if-necessary'},
         {type => 'read-module-index',
          file_name => $module_list_file_name},
         {type => 'set-module-index'},
@@ -1558,6 +1559,7 @@ while (@Command) {
     my $module_list_file_name = "$RootDirName/deps/pmtar/modules/index.txt";
     my $pmb_install_file_name = "$RootDirName/config/perl/pmb-install.txt";
     unshift @Command,
+        {type => 'install-perl-if-necessary'},
         {type => 'read-module-index',
          file_name => $module_list_file_name},
         {type => 'set-module-index',
@@ -1576,7 +1578,13 @@ while (@Command) {
     print $perl_version;
   } elsif ($command->{type} eq 'install-perl') {
     info 0, "Installing Perl $perl_version...";
-    install_perl ($perl_version);
+    install_perl $perl_version;
+  } elsif ($command->{type} eq 'install-perl-if-necessary') {
+    my $actual_perl_version = get_perl_version $PerlCommand || '?';
+    unless ($actual_perl_version eq $perl_version) {
+      info 0, "Installing Perl $perl_version...";
+      install_perl $perl_version;
+    }
 
   } elsif ($command->{type} eq 'install-module') {
     delete_pmpp_arch_dir if $pmpp_touched;
