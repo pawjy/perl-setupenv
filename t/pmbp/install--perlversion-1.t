@@ -4,6 +4,8 @@ basedir=`dirname $0`/../..
 pmbp=$basedir/bin/pmbp.pl
 tempdir=`perl -MFile::Temp=tempdir -e 'print tempdir'`/testapp
 
+export PMBP_NO_PERL_INSTALL=$TRAVIS
+
 mkdir -p "$tempdir/config/perl"
 echo 5.14.0 > "$tempdir/config/perl/version.txt"
 echo "Test::Class" > "$tempdir/config/perl/modules.txt"

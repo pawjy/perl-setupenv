@@ -1538,7 +1538,6 @@ while (@Command) {
     my $module_list_file_name = "$RootDirName/deps/pmtar/modules/index.txt";
     my $pmb_install_file_name = "$RootDirName/config/perl/pmb-install.txt";
     unshift @Command,
-        {type => 'install-perl-if-necessary'},
         {type => 'read-module-index',
          file_name => $module_list_file_name},
         {type => 'set-module-index'},
@@ -1555,11 +1554,13 @@ while (@Command) {
          file_name => $pmb_install_file_name},
         {type => 'write-module-index',
          file_name => $module_list_file_name};
+    unless ($ENV{PMBP_NO_PERL_INSTALL}) {
+      unshift @command, {type => 'install-perl-if-necessary'};
+    }
   } elsif ($command->{type} eq 'install') {
     my $module_list_file_name = "$RootDirName/deps/pmtar/modules/index.txt";
     my $pmb_install_file_name = "$RootDirName/config/perl/pmb-install.txt";
     unshift @Command,
-        {type => 'install-perl-if-necessary'},
         {type => 'read-module-index',
          file_name => $module_list_file_name},
         {type => 'set-module-index',
@@ -1571,6 +1572,10 @@ while (@Command) {
         {type => 'write-libs-txt'},
         {type => 'create-libs-txt-symlink'},
         {type => 'create-local-perl-latest-symlink'};
+
+    unless ($ENV{PMBP_NO_PERL_INSTALL}) {
+      unshift @command, {type => 'install-perl-if-necessary'};
+    }
 
   } elsif ($command->{type} eq 'print-latest-perl-version') {
     print get_latest_perl_version;
