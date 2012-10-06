@@ -23,6 +23,7 @@ my $YumCommand = 'yum';
 my $PerlbrewInstallerURL = q<http://install.perlbrew.pl/>;
 my $PerlbrewParallelCount = $ENV{PMBP_PARALLEL_COUNT} || ($ENV{TRAVIS} ? 4 : 1);
 my $CPANMURL = q<http://cpanmin.us/>;
+my $PMBPURL = q<https://github.com/wakaba/perl-setupenv/raw/master/bin/pmbp.pl>;
 my $RootDirName = '.';
 my $PMTarDirName;
 my $PMPPDirName;
@@ -153,8 +154,8 @@ GetOptions (
     });
   } qw(
     update install
-    install-perl
-    print-latest-perl-version print-selected-perl-version
+    update-pmbp-pl print-pmbp-pl-etag
+    install-perl print-latest-perl-version print-selected-perl-version
     print-libs print-pmtar-dir-name print-perl-path
   )),
 ) or do {
@@ -274,6 +275,49 @@ my $DepsJSONDirName = "$PMTarDirName/deps";
   } # install_pmbp_module
 }
 
+sub get_pmbp_pl_etag () {
+  our $PMBPHTTPHeader;
+  my $etag;
+  if (defined $PMBPHTTPHeader and 
+      $PMBPHTTPHeader =~ /^ETag: (\S+)/m) {
+    $etag = $1;
+  }
+  return $etag;
+} # get_pmbp_pl_etag
+
+sub update_pmbp_pl () {
+  my $pmbp_pl_file_name = "$RootDirName/local/bin/pmbp.pl";
+  my $etag;
+  if (-f $pmbp_pl_file_name) {
+    run_command 
+        ([$PerlCommand, $pmbp_pl_file_name, '--print-pmbp-pl-etag'],
+         onoutput => sub { $etag = $1; 5 }) or undef $etag;
+  }
+
+  my $temp_file_name = "$PMBPDirName/tmp/pmbp.pl.http";
+  _save_url ($PMBPURL => $temp_file_name,
+             save_response_headers => 1,
+             ($etag ? (request_headers => [['If-None-Match' => $etag]]) : ()))
+      or return;
+  my $temp2_file_name = "$PMBPDirName/tmp/pmbp.pl";
+  open my $file, '<', $temp_file_name or die "$0: $temp_file_name: $!";
+  local $/ = undef;
+  my $script = scalar <$file>;
+  open my $file2, '>', $temp2_file_name or die "$0: $temp2_file_name: $!";
+  print $file2 "our \$PMBPHTTPHeader = <<'=cut';\n\n";
+  print $file2 $script;
+  close $file2;
+  run_command ([$PerlCommand, '-c', $temp2_file_name]) or do {
+    info 0, "Updating pmbp.pl failed (syntax error)";
+    return;
+  };
+
+  info_writing 0, 'latest version of pmbp.pl', $pmbp_pl_file_name;
+  mkdir_for_file ($pmbp_pl_file_name);
+  copy $temp2_file_name => $pmbp_pl_file_name
+      or die "$0: $pmbp_pl_file_name: $!";
+} # update_pmbp_pl
+
 ## ------ Files and directories ------
 
 sub make_path ($) { mkpath $_[0] }
@@ -340,13 +384,21 @@ sub run_command ($;%) {
 ## ------ Downloading ------
 
 sub _save_url {
-  mkdir_for_file $_[1];
-  info 1, "Downloading <$_[0]>...";
-  run_command [$WgetCommand, '-O', $_[1], $_[0]], info_level => 2;
-  return -f $_[1];
+  my ($url => $file_name, %args) = @_;
+  mkdir_for_file $file_name;
+  info 1, "Downloading <$url>...";
+  my $result = run_command
+      [$WgetCommand,
+       '-O', $file_name,
+       ($args{save_response_headers} ? '--save-headers' : ()),
+       (map {
+         ('--header' => $_->[0] . ': ' . $_->[1]);
+       } @{$args{request_headers} or []}),
+       $url], info_level => 2;
+  return $result && -f $file_name;
 } # _save_url
 
-sub save_url ($$) {
+sub save_url ($$;%) {
   _save_url (@_) or die "Failed to download <$_[0]>\n";
 } # save_url
 
@@ -1598,6 +1650,12 @@ while (@Command) {
       unshift @Command, {type => 'install-perl-if-necessary'};
     }
 
+  } elsif ($command->{type} eq 'print-pmbp-pl-etag') {
+    my $etag = get_pmbp_pl_etag;
+    print $etag if defined $etag;
+  } elsif ($command->{type} eq 'update-pmbp-pl') {
+    update_pmbp_pl;
+
   } elsif ($command->{type} eq 'print-latest-perl-version') {
     print get_latest_perl_version;
   } elsif ($command->{type} eq 'print-selected-perl-version') {
@@ -2187,6 +2245,19 @@ Show name, author, and license of the script.
 XXX
 
 =over 4
+
+=item --update-pmbp-pl
+
+Download the latest version of the pmbp.pl script, if available, to
+C<local/bin/pmbp.pl> in the root directory.
+
+=item --print-pmbp-pl-etag
+
+Print the HTTP C<ETag> value of the current pmbp.pl script, if
+available.  This is internally used to detect newer version of the
+script by the C<--update-pmbp-pl> command.  If the pmbp.pl script is
+not retrieved by the C<--update-pmbp-pl> command, the script does not
+know its C<ETag> and this command would print nothing.
 
 =item --print-latest-perl-version
 
