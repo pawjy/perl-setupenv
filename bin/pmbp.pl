@@ -10,6 +10,7 @@ use Getopt::Long;
 
 my $PerlCommand = 'perl';
 my $SpecifiedPerlVersion;
+my $PerlVersionFileName;
 my $WgetCommand = 'wget';
 my $SudoCommand = 'sudo';
 my $AptGetCommand = 'apt-get';
@@ -46,6 +47,7 @@ GetOptions (
   '--pmtar-dir-name=s' => \$PMTarDirName,
   '--pmpp-dir-name=s' => \$PMPPDirName,
   '--perl-version=s' => \$SpecifiedPerlVersion,
+  '--perl-version-by-file-name=s' => \$PerlVersionFileName,
   '--verbose' => sub { $Verbose++ },
   '--preserve-info-file' => \$PreserveInfoFile,
   '--dump-info-file-before-die' => \$DumpInfoFileBeforeDie,
@@ -144,7 +146,7 @@ GetOptions (
   } qw(
     update install
     install-perl
-    print-latest-perl-version
+    print-latest-perl-version print-selected-perl-version
     print-libs print-pmtar-dir-name print-perl-path
   )),
 ) or die "Usage: $0 options... (See source for details)\n";
@@ -462,7 +464,9 @@ sub get_perl_version ($) {
 } # get_perl_version
 
 sub init_perl_version ($) {
-  my $perl_version = shift || get_perl_version ($PerlCommand) || '';
+  my $perl_version = shift;
+  $perl_version = get_perl_version $PerlCommand if not defined $perl_version;
+  $perl_version = '' if not defined $perl_version;
   $perl_version = get_latest_perl_version if $perl_version eq 'latest';
   $perl_version =~ s/^v//;
   unless ($perl_version =~ /\A5\.[0-9]+\.[0-9]+\z/) {
@@ -470,6 +474,14 @@ sub init_perl_version ($) {
   }
   return $perl_version;
 } # init_perl_version
+
+sub init_perl_version_by_file_name ($) {
+  open my $file, '<', $_[0] or die "$0: $_[0]: $!";
+  my $version = <$file>;
+  $version = '' unless defined $version;
+  chomp $version;
+  return init_perl_version $version;
+} # init_perl_version_by_file_name
 
 sub get_perlbrew_envs () {
   return {PERLBREW_ROOT => (abs_path "$RootDirName/local/perlbrew")}
@@ -1516,7 +1528,10 @@ init_pmbp;
 info 6, '$ ' . join ' ', $0, @Argument;
 info 6, sprintf '%s %vd (%s)', $^X, $^V, $Config{archname};
 info 6, '@INC = ' . join ' ', @INC;
-my $perl_version = init_perl_version ($SpecifiedPerlVersion);
+my $perl_version =
+    defined $SpecifiedPerlVersion ? init_perl_version $SpecifiedPerlVersion :
+    defined $PerlVersionFileName ? init_perl_version_by_file_name $PerlVersionFileName :
+    init_perl_version undef;
 info 1, "Target Perl version: $perl_version";
 
 while (@Command) {
@@ -1559,6 +1574,8 @@ while (@Command) {
 
   } elsif ($command->{type} eq 'print-latest-perl-version') {
     print get_latest_perl_version;
+  } elsif ($command->{type} eq 'print-selected-perl-version') {
+    print $perl_version;
   } elsif ($command->{type} eq 'install-perl') {
     info 0, "Installing Perl $perl_version...";
     install_perl ($perl_version);
@@ -1993,15 +2010,24 @@ C<--perl-version> option) is used.
 
 =item --perl-version="5.n.m"
 
-Specify the Perl version in use.  If the C<--install-perl> command is
-invoked, then the value must be one of Perl versions.  Otherwise, it
-must match the version of the default C<perl> command.  If this option
-is not specified, the version of the default C<perl> command is used.
-The default C<perl> command is determined by the C<--perl-command>
-option.
+Specify the Perl version to be used for processing of the script.  If
+the C<--install-perl> command is invoked, then the value must be one
+of Perl versions.  Otherwise, it must match the version of the default
+C<perl> command.  If this option is not specified, the version of the
+default C<perl> command is used.  The default C<perl> command is
+determined by the C<--perl-command> option.
 
 Perl version string C<latest> represents the latest stable version of
 Perl.
+
+=item --perl-version-by-file-name="path/to/file"
+
+Specify the path to the file containing the Perl version to be used
+for processing of the script.  The specified file must contain the
+value allowed for the C<--perl-version> option, optionally followed by
+a newline.  The value has same effect as the C<--perl-version> option.
+If both C<--perl-version> and C<--perl-version-by-file-name> options
+are specified, the C<--perl-version> value takes precedence.
 
 =item --wget-command="wget"
 
@@ -2103,6 +2129,14 @@ info file but you does have access to the output of the script
 Print the version number of the latest stable release of Perl to the
 standard output.  At the time of writing, this command prints the
 string C<5.16.1>.
+
+=item --print-selected-perl-version
+
+Print the selected Perl version.  For example, if C<--perl-version>
+command is not specified, the current Perl's version is printed like
+C<5.10.1>.  Another example is that if the
+C<--perl-version-by-file-name> points the file containing the string
+C<latest>, the command might print the string C<5.16.1>.
 
 =item --install-perl
 
