@@ -2237,6 +2237,70 @@ __END__
 
 =head1 DESCRIPTION
 
+The C<pmbp.pl> script is a tool to manage dependency for Perl
+applications.  It can be possible to automate installation process of
+required version of Perl and required Perl modules, in the C<local/>
+directory under the application's directory (i.e. without breaking
+your system and home directory).
+
+=head1 GETTING STARTED
+
+First, download the C<pmbp.pl> script as:
+
+  $ mkdir -p local/bin
+  $ wget -O local/bin/pmbp.pl https://github.com/wakaba/perl-setupenv/raw/master/bin/pmbp.pl
+
+Assuming your appication's Perl scripts and modules are put into
+directories C<bin>, C<lib>, C<script>, and/or C<t>, the following
+command scans dependency of your application:
+
+  $ perl local/bin/pmbp.pl --update
+
+... and the result list of Perl modules is saved as
+C<config/perl/pmb-install.txt>.  Moreover, tarballs of those modules
+are saved within C<deps/pmtar> and pure-Perl modules are expanded into
+C<deps/pmpp>.  These two directories are initialized as Git
+repositories.  You can register them as Git submodules such that the
+revision of the application can be linked with the specific set of
+dependent Perl modules.  If you don't want to save the complete set of
+tarballs in your Git repository, you can simply ignore these two
+directories.  Anyway, you should add C<config/perl/pmb-install.txt> to
+your application's repository such that the next process don't have to
+repeat the scanning process.
+
+Then, the following command install the required Perl modules into the
+C<local/> directory:
+
+  $ perl local/bin/pmbp.pl --install
+
+If there is C<config/perl/pmb-install.txt>, the command installs Perl
+modules listed in the file.  Otherwise the command scans for the
+dependency as C<--update> does and then install the detected
+dependency.
+
+You have to run the C<--update> command only when the list of required
+modules should be updated.
+
+Now that required Perl modules are installed into the C<local>
+directory, you can use the installed module by:
+
+  $ PERL5LIB="`cat config/perl/libs.txt`" perl bin/myapp.pl
+
+The file C<config/perl/libs.txt> is created by C<--install>,
+containing paths to the Perl module within the C<local> directory.
+Alternatively, once you invoke the following command:
+
+  $ perl local/bin/pmbp.pl --create-perl-command-shortcut perl
+
+... you can start your application by:
+
+  $ ./perl bin/myapp.pl
+
+The C<perl> shell script sets environment variables appropriately then
+invoke the real C<perl> command.
+
+=head1 XXX
+
 XXX
 
 =head1 OPTIONS
