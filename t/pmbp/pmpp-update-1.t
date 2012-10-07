@@ -12,6 +12,6 @@ perl $pmbp --root-dir-name "$tempdir" \
     --update-pmpp-by-file-name "$tempdir/list.txt"
 
 (ls "$tempdir/deps/pmpp/lib/perl5/common/sense.pm" > /dev/null && echo "ok 1") || echo "not ok 1"
-(ls "$tempdir/deps/pmpp/lib/perl5/`perl -MConfig -e 'print $Config{archname}'`" > /dev/null && echo "not ok 2") || echo "ok 2"
+(ls "$tempdir/deps/pmpp/lib/perl5/`perl -MConfig -e 'print $Config{archname}'`" > /dev/null && echo "ok 2") || echo "not ok 2"
 
-#rm -fr $tempdir
+rm -fr $tempdir

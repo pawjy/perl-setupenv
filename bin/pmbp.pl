@@ -1106,6 +1106,11 @@ sub copy_pmpp_modules ($) {
   my $perl_version = shift;
   return unless -d $PMPPDirName;
   delete_pmpp_arch_dir ();
+
+  my $ignores = [map { s{^/}{}; s{/$}{}; $_ } grep { 
+    m{^/.+/$};
+  } @{read_gitignore "$PMPPDirName/.gitignore" || []}];
+
   require File::Find;
   my $from_base_path = abs_path $PMPPDirName;
   my $to_base_path = get_pm_dir_name ($perl_version);
@@ -1117,6 +1122,9 @@ sub copy_pmpp_modules ($) {
     my $perl_path = get_perl_path $perl_version;
     File::Find::find (sub {
       my $rel = File::Spec->abs2rel ((abs_path $_), $from_base_path);
+      for (@$ignores) {
+        return if $rel =~ /^\Q$_\E(?:$|\/)/;
+      }
       my $dest = File::Spec->rel2abs ($rel, $to_base_path);
       if (-f $_) {
         info 2, "Copying file $rel...";
@@ -1144,8 +1152,11 @@ sub copy_pmpp_modules ($) {
 } # copy_pmpp_modules
 
 sub delete_pmpp_arch_dir () {
-  info 1, "rm -fr $PMPPDirName/lib/perl5/$Config{archname}";
-  remove_tree "$PMPPDirName/lib/perl5/$Config{archname}";
+  #info 1, "rm -fr $PMPPDirName/lib/perl5/$Config{archname}";
+  #remove_tree "$PMPPDirName/lib/perl5/$Config{archname}";
+
+  add_to_gitignore
+      ["/lib/perl5/$Config{archname}/"] => "$PMPPDirName/.gitignore";
 } # delete_pmpp_arch_dir
 
 ## ------ Local Perl module directories ------

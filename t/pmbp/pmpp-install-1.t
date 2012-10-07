@@ -17,8 +17,8 @@ PERL5LIB=$perllibs perl -MDBIx::RewriteDSN \
 
 (ls $tempdir/deps/pmpp/lib/perl5/DBIx/RewriteDSN.pm > /dev/null && echo "ok 2") || echo "not ok 2"
 (ls $tempdir/local/perl-*/pm/lib/perl5/DBIx/RewriteDSN.pm > /dev/null && echo "ok 3") || echo "not ok 3"
-(ls $tempdir/deps/pmpp/lib/perl5/*/DBI.pm > /dev/null && echo "not ok 4") || echo "ok 4"
+(ls $tempdir/deps/pmpp/lib/perl5/*/DBI.pm > /dev/null && echo "ok 4") || echo "not ok 4"
 (ls $tempdir/local/perl-*/pm/lib/perl5/*/DBI.pm > /dev/null && echo "ok 5") || echo "not ok 5"
-(ls $tempdir/local/perl-*/pm/.git && echo "not ok 6") || echo "ok 6"
+(ls $tempdir/local/perl-*/pm/.git 2> /dev/null && echo "not ok 6") || echo "ok 6"
 
 rm -fr $tempdir
