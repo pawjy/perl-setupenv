@@ -1,5 +1,5 @@
 #!/bin/sh
-echo "1..7"
+echo "1..3"
 basedir=$(cd `dirname $0`/../.. && pwd)
 pmbp=$basedir/bin/pmbp.pl
 tempdir=`perl -MFile::Temp=tempdir -e 'print tempdir'`/testapp
