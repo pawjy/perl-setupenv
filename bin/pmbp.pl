@@ -130,6 +130,9 @@ GetOptions (
   '--prepend-mirror=s' => sub {
     push @Command, {type => 'prepend-mirror', url => $_[1]};
   },
+  '--add-to-gitignore=s' => sub {
+    push @Command, {type => 'add-to-gitignore', value => $_[1]};
+  },
   '--create-perl-command-shortcut=s' => sub {
     push @Command, {type => 'create-perl-command-shortcut',
                     command => $_[1]};
@@ -501,6 +504,45 @@ sub load_json ($) {
     return undef;
   } # which
 }
+
+## ------ Git repositories ------
+
+sub read_gitignore ($) {
+  my $file_name = shift;
+  return undef unless -f $file_name;
+  open my $file, '<', $file_name or die "$0: $file_name: $!";
+  my @ignore = map { chomp; $_ } grep { length } <$file>;
+  return \@ignore;
+} # read_gitignore
+
+sub write_gitignore ($$) {
+  my ($ignores, $file_name) = @_;
+  mkdir_for_file $file_name;
+  open my $file, '>', $file_name or die "$0: $file_name: $!";
+  print $file join '', map { $_ . "\n" } @{$ignores or []};
+  close $file;
+} # write_gitignore
+
+sub add_to_gitignore ($$) {
+  my ($ignores, $file_name) = @_;
+  my $orig_ignores = read_gitignore $file_name;
+  my %found;
+  my $new_ignores = [grep { not $found{$_}++ } @{$orig_ignores or []}, @{$ignores or []}];
+  write_gitignore $new_ignores => $file_name;
+} # add_to_gitignore
+
+sub update_gitignore () {
+  my $gitignore_file_name = "$RootDirName/.gitignore";
+  add_to_gitignore [qw(
+    /local/
+    /perl
+    /prove
+    /plackup
+    /Makefile.setupenv
+    /cin
+    /config/perl/libs.txt
+  )] => $gitignore_file_name;
+} # update_gitignore
 
 ## ------ Perl ------
 
@@ -1694,7 +1736,8 @@ while (@Command) {
                           ? $pmb_install_file_name : undef},
         {type => 'write-libs-txt'},
         {type => 'create-libs-txt-symlink'},
-        {type => 'create-local-perl-latest-symlink'};
+        {type => 'create-local-perl-latest-symlink'},
+        {type => 'update-gitignore'};
 
     unless ($ENV{PMBP_NO_PERL_INSTALL}) {
       unshift @Command, {type => 'install-perl-if-necessary'};
@@ -1705,6 +1748,11 @@ while (@Command) {
     print $etag if defined $etag;
   } elsif ($command->{type} eq 'update-pmbp-pl') {
     update_pmbp_pl;
+
+  } elsif ($command->{type} eq 'update-gitignore') {
+    update_gitignore;
+  } elsif ($command->{type} eq 'add-to-gitignore') {
+    add_to_gitignore [$command->{value}] => "$RootDirName/.gitignore";
 
   } elsif ($command->{type} eq 'print-latest-perl-version') {
     print get_latest_perl_version;
@@ -2328,6 +2376,11 @@ script by the C<--update-pmbp-pl> command.  If the pmbp.pl script is
 not retrieved by the C<--update-pmbp-pl> command, the script does not
 know its C<ETag> and this command would print nothing.
 
+=item --add-to-gitignore="path"
+
+Add the specified file name or path to the C<.gitignore> file in the
+root directory (if not yet).
+
 =item --print-latest-perl-version
 
 Print the version number of the latest stable release of Perl to the
@@ -2443,6 +2496,12 @@ for more information.
 =head1 FILES
 
 XXX
+
+=head2 .gitignore
+
+The C<--install> command edits C<.gitignore> file in the root
+directory to let Git ignore locally-installed files such as the
+C<local/> directory.
 
 =head2 config/perl/libs.txt
 
