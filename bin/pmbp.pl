@@ -2612,6 +2612,9 @@ Latest version of the script is available at
 Tests are automatically run at Travis CI:
 <https://travis-ci.org/wakaba/perl-setupenv>.
 
+Design goals and requirements are documented in:
+<https://github.com/wakaba/perl-setupenv/blob/master/doc/pmbp.txt>.
+
 =head1 AUTHOR
 
 Wakaba <wakaba@suikawiki.org>.

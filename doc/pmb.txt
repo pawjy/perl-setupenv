@@ -5,6 +5,17 @@ pmb is a tool to setup the runtime environment for Perl applications,
 built on top of Perl runtime infrastructure such as perlbrew and
 cpanm.
 
+Use of pmb is now DEPRECATED in favor of pmbp.  You can migrate to
+pmbp by replacing Makefile rules as:
+
+  pmb-update -> pmbp-update
+  pmb-install -> pmbp-install
+
+... and (optionally) moving pmtar/pmpp directories:
+
+  local/perl-{version}/pmb/pmtar -> deps/pmtar
+  local/perl-{version}/pmb/pmpp -> deps/pmpp
+
 * Design goals or requirements
 
 Perl versions.  It must support Perl 5.8 or later.  It should be

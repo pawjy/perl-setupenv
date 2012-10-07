@@ -1,0 +1,115 @@
+pmbp
+~~~~
+
+The pmbp.pl script is a tool to manage runtime environments for Perl
+applications, built on the top of infrastructures such as perlbrew and
+cpanm.
+
+* Usage
+
+See |perldoc pmbp.pl|.
+
+* Design goals or requirements
+
+** Features
+
+Perl.  It must be possible to install Perl for the application.  It
+must be possible to specify the particular stable version of Perl
+greater than 5.8.  It must also be possible to setup the latest stable
+version of Perl without explicitly specifying the version of Perl.
+
+CPAN Perl modules.  It must be possible to install Perl module
+packages available from CPAN for the application.  It must be able to
+specify one or more modules by package names of them as registered in
+the module list provided by CPAN.
+
+Other Perl modules.  It must be possible to install Perl module
+packages provided as tarballs available on the Web.
+
+Non-Perl modules.  It should be able to suggest the list of known
+non-Perl software packages required for the modules directly or
+indirectly depended by the application.  It may also support
+installation of such software packages.
+
+Dependeny inspection.  It must be possible to extract list of required
+Perl modules for the application and use it to install modules.  It
+must support extraction of dependency from the application's main
+repository, as well as Git submodules, CPAN modules, and modules
+provided as tarballs.
+
+Perl module "bundling".  It must be possible to construct the
+collection of tarballs that can be used to install Perl modules
+required by the application.  It must also be possible to update the
+collection incrementally, i.e. it must be possible to add new modules
+without re-scanning dependency or re-downloading tarballs for existing
+modules.
+
+Self updating.  It must be possible to upgrade the tool itself in some
+automated manner.
+
+** Requirements
+
+Platforms.  It should support various development environments on
+Unix-like platforms.  In particular, it should support CentOS, Debian
+GNU/Linux, Mac OS X, and Cygwin with common development tools
+installed (which include, but not limited to, bash, sed, make, gcc,
+tar, wget, and git).  It may also depend on existence of Perl (5.8 or
+later), but it must not depend on any particular version of Perl.  It
+must not depend on existence of non-standard tools (including, but not
+limited to, perlbrew, cpanm, or carton).  Note that it may use
+non-standard tools by installing them by itself, if necessary.
+
+Automation.  Installation and other processes must be done in
+automated ways.  It must not require user input in the middle of
+processing (at least by default).
+
+Locality.  It must not add, modify, or delete any file outside of the
+directory of the application, or the directories specified by the
+application (without prior permission from the user).  It should not
+request the permission for files not accessible by the owner of the
+application (or the "current" user).
+
+Multiple Perl versions.  It must be possible to install mutliple
+versions of Perl for the application.  They can be switched at anytime
+without reinstalling modules.
+
+Support for declarative lists of required modules.  It must be
+possible to obtain the list of required Perl modules encoded in some
+declarative format.  That is, it must support a format describing the
+dependency of applications or modules without use of any
+Turing-complete scripting langauge.
+
+Support for lists of required modules by other tools.  It must also
+support dependency description format of other tools, including:
+carton.lock, cpanfile, Makefile.PL, Build.PL, and pmb-style
+modules.txt.
+
+Fast pure-Perl module installation.  It should be possible to skip
+configuration process of installation of pure-Perl modules.
+
+Error recovery in install processes.  It should be possible to recover
+from common install errors by, for example, automatically augumenting
+missing dependency detected from error messages.  It may hardcode
+workaround for specific modules, if necessary.
+
+Upgrading.  It must be easy to install newer version of Perl or Perl
+modules to environment where older version of Perl or Perl module is
+already installed.
+
+Simplified command-line interface.  It should also provide an
+easy-to-use command-line interface covering most common use cases.
+
+Integration with Makefile.setupenv.  It must be able to be invoked
+from the Makefile.setupenv framework.  It should be easy to migrate
+from the pmb tool.
+
+* Author
+
+Wakaba <wakaba@suikawiki.org>.
+
+* License
+
+Copyright 2012 Wakaba <wakaba@suikawiki.org>.
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
