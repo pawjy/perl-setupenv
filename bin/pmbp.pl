@@ -830,10 +830,12 @@ sub cpanm ($$) {
 
     if (@module_arg and $module_arg[0] eq 'GD') {
       ## <http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=636649>
+      ## <http://stackoverflow.com/questions/3248959/extutilsmakemaker-perl-mm-opt-split-on-whitespace-work-around>
       $envs->{PERL_MM_OPT} = $ENV{PERL_MM_OPT};
       $envs->{PERL_MM_OPT} = '' unless defined $envs->{PERL_MM_OPT};
-      # XXX The following line is wrong
-      $envs->{PERL_MM_OPT} .= ' CCFLAGS="-Wformat=0 ' . $Config{ccflags} . '"';
+      my $ccflags = '-Wformat=0 ' . $Config{ccflags};
+      $ccflags =~ s/ /\t/g;
+      $envs->{PERL_MM_OPT} .= ' CCFLAGS=' . $ccflags;
     }
 
     my $failed;
