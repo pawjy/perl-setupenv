@@ -1,0 +1,112 @@
+=head1 NAME
+
+Tutorial for pmbp.pl, a Perl application dependency management tool
+
+=head1 ABSTRACT
+
+This document describes how to use the C<pmbp.pl> script and how the
+script installs or resolves dependency of the application.
+
+=head1 GETTING STARTED
+
+First, download the C<pmbp.pl> script as:
+
+  $ mkdir -p local/bin
+  $ wget -O local/bin/pmbp.pl https://github.com/wakaba/perl-setupenv/raw/master/bin/pmbp.pl
+
+Assuming your appication's Perl scripts and modules are put into
+directories C<bin>, C<lib>, C<script>, and/or C<t>, the following
+command scans dependency of your application:
+
+  $ perl local/bin/pmbp.pl --update
+
+... and the result list of Perl modules is saved as
+C<config/perl/pmb-install.txt>.  Moreover, tarballs of those modules
+are saved within C<deps/pmtar> and pure-Perl modules are expanded into
+C<deps/pmpp>.  These two directories are initialized as Git
+repositories.  You can register them as Git submodules such that the
+revision of the application can be linked with the specific set of
+dependent Perl modules.  If you don't want to save the complete set of
+tarballs in your Git repository, you can simply ignore these two
+directories.  Anyway, you should add C<config/perl/pmb-install.txt> to
+your application's repository such that the next process don't have to
+repeat the scanning process.
+
+Then, the following command install the required Perl modules into the
+C<local/> directory:
+
+  $ perl local/bin/pmbp.pl --install
+
+If there is C<config/perl/pmb-install.txt>, the command installs Perl
+modules listed in the file.  Otherwise the command scans for the
+dependency as C<--update> does and then install the detected
+dependency.
+
+You have to run the C<--update> command only when the list of required
+modules should be updated.
+
+Now that required Perl modules are installed into the C<local>
+directory, you can use the installed module by:
+
+  $ PERL5LIB="`cat config/perl/libs.txt`" perl bin/myapp.pl
+
+The file C<config/perl/libs.txt> is created by C<--install>,
+containing paths to the Perl module within the C<local> directory.
+Alternatively, once you invoke the following command:
+
+  $ perl local/bin/pmbp.pl --create-perl-command-shortcut perl
+
+... you can start your application by:
+
+  $ ./perl bin/myapp.pl
+
+The C<perl> shell script sets environment variables appropriately then
+invoke the real C<perl> command.
+
+=head1 XXX
+
+XXX
+
+=head1 DEPENDENCY
+
+Perl 5.8 or later is supported by this script.  Core modules of Perl
+5.8 must be available.
+
+In addition, the C<wget> command must be available.  Some of commands
+(in particular, the C<--update> command) requires the C<git> command.
+
+Though the script depends on C<perlbrew> and C<cpanm> commands, they
+are automatically downloaded from the Internet such that you don't
+have to prepare these scripts.
+
+=head1 AVAILABILITY
+
+Latest version of the script is available at
+<https://github.com/wakaba/perl-setupenv/blob/master/bin/pmbp.pl>.
+Alternatively, you can update your C<pmbp.pl> script by running:
+C<perl local/bin/pmbp.pl --update-pmbp-pl>.
+
+Tests are automatically run at Travis CI:
+<https://travis-ci.org/wakaba/perl-setupenv>.
+
+Design goals and requirements are documented in:
+<https://github.com/wakaba/perl-setupenv/blob/master/doc/pmbp.txt>.
+
+=head1 SEE ALSO
+
+For usage of various options, commands, environment variables, and
+files handled by the script, see documentation embedded in the script
+(or run C<perl local/bin/pmbp.pl --help>).
+
+=head1 AUTHOR
+
+Wakaba <wakaba@suikawiki.org>.
+
+=head1 LICENSE
+
+Copyright 2012 Wakaba <wakaba@suikawiki.org>.
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
+
+=cut

@@ -59,6 +59,10 @@ must not depend on existence of non-standard tools (including, but not
 limited to, perlbrew, cpanm, or carton).  Note that it may use
 non-standard tools by installing them by itself, if necessary.
 
+Zero-configuration.  The tool must be executable just by downloading a
+file.  It must not require any additional configuration before the
+execution.
+
 Automation.  Installation and other processes must be done in
 automated ways.  It must not require user input in the middle of
 processing (at least by default).
@@ -102,6 +106,11 @@ easy-to-use command-line interface covering most common use cases.
 Integration with Makefile.setupenv.  It must be able to be invoked
 from the Makefile.setupenv framework.  It should be easy to migrate
 from the pmb tool.
+
+Easy access to modules from the application.  It must be easy to
+access to the installed modules from the application.  There must be a
+way to run the application with installed modules without any
+modification to the application program itself.
 
 * Author
 
