@@ -450,9 +450,9 @@ sub load_json ($) {
     return unless @$packages;
     
     $HasAPT->{$perl_version} = which ($AptGetCommand, $perl_version)
-        ? 1 : 0 if not defined $HasAPT;
+        ? 1 : 0 if not defined $HasAPT->{$perl_version};
     $HasYUM->{$perl_version} = which ($YumCommand, $perl_version)
-        ? 1 : 0 if not defined $HasYUM;
+        ? 1 : 0 if not defined $HasYUM->{$perl_version};
 
     my $cmd;
     my $env = '';
