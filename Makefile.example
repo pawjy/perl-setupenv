@@ -24,6 +24,7 @@ lperl lprove lplackup local-perl perl-version perl-exec \
 config/perl/libs.txt carton-install carton-update carton-install-module \
 remotedev-test remotedev-reset remotedev-reset-setupenv \
 local-submodules pmb-install pmb-update cinnamon \
+pmbp-update pmbp-install pmbp-lplackup \
 generatepm: %: Makefile-setupenv
 	$(MAKE) --makefile Makefile.setupenv $@ \
             REMOTEDEV_HOST=$(REMOTEDEV_HOST) \

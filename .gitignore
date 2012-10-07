@@ -8,3 +8,4 @@
 /deps/
 /t/pmbp/mixed-1/modules/cpanfile/local/
 /t_deps/proxy.pid
+/plackup

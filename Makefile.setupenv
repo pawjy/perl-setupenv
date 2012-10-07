@@ -270,6 +270,8 @@ pmbundler-install-module: pmbundler-repo-update
 
 # ------ pmb - Perl module install from your small CPAN mirror ------
 
+# DEPRECATED in favor of pmbp
+
 # local/perl-latest $(PMB_LOCAL_DIR)
 #   pmb             $(PMB_LOCAL_PMB_DIR)
 #     bin           $(PMB_LOCAL_BIN_DIR)
@@ -566,6 +568,31 @@ pmb-rewrite-shebang:
         cd $(PMB_LOCAL_INSTALL_DIR)/bin && ls | \
         xargs -l1 -- sed -i '1 s/#!.*perl/#!$(subst /,\/,$(shell which perl))/' \
         ) || true
+
+# ------ pmbp - Perl application dependency manager ------
+
+PMBP_PL_URL = https://github.com/wakaba/perl-setupenv/raw/master/bin/pmbp.pl
+
+local/bin/pmbp.pl:
+	$(WGET) -O $@ $(PMBP_PL_URL)
+
+pmbp-self-update: local/bin/pmbp.pl
+	$(PERL) local/bin/pmbp.pl --update-pmbp-pl
+
+pmbp-update: local/bin/pmbp.pl pmbp-self-update
+	$(PERL) local/bin/pmbp.pl --update
+
+pmbp-install: local/bin/pmbp.pl pmbp-self-update
+	$(PERL) local/bin/pmbp.pl --install
+	    --create-perl-command-shortcut perl \
+	    --create-perl-command-shortcut prove \
+	    --add-to-gitignore /perl \
+	    --add-to-gitignore /prove
+
+pmbp-lplackup: local/bin/pmbp.pl pmbp-self-update
+	$(PERL) local/bin/pmbp.pl \
+	    --create-perl-command-shortcut plackup \
+	    --add-to-gitignore /plackup
 
 # ------ PhantomJS ------
 
