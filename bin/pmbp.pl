@@ -483,10 +483,15 @@ sub load_json ($) {
 }
 
 {
+  sub get_perlbrew_perl_bin_dir_name ($) {
+    my $perl_version = shift;
+    return "$RootDirName/local/perlbrew/perls/perl-$perl_version/bin";
+  } # get_perlbrew_perl_bin_dir_name
+
   my $EnvPath = {};
   sub get_env_path ($) {
     my $perl_version = shift;
-    my $perl_path = "$RootDirName/local/perlbrew/perls/perl-$perl_version/bin";
+    my $perl_path = get_perlbrew_perl_bin_dir_name $perl_version;
     my $pm_path = get_pm_dir_name ($perl_version) . "/bin";
     return $EnvPath->{$perl_version} ||= "$pm_path:$perl_path:$ENV{PATH}";
   } # get_env_path
@@ -1207,9 +1212,11 @@ sub create_perl_command_shortcut ($$) {
   mkdir_for_file $file_name;
   $command = $1 if $command =~ m{/([^/]*)$};
   info_writing 1, "command shortcut", $file_name;
+  my $perl_path = get_perlbrew_perl_bin_dir_name $perl_version;
+  my $pm_path = get_pm_dir_name ($perl_version) . "/bin";
   open my $file, '>', $file_name or die "$0: $file_name: $!";
   print $file sprintf qq{\#!/bin/sh\nPATH="%s" PERL5LIB="`cat %s 2> /dev/null`" exec %s "\$\@"\n},
-      _quote_dq get_env_path ($perl_version),
+      _quote_dq "$pm_path:$perl_path:" . '$PATH',
       _quote_dq get_libs_txt_file_name ($perl_version),
       $command;
   close $file;
