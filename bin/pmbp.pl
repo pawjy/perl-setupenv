@@ -2366,6 +2366,8 @@ XXX
 
 XXX
 
+=head2 Options on target directories
+
 =over 4
 
 =item --root-dir-name="path/to/dir"
@@ -2376,6 +2378,27 @@ a valid path to the directory in the platform.  Unless specified, the
 current directory is used as the root directory.  If there is no such
 a directory, it is first created by the script.  Anyway, the directory
 must be writable by the user executing the script.
+
+=item --pmtar-dir-name="path/to/dir"
+
+Specify the directory for tarball packages of Perl modules.  Unless
+specified, the C<deps/pmtar> directory in the root directory is
+assumed.  Any tarball packages used to install Perl modules is saved
+under this directory.
+
+=item --pmpp-dir-name="path/to/dir"
+
+Specify the directory for pure-Perl modules.  Unless specified, the
+C<deps/pmpp> directory in the root directory is assumed.  Pure-Perl
+modules prepared during the C<--update> command is placed under this
+directory for saving time to build those modules in the C<--install>
+command.
+
+=back
+
+=head2 Options for Perl interpreter
+
+=over 4
 
 =item --perl-command="perl"
 
@@ -2404,6 +2427,35 @@ C<--perl-command> option.
 
 Perl version string C<latest> represents the latest stable version of
 Perl.
+
+=item --perlbrew-installer-url="URL"
+
+Specify the URL of the perlbrew installer.  The default URL is
+C<http://install.perlbrew.pl/>.
+
+=item --perlbrew-parallel-count="integer"
+
+Specify the number of parallel processes of perlbrew (used for the
+C<-j> option to the C<perlbrew>'s C<install> command).  The default
+value is the value of the environment variable C<PMBP_PARALLEL_COUNT>,
+or C<1>.
+
+=back
+
+=head2 Options for Perl modules
+
+=over 4
+
+=item --cpanm-url="URL"
+
+Specify the URL of the cpanm source code.  Unless specified,
+C<http://cpanmin.us/> is used.
+
+=back
+
+=head2 Options on system commands
+
+=over 4
 
 =item --wget-command="wget"
 
@@ -2450,18 +2502,6 @@ specified, the C<yum> command in the default search path is used.
 
 Specify the path to the C<brew> command (homebrew).  If this option is
 not specified, the C<brew> command in the default search path is used.
-
-=item --perlbrew-installer-url="URL"
-
-Specify the URL of the perlbrew installer.  The default URL is
-C<http://install.perlbrew.pl/>.
-
-=item --perlbrew-parallel-count="integer"
-
-Specify the number of parallel processes of perlbrew (used for the
-C<-j> option to the C<perlbrew>'s C<install> command).  The default
-value is the value of the environment variable C<PMBP_PARALLEL_COUNT>,
-or C<1>.
 
 =back
 
