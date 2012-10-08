@@ -1985,6 +1985,7 @@ sub set_module_index_file_name ($$) {
   main::_read_module_index $file_name => sub {
     $ModulePackagePathnameMapping->{$_[0]->[0]} = $_[0]->[2];
   };
+  $LoadedModuleIndexFileName->{$file_name} = 1;
 } # set_module_index_file_name
 
 sub new_from_package ($$) {
