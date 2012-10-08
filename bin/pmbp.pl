@@ -690,17 +690,25 @@ sub get_perl_path ($) {
   } # _check_perl_version
 }
 
-sub get_perl_archname ($$) {
-  my ($perl_command, $perl_version) = @_;
-  _check_perl_version $perl_command, $perl_version;
-  my $perl_archname;
-  run_command
-      [$perl_command, '-MConfig', '-e', 'print $Config{archname}'],
-      envs => {PATH => get_env_path ($perl_version)},
-      discard_stderr => 1,
-      onoutput => sub { $perl_archname = $_[0]; 2 };
-  return $perl_archname || info_die "Can't get archname of $perl_command";
-} # get_perl_archname
+{
+  my $PerlArchname = {};
+  sub get_perl_archname ($$) {
+    my ($perl_command, $perl_version) = @_;
+    my $path = get_env_path ($perl_version);
+    return $PerlArchname->{$path, $perl_command}
+        if $PerlArchname->{$path, $perl_command};
+
+    _check_perl_version $perl_command, $perl_version;
+    my $perl_archname;
+    run_command
+        [$perl_command, '-MConfig', '-e', 'print $Config{archname}'],
+        envs => {PATH => $path},
+        discard_stderr => 1,
+        onoutput => sub { $perl_archname = $_[0]; 2 };
+    return $PerlArchname->{$path, $perl_command} = $perl_archname
+        || info_die "Can't get archname of $perl_command";
+  } # get_perl_archname
+}
 
 ## ------ cpanm ------
 
