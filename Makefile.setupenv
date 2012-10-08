@@ -584,7 +584,7 @@ pmbp-update: local/bin/pmbp.pl pmbp-self-update
 	$(PERL) local/bin/pmbp.pl --update
 
 pmbp-install: local/bin/pmbp.pl pmbp-self-update
-	$(PERL) local/bin/pmbp.pl --install
+	$(PERL) local/bin/pmbp.pl --install \
 	    --create-perl-command-shortcut perl \
 	    --create-perl-command-shortcut prove \
 	    --add-to-gitignore /perl \
