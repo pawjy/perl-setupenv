@@ -295,7 +295,8 @@ sub update_pmbp_pl () {
   if (-f $pmbp_pl_file_name) {
     run_command 
         ([$PerlCommand, $pmbp_pl_file_name, '--print-pmbp-pl-etag'],
-         onoutput => sub { $etag = $1; 5 }) or undef $etag;
+         discard_stderr => 1,
+         onoutput => sub { $etag = $_[0]; 5 }) or undef $etag;
   }
 
   my $temp_file_name = "$PMBPDirName/tmp/pmbp.pl.http";
@@ -373,7 +374,7 @@ sub run_command ($;%) {
   local %ENV = (%ENV, %$envs);
   open my $cmd, "-|",
       (join ' ', map quotemeta, @$command) .
-      " 2>&1" .
+      ($args{discard_stderr} ? " 2> /dev/null" : " 2>&1") .
       (defined $args{">"} ? ' > ' . quotemeta $args{">"} : '') .
       ($args{accept_input} ? '' : ' < /dev/null')
       or die "$0: $command->[0]: $!";
@@ -501,6 +502,7 @@ sub load_json ($) {
     my $output;
     if (run_command ['which', $command],
             envs => {PATH => get_env_path ($perl_version)},
+            discard_stderr => 1,
             onoutput => sub { $output = $_[0]; 3 }) {
       if (defined $output and $output =~ m{^(\S*\Q$command\E)$}) {
         return $1;
@@ -574,6 +576,7 @@ sub get_perl_version ($) {
   my $perl_command = shift;
   my $perl_version;
   run_command [$perl_command, '-e', 'printf "%vd", $^V'],
+      discard_stderr => 1,
       onoutput => sub { $perl_version = $_[0]; 2 };
   return $perl_version;
 } # get_perl_version
@@ -689,6 +692,7 @@ sub get_perl_archname ($$) {
   run_command
       [$perl_command, '-MConfig', '-e', 'print $Config{archname}'],
       envs => {PATH => get_env_path ($perl_version)},
+      discard_stderr => 1,
       onoutput => sub { $perl_archname = $_[0]; 2 };
   return $perl_archname || info_die "Can't get archname of $perl_command";
 } # get_perl_archname
@@ -1676,6 +1680,7 @@ sub get_module_version ($$$) {
       envs => {PATH => get_env_path ($perl_version),
                PERL5LIB => (join ':', (get_lib_dir_names ($perl_command, $perl_version)))},
       info_level => 3,
+      discard_stderr => 1,
       onoutput => sub {
         $result = $_[0];
         return 3;
