@@ -20,6 +20,7 @@ my $WgetCommand = 'wget';
 my $SudoCommand = 'sudo';
 my $AptGetCommand = 'apt-get';
 my $YumCommand = 'yum';
+my $BrewCommand = 'brew';
 my $PerlbrewInstallerURL = q<http://install.perlbrew.pl/>;
 my $PerlbrewParallelCount = $ENV{PMBP_PARALLEL_COUNT} || ($ENV{TRAVIS} ? 4 : 1);
 my $CPANModuleIndexURL = q<http://search.cpan.org/CPAN/modules/02packages.details.txt.gz>;
@@ -49,6 +50,7 @@ GetOptions (
   '--sudo-command=s' => \$SudoCommand,
   '--apt-get-command=s' => \$AptGetCommand,
   '--yum-command=s' => \$YumCommand,
+  '--brew-command=s' => \$BrewCommand,
   '--perlbrew-installer-url=s' => \$PerlbrewInstallerURL,
   '--perlbrew-parallel-count=s' => \$PerlbrewParallelCount,
   '--cpanm-url=s' => \$CPANMURL,
@@ -451,24 +453,29 @@ sub load_json ($) {
 ## ------ System environment ------
 
 {
-  my $HasAPT = {};
-  my $HasYUM = {};
+  my $HasAPT;
+  my $HasYUM;
+  my $HasBrew;
   sub install_system_packages ($$) {
     my ($perl_version, $packages) = @_;
     return unless @$packages;
     
-    $HasAPT->{$perl_version} = which ($AptGetCommand, $perl_version)
-        ? 1 : 0 if not defined $HasAPT->{$perl_version};
-    $HasYUM->{$perl_version} = which ($YumCommand, $perl_version)
-        ? 1 : 0 if not defined $HasYUM->{$perl_version};
+    $HasAPT = which ($AptGetCommand, $perl_version) ? 1 : 0
+        if not defined $HasAPT;
+    $HasYUM = which ($YumCommand, $perl_version) ? 1 : 0
+        if not defined $HasYUM;
+    $HasBrew = which ($BrewCommand, $perl_version) ? 1 : 0
+        if not defined $HasBrew;
 
     my $cmd;
     my $env = '';
-    if ($HasAPT->{$perl_version}) {
+    if ($HasAPT) {
       $cmd = [$SudoCommand, '--', $AptGetCommand, 'install', '-y', map { $_->{debian_name} || $_->{name} } @$packages];
       $env = 'DEBIAN_FRONTEND="noninteractive" ';
-    } elsif ($HasYUM->{$perl_version}) {
+    } elsif ($HasYUM) {
       $cmd = [$SudoCommand, '--', $YumCommand, 'install', '-y', map { $_->{redhat_name} || $_->{name} } @$packages];
+    } elsif ($HasBrew) {
+      $cmd = [$BrewCommand, 'install', map { $_->{homebrew_name} || $_->{name} } @$packages];
     }
 
     if ($cmd) {
@@ -933,6 +940,10 @@ sub cpanm ($$) {
         ## can no longer reproduce the problem.)
         push @required_install, PMBP::Module->new_from_module_arg
             ('Net::SSLeay~1.36=http://search.cpan.org/CPAN/authors/id/F/FL/FLORA/Net-SSLeay-1.36.tar.gz');
+      } elsif ($log =~ m{^Can't link/include 'gmp.h', 'gmp'}m) {
+        push @required_system,
+            {name => 'gmp-devel', debian_name => 'libgmp-dev',
+             homebrew_name => 'gmp'};
       } elsif ($log =~ /^Could not find gdlib-config in the search path. Please install libgd /m) {
         push @required_system,
             {name => 'gd-devel', debian_name => 'libgd2-xpm-dev'};
@@ -2434,6 +2445,11 @@ specified, the C<apt-get> command in the default search path is used.
 
 Specify the path to the C<yum> command.  If this option is not
 specified, the C<yum> command in the default search path is used.
+
+=item --brew-command="path/to/brew"
+
+Specify the path to the C<brew> command (homebrew).  If this option is
+not specified, the C<brew> command in the default search path is used.
 
 =item --perlbrew-installer-url="URL"
 
