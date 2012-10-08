@@ -269,8 +269,13 @@ my $DepsJSONDirName = "$PMTarDirName/deps";
         "$PMBPLibDirName/lib/perl5";
   } # init_pmbp
   
+  my $PMBPModuleInstalled = {};
   sub install_pmbp_module ($) {
     my $module = shift;
+    if (defined $module->package) {
+      return if $PMBPModuleInstalled->{$module->package};
+      $PMBPModuleInstalled->{$module->package} = 1;
+    }
     get_local_copy_if_necessary ($module);
     cpanm ({perl_command => $^X,
             perl_version => (sprintf '%vd', $^V),
