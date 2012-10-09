@@ -804,7 +804,7 @@ sub cpanm ($$) {
   _check_perl_version $perl_command, $perl_version unless $args->{info};
   install_cpanm_wrapper;
 
-  my $archname = get_perl_archname $perl_command, $perl_version;
+  my $archname = $args->{info} ? $Config{archname} : get_perl_archname $perl_command, $perl_version;
 
   my $redo = 0;
   COMMAND: {
