@@ -232,8 +232,12 @@ my $DepsJSONDirName = "$PMTarDirName/deps";
   
   sub info_die ($) {
     $InfoNeedNewline--, print STDERR "\n" if $InfoNeedNewline;
+    my (undef, $error_file_name, $error_line, $error_sub) = caller 1;
+    my $location = "at $error_file_name line $error_line = $error_sub";
     print $InfoFile $_[0] =~ /\n\z/ ? $_[0] : "$_[0]\n";
+    print $InfoFile "($location)\n";
     print STDERR $_[0] =~ /\n\z/ ? $_[0] : "$_[0]\n";
+    print STDERR "($location)\n";
     close $InfoFile;
     if ($DumpInfoFileBeforeDie) {
       open my $info_file, '<', $InfoFileName
@@ -313,10 +317,12 @@ sub update_pmbp_pl () {
              ($etag ? (request_headers => [['If-None-Match' => $etag]]) : ()))
       or return;
   my $temp2_file_name = "$PMBPDirName/tmp/pmbp.pl";
-  open my $file, '<', $temp_file_name or die "$0: $temp_file_name: $!";
+  open my $file, '<', $temp_file_name or
+      info_die "$0: $temp_file_name: $!";
   local $/ = undef;
   my $script = scalar <$file>;
-  open my $file2, '>', $temp2_file_name or die "$0: $temp2_file_name: $!";
+  open my $file2, '>', $temp2_file_name or
+      info_die "$0: $temp2_file_name: $!";
   print $file2 "our \$PMBPHTTPHeader = <<'=cut';\n\n";
   print $file2 $script;
   close $file2;
@@ -328,7 +334,7 @@ sub update_pmbp_pl () {
   info_writing 0, 'latest version of pmbp.pl', $pmbp_pl_file_name;
   mkdir_for_file ($pmbp_pl_file_name);
   copy $temp2_file_name => $pmbp_pl_file_name
-      or die "$0: $pmbp_pl_file_name: $!";
+      or info_die "$0: $pmbp_pl_file_name: $!";
 } # update_pmbp_pl
 
 ## ------ Files and directories ------
@@ -348,9 +354,10 @@ sub copy_log_file ($$) {
   $log_file_name =~ s/::/-/g;
   $log_file_name = "$PMBPLogDirName/@{[time]}-$log_file_name.log";
   mkdir_for_file $log_file_name;
-  copy $file_name => $log_file_name or die "Can't save log file: $!\n";
+  copy $file_name => $log_file_name or 
+      info_die "Can't save log file: $!\n";
   info_writing 0, "install log file", $log_file_name;
-  open my $file, '<', $file_name or die "$0: $file_name: $!";
+  open my $file, '<', $file_name or info_die "$0: $file_name: $!";
   local $/ = undef;
   my $content = <$file>;
   info 5, "";
@@ -386,7 +393,7 @@ sub run_command ($;%) {
       ($args{discard_stderr} ? " 2> /dev/null" : " 2>&1") .
       (defined $args{">"} ? ' > ' . quotemeta $args{">"} : '') .
       ($args{accept_input} ? '' : ' < /dev/null')
-      or die "$0: $command->[0]: $!";
+      or info_die "$0: $command->[0]: $!";
   while (<$cmd>) {
     my $level = defined $args{info_level} ? $args{info_level} : 1;
     $level = $args{onoutput}->($_) if $args{onoutput};
@@ -413,7 +420,7 @@ sub _save_url {
 } # _save_url
 
 sub save_url ($$;%) {
-  _save_url (@_) or die "Failed to download <$_[0]>\n";
+  _save_url (@_) or info_die "Failed to download <$_[0]>\n";
 } # save_url
 
 ## ------ JSON ------
@@ -443,7 +450,7 @@ sub save_url ($$;%) {
 }
 
 sub load_json ($) {
-  open my $file, '<', $_[0] or die "$0: $_[0]: $!";
+  open my $file, '<', $_[0] or info_die "$0: $_[0]: $!";
   local $/ = undef;
   my $json = decode_json (<$file>);
   close $file;
@@ -531,7 +538,7 @@ sub load_json ($) {
 sub read_gitignore ($) {
   my $file_name = shift;
   return undef unless -f $file_name;
-  open my $file, '<', $file_name or die "$0: $file_name: $!";
+  open my $file, '<', $file_name or info_die "$0: $file_name: $!";
   my @ignore = map { chomp; $_ } grep { length } <$file>;
   return \@ignore;
 } # read_gitignore
@@ -539,7 +546,7 @@ sub read_gitignore ($) {
 sub write_gitignore ($$) {
   my ($ignores, $file_name) = @_;
   mkdir_for_file $file_name;
-  open my $file, '>', $file_name or die "$0: $file_name: $!";
+  open my $file, '>', $file_name or info_die "$0: $file_name: $!";
   print $file join '', map { $_ . "\n" } @{$ignores or []};
   close $file;
 } # write_gitignore
@@ -608,7 +615,7 @@ sub init_perl_version ($) {
 } # init_perl_version
 
 sub init_perl_version_by_file_name ($) {
-  open my $file, '<', $_[0] or die "$0: $_[0]: $!";
+  open my $file, '<', $_[0] or info_die "$0: $_[0]: $!";
   my $version = <$file>;
   $version = '' unless defined $version;
   chomp $version;
@@ -731,7 +738,7 @@ sub install_cpanm_wrapper () {
   install_cpanm;
   info_writing 1, "cpanm_wrapper", $CPANMWrapper;
   mkdir_for_file $CPANMWrapper;
-  open my $file, '>', $CPANMWrapper or die "$0: $CPANMWrapper: $!";
+  open my $file, '>', $CPANMWrapper or info_die "$0: $CPANMWrapper: $!";
   print $file q{#!/usr/bin/perl
     BEGIN {
       my $file_name = __FILE__;
@@ -770,7 +777,7 @@ sub install_cpanm_wrapper () {
       my $home_dir_name = "$CPANMHomeDirName/$key";
       my $file_name = "$home_dir_name/.modulebuildrc";
       mkdir_for_file $file_name;
-      open my $file, '>', $file_name or die "$0: $file_name: $!";
+      open my $file, '>', $file_name or info_die "$0: $file_name: $!";
       print $file "install --install-base $lib_dir_name";
       close $file;
       $home_dir_name;
@@ -786,10 +793,10 @@ sub cpanm ($$) {
 
   my $perl_lib_dir_name = $args->{perl_lib_dir_name}
       || ($args->{info} ? $CPANMDirName : undef)
-      or die "No |perl_lib_dir_name| specified";
+      or info_die "No |perl_lib_dir_name| specified";
   my $perl_version = $args->{perl_version}
       || ($args->{info} ? (sprintf '%vd', $^V) : undef)
-      or die "No |perl_version| specified";
+      or info_die "No |perl_version| specified";
   my $path = get_env_path ($perl_version);
   my $perl_command = $args->{perl_command} || $PerlCommand;
 
@@ -1063,7 +1070,7 @@ sub cpanm ($$) {
       }
     }; # close or do
     if ($args->{info} and -f $json_temp_file->filename) {
-      open my $file, '<', $json_temp_file->filename or die "$0: $!";
+      open my $file, '<', $json_temp_file->filename or info_die "$0: $!";
       $result->{output_text} = <$file>;
     } elsif ($args->{scandeps} and -f $json_temp_file->filename) {
       $result->{output_json} = load_json $json_temp_file->filename;
@@ -1146,7 +1153,8 @@ sub save_by_pathname ($$) {
       }
     } else {
       if (-f $mirror) {
-        copy $mirror => $dest_file_name or die "$0: Can't copy $mirror";
+        copy $mirror => $dest_file_name or
+            info_die "$0: Can't copy $mirror";
         $module->{url} = $mirror;
         $module->{pathname} = $pathname;
         return 1;
@@ -1199,15 +1207,15 @@ sub copy_pmpp_modules ($$) {
         unlink $dest if -f $dest;
         if ($rewrite_shebang) {
           local $/ = undef;
-          open my $old_file, '<', $_ or die "$0: $_: $!";
+          open my $old_file, '<', $_ or info_die "$0: $_: $!";
           my $content = <$old_file>;
           $content =~ s{^#!.*?perl[0-9.]*(?:$|(?=\s))}{#!$perl_path};
-          open my $new_file, '>', $dest or die "$0: $dest: $!";
+          open my $new_file, '>', $dest or info_die "$0: $dest: $!";
           binmode $new_file;
           print $new_file $content;
           close $new_file;
         } else {
-          copy $_ => $dest or die "$0: $dest: $!";
+          copy $_ => $dest or info_die "$0: $dest: $!";
         }
         chmod ((stat $_)[2], $dest);
       } elsif (-d $_) {
@@ -1258,13 +1266,13 @@ sub create_perl_command_shortcut ($$) {
   info_writing 1, "command shortcut", $file_name;
   my $perl_path = get_perlbrew_perl_bin_dir_name $perl_version;
   my $pm_path = get_pm_dir_name ($perl_version) . "/bin";
-  open my $file, '>', $file_name or die "$0: $file_name: $!";
+  open my $file, '>', $file_name or info_die "$0: $file_name: $!";
   print $file sprintf qq{\#!/bin/sh\nPATH="%s" PERL5LIB="`cat %s 2> /dev/null`" exec %s "\$\@"\n},
       _quote_dq "$pm_path:$perl_path:" . '$PATH',
       _quote_dq get_libs_txt_file_name ($perl_version),
       $command;
   close $file;
-  chmod 0755, $file_name or die "$0: $file_name: $!";
+  chmod 0755, $file_name or info_die "$0: $file_name: $!";
 } # create_perl_command_shortcut
 
 ## ------ Perl module dependency detection ------
@@ -1347,7 +1355,7 @@ sub _scandeps_write_result ($$$;%) {
         $m->[1]->merge_module_index ($mi);
       }
     }
-    open my $file, '>', $file_name or die "$0: $file_name: $!";
+    open my $file, '>', $file_name or info_die "$0: $file_name: $!";
     print $file encode_json $m;
     $args{onadd}->($m->[0]) if $args{onadd};
   }
@@ -1415,7 +1423,8 @@ sub select_module ($$$$;%) {
           }
         }
       } # version
-      die "Can't detect dependency of @{[$module->as_short]}\n" unless $mods;
+      info_die "Can't detect dependency of @{[$module->as_short]}\n"
+          unless $mods;
     }
   }
   $dest_module_index->merge_modules ($mods);
@@ -1437,7 +1446,7 @@ sub _read_module_index ($$) {
     return;
   }
   info 2, "Reading module index $file_name...";
-  open my $file, '<', $file_name or die "$0: $file_name: $!";
+  open my $file, '<', $file_name or info_die "$0: $file_name: $!";
   my $has_blank_line;
   while (<$file>) {
     if ($has_blank_line and /^(\S+)\s+(\S+)\s+(\S+)/) {
@@ -1465,7 +1474,7 @@ sub write_module_index ($$) {
 
   info_writing 0, "package list", $file_name;
   mkdir_for_file $file_name;
-  open my $details, '>', $file_name or die "$0: $file_name: $!";
+  open my $details, '>', $file_name or info_die "$0: $file_name: $!";
   print $details "File: 02packages.details.txt\n";
   print $details "URL: http://www.perl.com/CPAN/modules/02packages.details.txt\n";
   print $details "Description: Package names\n";
@@ -1486,7 +1495,7 @@ sub read_pmb_install_list ($$;%) {
     info 0, "$file_name not found; skipped\n";
     return;
   }
-  open my $file, '<', $file_name or die "$0: $file_name: $!";
+  open my $file, '<', $file_name or info_die "$0: $file_name: $!";
   my $modules = [];
   while (<$file>) {
     if (/^\s*\#/ or /^\s*$/) {
@@ -1520,7 +1529,7 @@ sub write_pmb_install_list ($$) {
 
   info_writing 0, "pmb-install list", $file_name;
   mkdir_for_file $file_name;
-  open my $file, '>', $file_name or die "$0: $file_name: $!";
+  open my $file, '>', $file_name or info_die "$0: $file_name: $!";
   my $found = {};
   for (@$result) {
     my $v = (defined $_->[0] ? $_->[0] : '') . (defined $_->[1] ? '~' . $_->[1] : '');
@@ -1997,7 +2006,7 @@ while (@Command) {
     $file_name = get_libs_txt_file_name ($perl_version)
         unless defined $file_name;
     mkdir_for_file $file_name;
-    open my $file, '>', $file_name or die "$0: $file_name: $!";
+    open my $file, '>', $file_name or info_die "$0: $file_name: $!";
     info_writing 0, "lib paths", $file_name;
     print $file join ':', (get_lib_dir_names ($PerlCommand, $perl_version));
   } elsif ($command->{type} eq 'create-libs-txt-symlink') {
@@ -2005,28 +2014,28 @@ while (@Command) {
     my $link_name = "$RootDirName/config/perl/libs.txt";
     info_writing 3, 'libs.txt symlink', $link_name;
     mkdir_for_file $link_name;
-    (unlink $link_name or die "$0: $link_name: $!")
+    (unlink $link_name or info_die "$0: $link_name: $!")
         if -f $link_name || -l $link_name;
-    (symlink $real_name => $link_name) or die "$0: $link_name: $!";
+    (symlink $real_name => $link_name) or info_die "$0: $link_name: $!";
   } elsif ($command->{type} eq 'create-local-perl-latest-symlink') {
     my $real_name = "$RootDirName/local/perl-$perl_version";
     my $link_name = "$RootDirName/local/perl-latest";
     info_writing 3, 'perl-latest symlink', $link_name;
     make_path $real_name;
     remove_tree $link_name;
-    symlink $real_name => $link_name or die "$0: $link_name: $!";
+    symlink $real_name => $link_name or info_die "$0: $link_name: $!";
   } elsif ($command->{type} eq 'create-perl-command-shortcut') {
     create_perl_command_shortcut $perl_version, $command->{command};
   } elsif ($command->{type} eq 'write-makefile-pl') {
     mkdir_for_file $command->{file_name};
     open my $file, '>', $command->{file_name}
-        or die "$0: $command->{file_name}: $!";
+        or info_die "$0: $command->{file_name}: $!";
     info_writing 0, "dummy Makefile.PL", $command->{file_name};
     print $file q{
       use inc::Module::Install;
       name "Dummy";
       open my $file, "<", "config/perl/pmb-install.txt"
-          or die "$0: config/perl/pmb-install.txt: $!";
+          or info_die "$0: config/perl/pmb-install.txt: $!";
       while (<$file>) {
         if (/^([0-9A-Za-z_:]+)/) {
           requires $1;
@@ -2070,7 +2079,7 @@ while (@Command) {
   } elsif ($command->{type} eq 'print') {
     print $command->{string};
   } else {
-    die "Command |$command->{type}| is not defined";
+    info_die "Command |$command->{type}| is not defined";
   }
 } # while @Command
 
