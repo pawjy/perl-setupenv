@@ -1809,6 +1809,16 @@ sub build_imagemagick ($$$;%) {
            module_index_file_name => $args{module_index_file_name}},
           [$module];
   }
+  {
+    open my $file, '<', $perl_make_file_name
+        or die "$0: $perl_make_file_name: $!";
+    local $/ = undef;
+    my $make_pl = <$file>;
+    $make_pl =~ s{-L../magick/.libs\b}{-L$install_dir_name/lib}g;
+    open $file, '>', $perl_make_file_name
+        or die "$0: $perl_make_file_name: $!";
+    print $file $make_pl;
+  }
   my $envs = {PATH => get_env_path ($perl_version),
               PERL5LIB => (join ':', (get_lib_dir_names ($perl_command, $perl_version)))};
   run_command
