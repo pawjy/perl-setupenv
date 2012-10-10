@@ -481,7 +481,7 @@ sub load_json ($) {
     if ($cmd) {
       if (not $ExecuteSystemPackageInstaller) {
         info 0, "Execute following command and retry:";
-        info 0, '  ' . $env . '$ ' . join ' ', @$cmd;
+        info 0, '  $ ' . $env . join ' ', @$cmd;
       } else {
         return run_command $cmd,
             info_level => 0,
@@ -2000,8 +2000,9 @@ while (@Command) {
     my $link_name = "$RootDirName/config/perl/libs.txt";
     info_writing 3, 'libs.txt symlink', $link_name;
     mkdir_for_file $link_name;
-    unlink $link_name or die "$0: $link_name: $!" if -f $link_name;
-    symlink $real_name => $link_name or die "$0: $link_name: $!";
+    (unlink $link_name or die "$0: $link_name: $!")
+        if -f $link_name || -l $link_name;
+    (symlink $real_name => $link_name) or die "$0: $link_name: $!";
   } elsif ($command->{type} eq 'create-local-perl-latest-symlink') {
     my $real_name = "$RootDirName/local/perl-$perl_version";
     my $link_name = "$RootDirName/local/perl-latest";
