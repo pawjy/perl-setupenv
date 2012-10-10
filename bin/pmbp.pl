@@ -732,8 +732,13 @@ sub install_cpanm_wrapper () {
   info_writing 1, "cpanm_wrapper", $CPANMWrapper;
   mkdir_for_file $CPANMWrapper;
   open my $file, '>', $CPANMWrapper or die "$0: $CPANMWrapper: $!";
-  printf $file q{#!/usr/bin/perl
-    BEGIN { require "%s" };
+  print $file q{#!/usr/bin/perl
+    BEGIN {
+      my $file_name = __FILE__;
+      $file_name =~ s{[^/\\\\]+$}{};
+      $file_name = '.' unless length $file_name;
+      require ($file_name . "/cpanm");
+    }
 
     my $orig_search_module = \&App::cpanminus::script::search_module;
     *App::cpanminus::script::search_module = sub {
@@ -750,7 +755,7 @@ sub install_cpanm_wrapper () {
     my $app = App::cpanminus::script->new;
     $app->parse_options (@ARGV);
     $app->doit or exit 1;
-  }, $CPANMCommand;
+  };
   close $file;
 } # install_cpanm_wrapper
 
