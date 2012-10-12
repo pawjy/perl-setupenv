@@ -184,6 +184,7 @@ my $CPANMDirName = "$RootDirName/local/cpanm";
 my $CPANMHomeDirName = "$CPANMDirName/tmp";
 my $CPANMCommand = "$CPANMDirName/bin/cpanm";
 my $CPANMWrapper = "$CPANMDirName/bin/cpanmwrapper";
+my $MakeInstaller = "$CPANMDirName/bin/makeinstaller";
 
 # {root}/local/pmbp
 my $PMBPDirName = "$RootDirName/local/pmbp";
@@ -707,22 +708,27 @@ sub get_perl_path ($) {
 }
 
 {
-  my $PerlArchname = {};
-  sub get_perl_archname ($$) {
-    my ($perl_command, $perl_version) = @_;
+  my $PerlConfig = {};
+  sub get_perl_config ($$$) {
+    my ($perl_command, $perl_version, $key) = @_;
     my $path = get_env_path ($perl_version);
-    return $PerlArchname->{$path, $perl_command}
-        if $PerlArchname->{$path, $perl_command};
+    return $PerlConfig->{$path, $perl_command, $key}
+        if $PerlConfig->{$path, $perl_command, $key};
 
     _check_perl_version $perl_command, $perl_version;
-    my $perl_archname;
+    my $perl_config;
     run_command
-        [$perl_command, '-MConfig', '-e', 'print $Config{archname}'],
+        [$perl_command, '-MConfig', '-e', 'print $Config{'.$key.'}'],
         envs => {PATH => $path},
         discard_stderr => 1,
-        onoutput => sub { $perl_archname = $_[0]; 2 };
-    return $PerlArchname->{$path, $perl_command} = $perl_archname
-        || info_die "Can't get archname of $perl_command";
+        onoutput => sub { $perl_config = $_[0]; 2 };
+    return $PerlConfig->{$path, $perl_command, $key} = $perl_config
+        || info_die "Can't get \$Config{$key} of $perl_command";
+  } # get_perl_config
+
+  sub get_perl_archname ($$) {
+    my ($perl_command, $perl_version) = @_;
+    return get_perl_config $perl_command, $perl_version, 'archname';
   } # get_perl_archname
 }
 
@@ -765,6 +771,21 @@ sub install_cpanm_wrapper () {
   };
   close $file;
 } # install_cpanm_wrapper
+
+sub install_makeinstaller () {
+  return if -f $MakeInstaller;
+  info_writing 1, "makeinstaller", $MakeInstaller;
+  mkdir_for_file $MakeInstaller;
+  open my $file, '>', $MakeInstaller or info_die "$0: $MakeInstaller: $!";
+  print $file q{#!/bin/sh
+    export PERL_MM_OPT="$PERL_MM_OPT $PMBP__PERL_MM_OPT"
+    echo perl Makefile.PL && perl Makefile.PL && \
+    echo make             && make && \
+    echo make install     && make install
+  };
+  close $file;
+  chmod 0755, $MakeInstaller;
+} # install_makeinstaller
 
 {
   my $CPANMDummyHomeDirNames = {};
@@ -873,14 +894,16 @@ sub cpanm ($$) {
                 MP_APXS => $ENV{MP_APXS} || (-f '/usr/sbin/apxs' ? '/usr/sbin/apxs' : undef),
                 MP_USE_MY_EXTUTILS_EMBED => 1};
 
-    if (@module_arg and $module_arg[0] eq 'GD') {
+    if (@module_arg and $module_arg[0] eq 'GD' and not $args->{info}) {
       ## <http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=636649>
       ## <http://stackoverflow.com/questions/3248959/extutilsmakemaker-perl-mm-opt-split-on-whitespace-work-around>
-      $envs->{PERL_MM_OPT} = $ENV{PERL_MM_OPT};
-      $envs->{PERL_MM_OPT} = '' unless defined $envs->{PERL_MM_OPT};
-      my $ccflags = '-Wformat=0 ' . $Config{ccflags};
+      install_makeinstaller;
+      my $ccflags = '-Wformat=0 ' . get_perl_config $perl_command, $perl_version, 'ccflags';
       $ccflags =~ s/ /\t/g;
-      $envs->{PERL_MM_OPT} .= ' CCFLAGS=' . $ccflags;
+      $envs->{PMBP__PERL_MM_OPT} = 'CCFLAGS=' . $ccflags;
+
+      $envs->{SHELL} = $MakeInstaller;
+      push @option, '--look';
     }
 
     my $failed;
@@ -919,6 +942,7 @@ sub cpanm ($$) {
         push @required_install,
             map { PMBP::Module->new_from_package ($_) }
             qw{ExtUtils::MakeMaker ExtUtils::ParseXS};
+        $failed = 1;
       } elsif ($log =~ /^only nested arrays of non-refs are supported at .*?\/ExtUtils\/MakeMaker.pm/m) {
         push @required_install, PMBP::Module->new_from_package ('ExtUtils::MakeMaker');
       } elsif ($log =~ /^String found where operator expected at Makefile.PL line [0-9]+, near \"([0-9A-Za-z_]+)/m) {
