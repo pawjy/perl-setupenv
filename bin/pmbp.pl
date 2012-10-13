@@ -777,12 +777,12 @@ sub install_makeinstaller () {
   info_writing 1, "makeinstaller", $MakeInstaller;
   mkdir_for_file $MakeInstaller;
   open my $file, '>', $MakeInstaller or info_die "$0: $MakeInstaller: $!";
-  print $file q{#!/bin/sh
+  printf $file q{#!/bin/sh
+    export SHELL="%s"
     echo perl Makefile.PL && perl Makefile.PL CCFLAGS="$PMBP__CCFLAGS" && \
-cat Makefile
     echo make             && make && \
     echo make install     && make install
-  };
+  }, _quote_dq $ENV{SHELL};
   close $file;
   chmod 0755, $MakeInstaller;
 } # install_makeinstaller

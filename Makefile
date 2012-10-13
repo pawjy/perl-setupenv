@@ -9,7 +9,7 @@ git-submodules:
 
 ## ------ Tests ------
 
-PROVE = prove -j4
+PROVE = prove
 
 test: test-deps test-startproxy test-main test-stopproxy
 
