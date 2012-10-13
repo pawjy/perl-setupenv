@@ -778,8 +778,8 @@ sub install_makeinstaller () {
   mkdir_for_file $MakeInstaller;
   open my $file, '>', $MakeInstaller or info_die "$0: $MakeInstaller: $!";
   print $file q{#!/bin/sh
-    export PERL_MM_OPT="$PERL_MM_OPT $PMBP__PERL_MM_OPT"
-    echo perl Makefile.PL && perl Makefile.PL && \
+    echo perl Makefile.PL && perl Makefile.PL CCFLAGS="$PMBP__CCFLAGS" && \
+cat Makefile
     echo make             && make && \
     echo make install     && make install
   };
@@ -896,11 +896,9 @@ sub cpanm ($$) {
 
     if (@module_arg and $module_arg[0] eq 'GD' and not $args->{info}) {
       ## <http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=636649>
-      ## <http://stackoverflow.com/questions/3248959/extutilsmakemaker-perl-mm-opt-split-on-whitespace-work-around>
       install_makeinstaller;
       my $ccflags = '-Wformat=0 ' . get_perl_config $perl_command, $perl_version, 'ccflags';
-      $ccflags =~ s/ /\t/g;
-      $envs->{PMBP__PERL_MM_OPT} = 'CCFLAGS=' . $ccflags;
+      $envs->{PMBP__CCFLAGS} = $ccflags;
 
       $envs->{SHELL} = $MakeInstaller;
       push @option, '--look';
