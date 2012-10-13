@@ -894,7 +894,8 @@ sub cpanm ($$) {
                 MP_APXS => $ENV{MP_APXS} || (-f '/usr/sbin/apxs' ? '/usr/sbin/apxs' : undef),
                 MP_USE_MY_EXTUTILS_EMBED => 1};
 
-    if (@module_arg and $module_arg[0] eq 'GD' and not $args->{info}) {
+    if (@module_arg and $module_arg[0] eq 'GD' and
+        not $args->{info} and not $args->{scandeps}) {
       ## <http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=636649>
       install_makeinstaller;
       my $ccflags = '-Wformat=0 ' . get_perl_config $perl_command, $perl_version, 'ccflags';
