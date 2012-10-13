@@ -980,20 +980,25 @@ sub cpanm ($$) {
         push @required_system,
             {name => 'gmp-devel', debian_name => 'libgmp-dev',
              homebrew_name => 'gmp'};
+        $failed = 1;
       } elsif ($log =~ /^Could not find gdlib-config in the search path. Please install libgd /m) {
         push @required_system,
             {name => 'gd-devel', debian_name => 'libgd2-xpm-dev'};
+        $failed = 1;
       } elsif ($log =~ /^version.c:.+?: error: db.h: No such file or directory/m and
                $log =~ /^-> FAIL Installing DB_File failed/m) {
         push @required_system,
             {name => 'bdb-devel', redhat_name => 'db-devel',
              debian_name => 'libdb-dev'};
+        $failed = 1;
       } elsif ($log =~ /^Expat.xs:.+?: error: expat.h: No such file or directory/m) {
         push @required_system,
             {name => 'expat-devel', debian_name => 'libexpat1-dev'};
+        $failed = 1;
       } elsif ($log =~ /^ERROR: proj library not found, where is cs2cs\?/m) {
         push @required_system,
             {name => 'proj-devel', debian_name => 'libproj-dev'};
+        $failed = 1;
       } elsif ($log =~ /^! Couldn\'t find module or a distribution (\S+) \(/m) {
         my $mod = {
           'Date::Parse' => 'Date::Parse',
