@@ -1295,7 +1295,8 @@ sub create_perl_command_shortcut ($$) {
   my $perl_path = get_perlbrew_perl_bin_dir_name $perl_version;
   my $pm_path = get_pm_dir_name ($perl_version) . "/bin";
   open my $file, '>', $file_name or info_die "$0: $file_name: $!";
-  print $file sprintf qq{\#!/bin/sh\nPATH="%s" PERL5LIB="`cat %s 2> /dev/null`" exec %s "\$\@"\n},
+  print $file sprintf qq{\#!/bin/sh\nPMBP_ORIG_PATH="%s" PATH="%s" PERL5LIB="`cat %s 2> /dev/null`" exec %s "\$\@"\n},
+      _quote_dq '$PATH',
       _quote_dq "$pm_path:$perl_path:" . '$PATH',
       _quote_dq get_libs_txt_file_name ($perl_version),
       $command;
