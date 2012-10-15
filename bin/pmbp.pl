@@ -446,7 +446,7 @@ sub save_url ($$;%) {
       install_pmbp_module (PMBP::Module->new_from_package ('JSON'));
     }
     require JSON;
-    return JSON->new->utf8->allow_blessed->convert_blessed->allow_nonref->pretty->canonical->decode ($_[0]);
+    return eval { JSON->new->utf8->allow_blessed->convert_blessed->allow_nonref->pretty->canonical->decode ($_[0]) };
   } # decode_json
 }
 
