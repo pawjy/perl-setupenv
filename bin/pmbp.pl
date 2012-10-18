@@ -137,8 +137,8 @@ GetOptions (
     push @Command, {type => 'add-to-gitignore', value => $_[1]};
   },
   '--create-perl-command-shortcut=s' => sub {
-    push @Command, {type => 'create-perl-command-shortcut',
-                    command => $_[1]};
+    push @Command, {type => 'write-libs-txt'},
+                   {type => 'create-perl-command-shortcut', command => $_[1]};
   },
   '--print-scanned-dependency=s' => sub {
     push @Command, {type => 'print-scanned-dependency',
