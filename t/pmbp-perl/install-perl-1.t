@@ -10,7 +10,8 @@ tempdir=`perl -MFile::Temp=tempdir -e 'print tempdir'`/testapp
 
 ($tempdir/local/perlbrew/perls/perl-5.12.0/bin/perl -e '$^V eq "v5.12.0" ? print "ok 2\n" : print "not ok 2\n"') || echo "not ok 2"
 
-perl $pmbp --root-dir-name "$tempdir" --perl-version 5.12.0 \
+$tempdir/local/perlbrew/perls/perl-5.12.0/bin/perl $pmbp \
+    --root-dir-name "$tempdir" --perl-version 5.12.0 \
     --create-perl-command-shortcut perl
 
 $tempdir/perl -e '(sprintf "%vd", $^V) eq "5.12.0" ? print "ok 3\n" : print "not ok 3"'
