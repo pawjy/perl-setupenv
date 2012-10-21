@@ -652,7 +652,8 @@ sub install_perl ($) {
                  'perl-' . $perl_version,
                  '--notest',
                  '--as' => 'perl-' . $perl_version,
-                 '-j' => $PerlbrewParallelCount],
+                 '-j' => $PerlbrewParallelCount,
+                 '-D' => 'usethreads'],
                 envs => get_perlbrew_envs,
                 prefix => "perlbrew($i): ",
                 onoutput => sub {
