@@ -686,6 +686,19 @@ sub install_perl ($) {
   } # PERLBREW
 } # install_perl
 
+sub create_perlbrew_perl_latest_symlink ($) {
+  my $perl_version = shift;
+  install_perlbrew;
+  if (-e "$RootDirName/local/perlbrew/perls/perl-latest") {
+    run_command ["$RootDirName/local/perlbrew/bin/perlbrew",
+                 'alias', 'delete', 'perl-latest'],
+                envs => get_perlbrew_envs;
+  }
+  run_command ["$RootDirName/local/perlbrew/bin/perlbrew",
+               'alias', 'create', "perl-$perl_version" => 'perl-latest'],
+              envs => get_perlbrew_envs;
+} # create_perlbrew_perl_latest_symlink
+
 sub get_perl_path ($) {
   my $perl_version = shift;
   return which ($PerlCommand, $perl_version)
@@ -1938,6 +1951,7 @@ while (@Command) {
 
     unless ($ENV{PMBP_NO_PERL_INSTALL}) {
       unshift @Command, {type => 'install-perl-if-necessary'};
+      unshift @Command, {type => 'create-perlbrew-perl-latest-symlink'};
     }
 
   } elsif ($command->{type} eq 'print-pmbp-pl-etag') {
@@ -1966,6 +1980,8 @@ while (@Command) {
       info 0, "Installing Perl $perl_version...";
       install_perl $perl_version;
     }
+  } elsif ($command->{type} eq 'create-perlbrew-perl-latest-symlink') {
+    create_perlbrew_perl_latest_symlink $perl_version;
 
   } elsif ($command->{type} eq 'install-module') {
     delete_pmpp_arch_dir $PerlCommand, $perl_version if $pmpp_touched;
@@ -2799,7 +2815,17 @@ symlink, which points to the C<local/perl-{perl-version}> directory.
 In other word, C<local/perl-latest/> contains files of the last
 C<--install>ation of Perl modules.  Originally the directory was
 intended to contain files for "latest" version of Perl, which is why
-the symlink is named C<perl-latest>.
+the symlink is named C<perl-latest>.  Use of this symlink is
+deprecated.
+
+=head2 local/perlbrew/perls/perl-latest
+
+The C<--install> command generates (or overwrites) the C<perl-latest>
+alias to the Perl with the currently selected version for the local
+perlbrew (i.e. C<local/perlbrew/perls/perl-latest/bin/perl> becomes
+the current version of Perl).  Please note that the "perl-latest" does
+not necessariliy the latest version of Perl.  Use of this alias is
+depreacated.
 
 =head1 SEE ALSO
 
