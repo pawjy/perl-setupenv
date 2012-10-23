@@ -672,7 +672,7 @@ cinnamon-link: ./cin
 
 ./cin: always
 	echo "#!/bin/sh" > $@
-	echo "$(abspath local/cinnamon/perl) $(abspath local/cinnamon/bin/cinnamon) \"\$$@\"" >> $@
+	echo "exec $(abspath local/cinnamon/perl) $(abspath local/cinnamon/bin/cinnamon) \"\$$@\"" >> $@
 	chmod ugo+x $@
 
 # ------ ------
