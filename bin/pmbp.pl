@@ -624,7 +624,8 @@ sub init_perl_version_by_file_name ($) {
 } # init_perl_version_by_file_name
 
 sub get_perlbrew_envs () {
-  return {PERLBREW_ROOT => (abs_path "$RootDirName/local/perlbrew")}
+  return {PERLBREW_ROOT => (abs_path "$RootDirName/local/perlbrew"),
+          PERL5LIB => ''}
 } # get_perlbrew_envs
 
 sub install_perlbrew () {
