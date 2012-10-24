@@ -1009,6 +1009,10 @@ sub cpanm ($$) {
         push @required_system,
             {name => 'expat-devel', debian_name => 'libexpat1-dev'};
         $failed = 1;
+      } elsif ($log =~ /^This module requires GNU Libidn, which could not be found./) {
+        push @required_system,
+            {name => 'libidn-devel', debian_name => 'libidn11-dev'};
+        $failed = 1;
       } elsif ($log =~ /^ERROR: proj library not found, where is cs2cs\?/m) {
         push @required_system,
             {name => 'proj-devel', debian_name => 'libproj-dev'};
