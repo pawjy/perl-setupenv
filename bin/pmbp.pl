@@ -999,6 +999,11 @@ sub cpanm ($$) {
         push @required_system,
             {name => 'gd-devel', debian_name => 'libgd2-xpm-dev'};
         $failed = 1;
+      } elsif ($log =~ m{ld: cannot find -lmysqlclient}m) {
+        push @required_system,
+            {name => 'mysql-devel', redhat_name => 'MySQL-devel',
+             debian_name => 'libmysqld-dev'};
+        $failed = 1;
       } elsif ($log =~ /^version.c:.+?: error: db.h: No such file or directory/m and
                $log =~ /^-> FAIL Installing DB_File failed/m) {
         push @required_system,
