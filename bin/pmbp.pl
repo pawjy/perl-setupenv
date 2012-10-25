@@ -38,7 +38,7 @@ my @CPANMirror = qw(
 );
 my $Verbose = $ENV{PMBP_VERBOSE} || 0;
 my $PreserveInfoFile = 0;
-my $DumpInfoFileBeforeDie = $ENV{TRAVIS} || 0;
+my $DumpInfoFileBeforeDie = $ENV{PMBP_DUMP_BEFORE_DIE} || $ENV{TRAVIS} || 0;
 my $ExecuteSystemPackageInstaller = $ENV{TRAVIS} || 0;
 my $HelpLevel;
 
@@ -2602,12 +2602,13 @@ file is deleted when the processing has been succeeded.
 
 =item --dump-info-file-before-die
 
-If the option is specified or the C<TRAVIS> environment variable is
-set to a true value, the content of the "info file" is printed to the
-standard error output before the script aborts due to some error.
-This option is particularly useful if you don't have access to the
-info file but you does have access to the output of the script
-(e.g. in some CI environment).
+If the option is specified or at least one of C<PMBP_DUMP_BEFORE_DIE>
+and C<TRAVIS> environment variables is set to a true value, the
+content of the "info file" is printed to the standard error output
+before the script aborts due to some error.  This option is
+particularly useful if you don't have access to the info file but you
+does have access to the output of the script (e.g. in some CI
+environment).
 
 =back
 
@@ -2759,6 +2760,10 @@ command might be useful to combine multiple C<--print-*> commands.
 
 Specify the proxy host.  See documentation for the C<wget> command for
 more information.
+
+=item PMBP_DUMP_BEFORE_DIE
+
+Set the default for the C<--dump-info-file-before-die> option.
 
 =item PMBP_PARALLEL_COUNT
 
