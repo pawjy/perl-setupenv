@@ -957,6 +957,11 @@ sub cpanm ($$) {
             map { PMBP::Module->new_from_package ($_) }
             qw{ExtUtils::MakeMaker ExtUtils::ParseXS};
         $failed = 1;
+      } elsif ($log =~ m{Undefined subroutine &ExtUtils::ParseXS::\S+ called}m) {
+        push @required_install,
+            map { PMBP::Module->new_from_package ($_) }
+            qw{ExtUtils::MakeMaker ExtUtils::ParseXS};
+        $failed = 1;
       } elsif ($log =~ /^only nested arrays of non-refs are supported at .*?\/ExtUtils\/MakeMaker.pm/m) {
         push @required_install, PMBP::Module->new_from_package ('ExtUtils::MakeMaker');
       } elsif ($log =~ /^String found where operator expected at Makefile.PL line [0-9]+, near \"([0-9A-Za-z_]+)/m) {
