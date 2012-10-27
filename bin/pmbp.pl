@@ -381,15 +381,17 @@ sub _quote_dq ($) {
 sub run_command ($;%) {
   my ($command, %args) = @_;
   my $prefix = defined $args{prefix} ? $args{prefix} : '';
+  my $prefix0 = '';
+  $prefix0 .= (length $prefix ? ':' : '') . $args{chdir} if defined $args{chdir};
   my $envs = $args{envs} || {};
   {
     no warnings 'uninitialized';
     info ((defined $args{info_command_level} ? $args{info_command_level} : 2),
-          qq{$prefix\$ @{[map { $_ . '="' . (_quote_dq $envs->{$_}) . '" ' } sort { $a cmp $b } keys %$envs]}@$command});
+          qq{$prefix$prefix0\$ @{[map { $_ . '="' . (_quote_dq $envs->{$_}) . '" ' } sort { $a cmp $b } keys %$envs]}@$command});
   }
   local %ENV = (%ENV, %$envs);
   open my $cmd, "-|",
-      ($args{chdir} ? "cd \Q$args{chdir}\E && " : "") .
+      (defined $args{chdir} ? "cd \Q$args{chdir}\E && " : "") .
       (join ' ', map quotemeta, @$command) .
       ($args{discard_stderr} ? " 2> /dev/null" : " 2>&1") .
       (defined $args{">"} ? ' > ' . quotemeta $args{">"} : '') .
@@ -1897,6 +1899,149 @@ sub build_imagemagick ($$$;%) {
           or info_die "PerlMagick make install failed";
   remove_tree $container_dir_name;
 } # build_imagemagick
+
+## ------ Apache ------
+
+sub get_latest_apr_versions () {
+  my $file_name = qq<$PMBPDirName/apr.html>;
+  save_url q<http://apr.apache.org/download.cgi> => $file_name
+      if not -f $file_name or
+         [stat $file_name]->[9] + 24 * 60 * 60 < time;
+
+  my $html;
+  {
+    open my $file, '<', $file_name or die "$0: $file_name: $!";
+    local $/ = undef;
+    $html = scalar <$file>;
+  }
+
+  my $versions = {'apr' => '1.4.6',
+                  'apr-util' => '1.5.1',
+                  _mirror => 'http://www.apache.org/dist/'};
+
+  if ($html =~ /APR ([0-9.]+) is the best available version/) {
+    $versions->{apr} = $1;
+  }
+  if ($html =~ /APR-util ([0-9.]+) is the best available version/) {
+    $versions->{'apr-util'} = $1;
+  }
+  if ($html =~ m{The currently selected mirror is <b>(http://[^<]+)</b>.}) {
+    $versions->{_mirror} = $1;
+  }
+  
+  return $versions;
+} # get_latest_apr_versions
+
+sub get_latest_apache_httpd_versions () {
+  my $file_name = qq<$PMBPDirName/apache-httpd.html>;
+  save_url q<http://httpd.apache.org/download.cgi> => $file_name
+      if not -f $file_name or
+         [stat $file_name]->[9] + 24 * 60 * 60 < time;
+
+  my $html;
+  {
+    open my $file, '<', $file_name or die "$0: $file_name: $!";
+    local $/ = undef;
+    $html = scalar <$file>;
+  }
+
+  my $versions = {httpd => '2.4.3',
+                  _mirror => 'http://www.apache.org/dist/'};
+
+  if ($html =~ /: ([0-9.]+) is the best available version/) {
+    $versions->{httpd} = $1;
+  }
+  if ($html =~ m{The currently selected mirror is <b>(http://[^<]+)</b>.}) {
+    $versions->{_mirror} = $1;
+  }
+  
+  return $versions;
+} # get_latest_apache_httpd_versions
+
+sub save_apache_package ($$$) {
+  my ($mirror_url => $package_name, $version) = @_;
+  my $file_name = "$PMTarDirName/packages/apache/$package_name-$version.tar.gz";
+  
+  my $url_dir_name = {'apr-util' => 'apr'}->{$package_name} || $package_name;
+  for my $mirror ($mirror_url,
+                  "http://www.apache.org/dist/",
+                  "http://archive.apache.org/dist/") {
+    last if -s $file_name;
+    _save_url "$mirror/$url_dir_name/$package_name-$version.tar.gz"
+        => $file_name;
+  }
+  
+  info_die "Can't download $package_name $version"
+      unless -f $file_name;
+} # save_apache_package
+
+sub install_tar_package ($$) {
+  my ($tar_gz_file_name, $configure_args) = @_;
+  my $container_dir_name = "$PMBPDirName/tmp/" . int rand 100000;
+  make_path $container_dir_name;
+  run_command ['tar', 'zxf', $tar_gz_file_name],
+      chdir => $container_dir_name
+      or info_die "Can't expand the package";
+  $tar_gz_file_name =~ m{([^/]+)\.tar\.gz$}
+      or info_die "Bad file name $tar_gz_file_name";
+  my $src_dir_name = "$container_dir_name/$1";
+  info_die "Can't chdir to the package's root directory ($src_dir_name)"
+      unless -d $src_dir_name;
+  run_command ['sh', 'configure', @$configure_args],
+      chdir => $src_dir_name
+      or info_die "Can't configure the package";
+  run_command ['make'],
+      chdir => $src_dir_name
+      or info_die "Can't build the package";
+  run_command ['make', 'install'],
+      chdir => $src_dir_name
+      or info_die "Can't install the package";
+  remove_tree $container_dir_name;
+} # install_tar_package
+
+sub install_apache_package ($) {
+  my $package_name = shift;
+
+  my $dest_dir_name = "$RootDirName/local/apache/$package_name";
+  my $check_file_name = "$dest_dir_name/" .
+      {'apr' => 'bin/apr-1-config',
+       'apr-util' => 'bin/apu-1-config',
+       'httpd' => 'bin/httpd'}->{$package_name};
+  if ($check_file_name and -f $check_file_name) {
+    info 2, "$package_name is already installed";
+    return;
+  }
+
+  my $versions;
+  if ($package_name eq 'apr' or
+      $package_name eq 'apr-util') {
+    $versions = get_latest_apr_versions;
+  } elsif ($package_name eq 'httpd') {
+    $versions = get_latest_apache_httpd_versions;
+  } else {
+    info_die "Apache package $package_name is not supported";
+  }
+  my $version = $versions->{$package_name};
+  save_apache_package $versions->{_mirror} => $package_name, $version;
+
+  my $tar_file_name = "$PMTarDirName/packages/apache/$package_name-$version.tar.gz";
+  my $configure_args = ['--prefix=' . $dest_dir_name];
+  if ($package_name eq 'apr-util') {
+    push @$configure_args,
+        "--with-apr=$RootDirName/local/apache/apr/bin/apr-1-config";
+  } elsif ($package_name eq 'httpd') {
+    push @$configure_args,
+        "--with-apr=$RootDirName/local/apache/apr/bin/apr-1-config",
+        "--with-apr-util=$RootDirName/local/apache/apr-util/bin/apu-1-config";
+  }
+
+  install_tar_package $tar_file_name, $configure_args;
+} # install_apache_package
+
+#Usage:
+#install_apache_package 'apr';
+#install_apache_package 'apr-util';
+#install_apache_package 'httpd';
 
 ## ------ Cleanup ------
 
