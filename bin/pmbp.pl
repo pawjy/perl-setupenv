@@ -2043,6 +2043,64 @@ sub install_apache_package ($) {
 #install_apache_package 'apr-util';
 #install_apache_package 'httpd';
 
+sub install_apache_httpd () {
+  my $dest_dir_name = "$RootDirName/local/apache/httpd";
+
+  if (-f "$dest_dir_name/bin/httpd") {
+    info 2, "httpd is already installed";
+    return;
+  }
+
+  my $apr_versions = get_latest_apr_versions;
+  my $httpd_versions = get_latest_apache_httpd_versions;
+  save_apache_package $apr_versions->{_mirror}
+      => 'apr', $apr_versions->{apr};
+  save_apache_package $apr_versions->{_mirror}
+      => 'apr-util', $apr_versions->{'apr-util'};
+  save_apache_package $httpd_versions->{_mirror}
+      => 'httpd', $httpd_versions->{httpd};
+
+  my $container_dir_name = "$PMBPDirName/tmp/" . int rand 100000;
+  make_path $container_dir_name;
+  for my $tar_file_name (
+    "$PMTarDirName/packages/apache/apr-$apr_versions->{apr}.tar.gz",
+    "$PMTarDirName/packages/apache/apr-util-$apr_versions->{'apr-util'}.tar.gz",
+    "$PMTarDirName/packages/apache/httpd-$httpd_versions->{httpd}.tar.gz",
+  ) {
+    run_command ['tar', 'zxf', $tar_file_name],
+        chdir => $container_dir_name
+        or info_die "Can't expand $tar_file_name";
+  }
+
+  my $apr_dir_name = "$container_dir_name/apr-$apr_versions->{apr}";
+  info_die "Can't chdir to the package's root directory ($apr_dir_name)"
+      unless -d $apr_dir_name;
+  my $apu_dir_name = "$container_dir_name/apr-util-$apr_versions->{'apr-util'}";
+  info_die "Can't chdir to the package's root directory ($apu_dir_name)"
+      unless -d $apu_dir_name;
+
+  my $src_dir_name = "$container_dir_name/httpd-$httpd_versions->{httpd}";
+  info_die "Can't chdir to the package's root directory ($src_dir_name)"
+      unless -d $src_dir_name;
+
+  run_command ['mv', $apr_dir_name => "$src_dir_name/srclib/apr"]
+      or info_die "Can't move $apr_dir_name";
+  run_command ['mv', $apu_dir_name => "$src_dir_name/srclib/apr-util"]
+      or info_die "Can't move $apu_dir_name";
+
+  run_command ['sh', 'configure',
+               "--prefix=$dest_dir_name", '--with-included-apr'],
+      chdir => $src_dir_name
+      or info_die "Can't configure the package";
+  run_command ['make'],
+      chdir => $src_dir_name
+      or info_die "Can't build the package";
+  run_command ['make', 'install'],
+      chdir => $src_dir_name
+      or info_die "Can't install the package";
+  remove_tree $container_dir_name;
+} # install_apache_httpd
+
 ## ------ Cleanup ------
 
 sub destroy () {
