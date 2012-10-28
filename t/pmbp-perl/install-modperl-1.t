@@ -3,7 +3,7 @@ use warnings;
 use File::Temp qw(tempdir);
 use Cwd qw(abs_path);
 
-print "1..3\n";
+print "1..5\n";
 
 my $pmbp = __FILE__;
 $pmbp =~ s{[^/\\]+$}{};
@@ -58,6 +58,7 @@ PerlResponseHandler MyHandler
 },
     $port,
     (join "\n", map { "PerlSwitches -I$_" } @lib);
+close $conf_file;
 
 (system $httpd, '-f', $conf_file_name, '-k', 'start') == 0
     or die "Can't start apache";
@@ -78,3 +79,61 @@ if (`curl http://localhost:$port/` eq 'PASS') {
 sleep 2;
 
 print "ok 3\n";
+
+(system 'perl', $pmbp, '--root-dir-name' => $root_dir_name,
+     '--install-module=Apache::Cookie') == 0
+    or die "Can't install perl and mod_perl1 and libapreq";
+
+my $conf1_file_name = "$root_dir_name/local/apache/httpd-1.3/conf/httpd.conf";
+open my $conf1_file, '>', $conf1_file_name or die "$0: $conf1_file_name: $!";
+printf $conf1_file q{
+ServerName Hoge
+Listen %d
+
+LoadModule perl_module libexec/libperl.so
+AddModule mod_perl.c
+
+<Perl>
+  use lib qw(%s);
+
+  package MyHandler;
+  use Apache::Constants qw(:common);
+  use Apache::Request;
+  
+  sub handler {
+    my $r = shift;
+    my $apr = Apache::Request->new ($r);
+    my $status = $apr->parse;
+    if ($status == OK) {
+      $r->send_http_header ('text/plain');
+      $r->print ('PASS');
+      return OK;
+    }
+  }
+</Perl>
+
+<Location />
+  SetHandler perl-script
+  PerlSendHeader on
+  PerlHandler MyHandler
+</Location>
+},
+    ++$port,
+    join ':', @lib;
+close $conf1_file;
+
+my $apachectl = "$root_dir_name/local/apache/httpd-1.3/bin/apachectl";
+
+(system $apachectl, 'start') == 0 or die "Can't start apache1";
+sleep 2;
+
+if (`curl http://localhost:$port/` eq 'PASS') {
+  print "ok 4\n";
+} else {
+  print "not ok 4\n";
+}
+
+(system $apachectl, 'stop') == 0 or die "Can't stop apache1";
+sleep 2;
+
+print "ok 5\n";

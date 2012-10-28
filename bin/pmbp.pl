@@ -799,10 +799,10 @@ sub install_makeinstaller ($$) {
       or info_die "$0: $MakeInstaller.name: $!";
   printf $file q{#!/bin/sh
     export SHELL="%s"
-    echo perl Makefile.PL && perl Makefile.PL %s && \
-    echo make             && make && \
-    echo make install     && make install
-  }, _quote_dq $ENV{SHELL}, $makefilepl_args;
+    echo perl Makefile.PL %s && perl Makefile.PL %s && \
+    echo make                && make && \
+    echo make install        && make install
+  }, _quote_dq $ENV{SHELL}, $makefilepl_args, $makefilepl_args;
   close $file;
   chmod 0755, "$MakeInstaller.$name";
 } # install_makeinstaller
@@ -909,7 +909,7 @@ sub cpanm ($$) {
                 PATH => $path,
                 HOME => get_cpanm_dummy_home_dir_name ($perl_lib_dir_name),
                 PERL_CPANM_HOME => $CPANMHomeDirName};
-
+    
     if (@module_arg and $module_arg[0] eq 'GD' and
         not $args->{info} and not $args->{scandeps}) {
       ## <http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=636649>
@@ -918,16 +918,26 @@ sub cpanm ($$) {
       $envs->{PMBP__CCFLAGS} = $ccflags;
       $envs->{SHELL} = "$MakeInstaller.gd";
       push @option, '--look';
-    } elsif (@$modules and
+    } elsif (not $args->{info} and not $args->{scandeps} and
+             @$modules and
              defined $modules->[0]->distvname and
-             $modules->[0]->distvname =~ /^mod_perl-2\./ and
-             not $args->{info} and not $args->{scandeps}) {
+             $modules->[0]->distvname =~ /^mod_perl-2\./) {
       install_apache_httpd ('2.2');
       ## <http://perl.apache.org/docs/2.0/user/install/install.html#Dynamic_mod_perl>
-      install_makeinstaller 'modperl',
+      install_makeinstaller 'modperl2',
           qq{MP_APXS="$RootDirName/local/apache/httpd-2.2/bin/apxs" } .
           qq{MP_APR_CONFIG="$RootDirName/local/apache/httpd-2.2/bin/apr-1-config"};
-      $envs->{SHELL} = "$MakeInstaller.modperl";
+      $envs->{SHELL} = "$MakeInstaller.modperl2";
+      push @option, '--look';
+    } elsif (not $args->{info} and not $args->{scandeps} and
+             @$modules and
+             defined $modules->[0]->distvname and
+             $modules->[0]->distvname =~ /^mod_perl-1\./) {
+      install_apache1 ();
+      ## <http://perl.apache.org/docs/1.0/guide/getwet.html>
+      install_makeinstaller 'modperl1',
+          qq{USE_APXS=1 WITH_APXS="$RootDirName/local/apache/httpd-1.3/bin/apxs" EVERYTHING=1};
+      $envs->{SHELL} = "$MakeInstaller.modperl1";
       push @option, '--look';
     }
 
@@ -941,8 +951,8 @@ sub cpanm ($$) {
         if (defined $mod->package and $mod->package eq 'ExtUtils::Embed') {
           $install_extutils_embed = 1;
           $failed = 1;
-        } elsif ($level == 1) {
-          push @required_cpanm, $mod;
+        #} elsif ($level == 1) {
+        #  push @required_cpanm, $mod;
         } else {
           push @required_install, $mod;
         }
@@ -963,7 +973,7 @@ sub cpanm ($$) {
         $scan_errors->($level + 1, $log);
         $failed = 1;
       } elsif ($log =~ m{^make(?:\[[0-9]+\])?: .+?ExtUtils/xsubpp}m or
-               $log =~ m{^Can\'t open perl script "ExtUtils/xsubpp"}m) {
+               $log =~ m{^Can\'t open perl script ".*?ExtUtils/xsubpp"}m) {
         push @required_install,
             map { PMBP::Module->new_from_package ($_) }
             qw{ExtUtils::MakeMaker ExtUtils::ParseXS};
@@ -1987,8 +1997,9 @@ sub save_apache_package ($$$) {
   for my $mirror ($mirror_url,
                   "http://www.apache.org/dist/",
                   "http://archive.apache.org/dist/") {
+    next unless defined $mirror;
     last if -s $file_name;
-    _save_url "$mirror/$url_dir_name/$package_name-$version.tar.gz"
+    _save_url "$mirror$url_dir_name/$package_name-$version.tar.gz"
         => $file_name;
   }
   
@@ -2001,11 +2012,11 @@ sub install_apache_httpd ($) {
   my $dest_dir_name = "$RootDirName/local/apache/httpd-$ver";
 
   if (-f "$dest_dir_name/bin/httpd") {
-    info 2, "httpd is already installed";
+    info 2, "httpd-$ver is already installed";
     return;
   }
 
-  info 0, "Installing Apache httpd $ver...";
+  info 0, "Installing httpd-$ver...";
 
   my $httpd_versions = get_latest_apache_httpd_versions;
   my $httpd_version = $httpd_versions->{"httpd-$ver"};
@@ -2071,6 +2082,49 @@ sub install_apache_httpd ($) {
       or info_die "Can't install the package";
   remove_tree $container_dir_name;
 } # install_apache_httpd
+
+sub install_apache1 () {
+  my $dest_dir_name = "$RootDirName/local/apache/httpd-1.3";
+  if (-f "$dest_dir_name/bin/httpd") {
+    info 2, "httpd-1.3 is already installed";
+    return;
+  }
+
+  info 0, "Installing httpd-1.3...";
+
+  my $version = '1.3.42';
+  my $tar_file_name = "$PMTarDirName/packages/apache/apache_$version.tar.gz";
+  my $url = "http://archive.apache.org/dist/httpd/apache_$version.tar.gz";
+  save_url $url => $tar_file_name;
+
+  my $container_dir_name = "$PMBPDirName/tmp/" . int rand 100000;
+  make_path $container_dir_name;
+  run_command ['tar', 'zxf', $tar_file_name],
+      chdir => $container_dir_name
+      or info_die "Can't expand $tar_file_name";
+
+  my $src_dir_name = "$container_dir_name/apache_$version";
+  info_die "Can't chdir to the package's root directory ($src_dir_name)"
+      unless -d $src_dir_name;
+
+  run_command ['sh', 'configure',
+               "--prefix=$dest_dir_name",
+               '--enable-module=so', 
+               '--enable-rule=SHARED_CORE',
+               '--enable-module=rewrite',
+               '--enable-shared=rewrite',
+               '--enable-module=proxy',
+               '--enable-shared=proxy'],
+      chdir => $src_dir_name
+      or info_die "Can't configure the package";
+  run_command ['make'],
+      chdir => $src_dir_name
+      or info_die "Can't build the package";
+  run_command ['make', 'install'],
+      chdir => $src_dir_name
+      or info_die "Can't install the package";
+  remove_tree $container_dir_name;
+} # install_apache1
 
 ## ------ Cleanup ------
 
