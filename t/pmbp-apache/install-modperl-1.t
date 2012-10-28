@@ -22,11 +22,12 @@ my $httpd = "$root_dir_name/local/apache/httpd-2.2/bin/httpd";
 (system 'perl', $pmbp, '--root-dir-name' => $root_dir_name,
      '--perl-version=5.12.4',
      '--install-perl',
-     '--install-module=mod_perl2') == 0
+     '--install-module=mod_perl2',
+     '--create-perl-command-shortcut=perl') == 0
     or die "Can't install perl and mod_perl2";
 
 my @lib = split /:/,
-    `perl $pmbp --print-libs --root-dir-name $root_dir_name --perl-version=5.12.4`;
+    `$root_dir_name/perl $pmbp --print-libs --root-dir-name $root_dir_name --perl-version=5.12.4`;
 
 open my $conf_file, '>', $conf_file_name or die "$0: $conf_file_name: $!";
 printf $conf_file q{
@@ -65,10 +66,7 @@ PerlResponseHandler MyHandler
 close $conf_file;
 
 my $start_log_file_name = "$root_dir_name/local/apache/httpd-2.2/logs/start_error_log";
-{
-  local $ENV{PERL5LIB} = join ':', @lib;
-  system $httpd, '-f', $conf_file_name, '-k', 'start', '-E', $start_log_file_name;
-}
+system $httpd, '-f', $conf_file_name, '-k', 'start', '-E', $start_log_file_name;
 
 sleep 4;
 
@@ -96,7 +94,7 @@ sleep 2;
 
 print "ok 3\n";
 
-(system 'perl', $pmbp, '--root-dir-name' => $root_dir_name,
+(system "$root_dir_name/perl", $pmbp, '--root-dir-name' => $root_dir_name,
      '--perl-version=5.12.4',
      '--install-module=Apache::Cookie') == 0
     or die "Can't install perl and mod_perl1 and libapreq";
