@@ -77,11 +77,13 @@ configured in the way our mod_perl cannot be compiled with it.
 
   # For mod_perl2
   $ perl local/bin/pmbp.pl \
+        --perl-version=5.12.4 \
         --install-perl \
         --install-perl-module mod_perl2
 
   # For mod_perl1
   $ perl local/bin/pmbp.pl \
+        --perl-version=5.12.4 \
         --install-perl \
         --install-perl-module mod_perl \
         --install-perl-module libapreq # optional
@@ -91,6 +93,11 @@ automatically installed into the directory C<local/apache/httpd-*>.
 (We don't use system's Apache installation as different systems have
 different configurations of Apache such that it is too difficult to
 improve portability.)
+
+Please note that, at the time of writing, mod_perl2 cannot be compiled
+with Perl 5.14 or later.  See
+<http://stackoverflow.com/questions/10564006/why-is-perl-5-14-using-0gvgpgv-gp-cv-definition-for-gvgc>
+for details.
 
 =head1 DEPENDENCY
 
