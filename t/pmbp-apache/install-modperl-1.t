@@ -62,7 +62,7 @@ close $conf_file;
 
 system "ls", $httpd;
 (system $httpd, '-f', $conf_file_name, '-k', 'start') == 0
-    warn die "Can't start apache";
+;    warn "Can't start apache";
 
 sleep 2;
 
