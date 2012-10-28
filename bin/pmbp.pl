@@ -2084,9 +2084,7 @@ sub install_apache_httpd ($) {
                "--prefix=$dest_dir_name",
                '--with-included-apr',
                '--enable-rewrite=shared',
-               '--enable-ssl=shared',
-               '--enable-proxy=shared',
-               '--enable-proxy-http=shared'],
+               '--enable-mods-shared="all ssl cache proxy authn_alias mem_cache file_cache charset_lite dav_lock disk_cache rewrite"'],
       chdir => $src_dir_name
       or info_die "Can't configure the package";
   run_command ['make'],
