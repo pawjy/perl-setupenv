@@ -14,8 +14,8 @@ my $tempdir = tempdir ('PMBP-TEST-XX'.'XX'.'XX', TMPDIR => 1, CLEANUP => 1);
 my $conf_file_name = abs_path "$tempdir/httpd.conf";
 my $port = 1024 + int rand 10000;
 
-my $httpd = "$root_dir_name/local/apache/httpd-2.2/bin/httpd";
 my $root_dir_name = $tempdir;
+my $httpd = "$root_dir_name/local/apache/httpd-2.2/bin/httpd";
 
 (system 'perl', $pmbp, '--root-dir-name' => $root_dir_name,
      '--install-perl',
