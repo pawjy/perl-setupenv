@@ -14,15 +14,13 @@ my $tempdir = tempdir ('PMBP-TEST-XX'.'XX'.'XX', TMPDIR => 1, CLEANUP => 1);
 my $conf_file_name = abs_path "$tempdir/httpd.conf";
 my $port = 1024 + int rand 10000;
 
-my $httpd = 'local/foo8/local/apache/httpd-2.2/bin/httpd';
+my $httpd = "$root_dir_name/local/apache/httpd-2.2/bin/httpd";
 my $root_dir_name = $tempdir;
 
 (system 'perl', $pmbp, '--root-dir-name' => $root_dir_name,
      '--install-perl',
-     '--create-perl-command-shortcut=perl') == 0 or die "Can't install perl";
-
-(system "$root_dir_name/perl", $pmbp, '--root-dir-name' => $root_dir_name,
-     '--install-module=mod_perl2') == 0 or die "Can't install mod_perl2";
+     '--install-module=mod_perl2') == 0
+    or die "Can't install perl and mod_perl2";
 
 my @lib = split /:/, `perl $pmbp --print-libs --root-dir-name $root_dir_name`;
 

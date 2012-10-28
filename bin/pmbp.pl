@@ -918,7 +918,9 @@ sub cpanm ($$) {
       $envs->{PMBP__CCFLAGS} = $ccflags;
       $envs->{SHELL} = "$MakeInstaller.gd";
       push @option, '--look';
-    } elsif (@module_arg and $module_arg[0] eq 'mod_perl2' and
+    } elsif (@$modules and
+             defined $modules->[0]->distvname and
+             $modules->[0]->distvname =~ /^mod_perl-2\./ and
              not $args->{info} and not $args->{scandeps}) {
       install_apache_httpd ('2.2');
       ## <http://perl.apache.org/docs/2.0/user/install/install.html#Dynamic_mod_perl>
@@ -2003,17 +2005,17 @@ sub install_apache_httpd ($) {
     return;
   }
 
-  info 1, "Installing Apache httpd $ver...";
+  info 0, "Installing Apache httpd $ver...";
 
   my $httpd_versions = get_latest_apache_httpd_versions;
   my $httpd_version = $httpd_versions->{"httpd-$ver"};
   my $need_apr = $ver ne '2.0' && $ver ne '2.2';
   my $apr_versions = $need_apr && get_latest_apr_versions;
   my @tarball = ("$PMTarDirName/packages/apache/httpd-$httpd_version.tar.gz");
-  info 1, "Apache httpd Server $httpd_version";
+  info 0, "Apache HTTP Server $httpd_version";
   if ($need_apr) {
-    info 1, "  with APR $apr_versions->{apr}";
-    info 1, "  with APR-util $apr_versions->{'apr-util'}";
+    info 0, "  with APR $apr_versions->{apr}";
+    info 0, "  with APR-util $apr_versions->{'apr-util'}";
     save_apache_package $apr_versions->{_mirror}
         => 'apr', $apr_versions->{apr};
     save_apache_package $apr_versions->{_mirror}
@@ -3023,6 +3025,8 @@ depreacated.
 
 See also tutorial and additional descriptions located at
 <https://github.com/wakaba/perl-setupenv/blob/master/doc/pmbp-tutorial.pod>.
+
+See the tutorial for how to install mod_perl.
 
 =head1 AUTHOR
 
