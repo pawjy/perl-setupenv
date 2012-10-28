@@ -957,8 +957,9 @@ sub cpanm ($$) {
         if (defined $mod->package and $mod->package eq 'ExtUtils::Embed') {
           $install_extutils_embed = 1;
           $failed = 1;
-        #} elsif ($level == 1) {
-        #  push @required_cpanm, $mod;
+        } elsif ($level == 1) {
+          push @required_cpanm, $mod;
+          push @required_install, $mod;
         } else {
           push @required_install, $mod;
         }
