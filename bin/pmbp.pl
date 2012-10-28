@@ -656,6 +656,7 @@ sub install_perl ($) {
                  '--notest',
                  '--as' => 'perl-' . $perl_version,
                  '-j' => $PerlbrewParallelCount,
+                 '-A' => 'ccflags=-fPIC',
                  '-D' => 'usethreads'],
                 envs => get_perlbrew_envs,
                 prefix => "perlbrew($i): ",
@@ -789,19 +790,21 @@ sub install_cpanm_wrapper () {
   close $file;
 } # install_cpanm_wrapper
 
-sub install_makeinstaller () {
-  return if -f $MakeInstaller;
-  info_writing 1, "makeinstaller", $MakeInstaller;
-  mkdir_for_file $MakeInstaller;
-  open my $file, '>', $MakeInstaller or info_die "$0: $MakeInstaller: $!";
+sub install_makeinstaller ($$) {
+  my ($name, $makefilepl_args) = @_;
+  #return if -f "$MakeInstaller.$name";
+  info_writing 1, "makeinstaller.$name", "$MakeInstaller.$name";
+  mkdir_for_file "$MakeInstaller.$name";
+  open my $file, '>', "$MakeInstaller.$name"
+      or info_die "$0: $MakeInstaller.name: $!";
   printf $file q{#!/bin/sh
     export SHELL="%s"
-    echo perl Makefile.PL && perl Makefile.PL CCFLAGS="$PMBP__CCFLAGS" && \
+    echo perl Makefile.PL && perl Makefile.PL %s && \
     echo make             && make && \
     echo make install     && make install
-  }, _quote_dq $ENV{SHELL};
+  }, _quote_dq $ENV{SHELL}, $makefilepl_args;
   close $file;
-  chmod 0755, $MakeInstaller;
+  chmod 0755, "$MakeInstaller.$name";
 } # install_makeinstaller
 
 {
@@ -905,20 +908,24 @@ sub cpanm ($$) {
     my $envs = {LANG => 'C',
                 PATH => $path,
                 HOME => get_cpanm_dummy_home_dir_name ($perl_lib_dir_name),
-                PERL_CPANM_HOME => $CPANMHomeDirName,
-               
-                ## mod_perl support (incomplete...)
-                MP_APXS => $ENV{MP_APXS} || (-f '/usr/sbin/apxs' ? '/usr/sbin/apxs' : undef),
-                MP_USE_MY_EXTUTILS_EMBED => 1};
+                PERL_CPANM_HOME => $CPANMHomeDirName};
 
     if (@module_arg and $module_arg[0] eq 'GD' and
         not $args->{info} and not $args->{scandeps}) {
       ## <http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=636649>
-      install_makeinstaller;
+      install_makeinstaller 'gd', q{CCFLAGS="$PMBP__CCFLAGS"};
       my $ccflags = '-Wformat=0 ' . get_perl_config $perl_command, $perl_version, 'ccflags';
       $envs->{PMBP__CCFLAGS} = $ccflags;
-
-      $envs->{SHELL} = $MakeInstaller;
+      $envs->{SHELL} = "$MakeInstaller.gd";
+      push @option, '--look';
+    } elsif (@module_arg and $module_arg[0] eq 'mod_perl2' and
+             not $args->{info} and not $args->{scandeps}) {
+      install_apache_httpd ('2.2');
+      ## <http://perl.apache.org/docs/2.0/user/install/install.html#Dynamic_mod_perl>
+      install_makeinstaller 'modperl',
+          qq{MP_APXS="$RootDirName/local/apache/httpd-2.2/bin/apxs" } .
+          qq{MP_APR_CONFIG="$RootDirName/local/apache/httpd-2.2/bin/apr-1-config"};
+      $envs->{SHELL} = "$MakeInstaller.modperl";
       push @option, '--look';
     }
 
@@ -1946,10 +1953,22 @@ sub get_latest_apache_httpd_versions () {
   }
 
   my $versions = {httpd => '2.4.3',
+                  'httpd-2.4' => '2.4.3',
+                  'httpd-2.2' => '2.2.23',
+                  'httpd-2.0' => '2.0.64',
                   _mirror => 'http://www.apache.org/dist/'};
 
   if ($html =~ /: ([0-9.]+) is the best available version/) {
     $versions->{httpd} = $1;
+  }
+  if ($html =~ /Apache HTTP Server (2.4.[0-9]+) \(httpd\)/) {
+    $versions->{'httpd-2.4'} = $1;
+  }
+  if ($html =~ /Apache HTTP Server (2.2.[0-9]+) \(httpd\)/) {
+    $versions->{'httpd-2.2'} = $1;
+  }
+  if ($html =~ /Apache HTTP Server (2.0.[0-9]+) /) {
+    $versions->{'httpd-2.0'} = $1;
   }
   if ($html =~ m{The currently selected mirror is <b>(http://[^<]+)</b>.}) {
     $versions->{_mirror} = $1;
@@ -2043,53 +2062,71 @@ sub install_apache_package ($) {
 #install_apache_package 'apr-util';
 #install_apache_package 'httpd';
 
-sub install_apache_httpd () {
-  my $dest_dir_name = "$RootDirName/local/apache/httpd";
+sub install_apache_httpd ($) {
+  my $ver = shift;
+  my $dest_dir_name = "$RootDirName/local/apache/httpd-$ver";
 
   if (-f "$dest_dir_name/bin/httpd") {
     info 2, "httpd is already installed";
     return;
   }
 
-  my $apr_versions = get_latest_apr_versions;
+  info 1, "Installing Apache httpd $ver...";
+
   my $httpd_versions = get_latest_apache_httpd_versions;
-  save_apache_package $apr_versions->{_mirror}
-      => 'apr', $apr_versions->{apr};
-  save_apache_package $apr_versions->{_mirror}
-      => 'apr-util', $apr_versions->{'apr-util'};
+  my $httpd_version = $httpd_versions->{"httpd-$ver"};
+  my $need_apr = $ver ne '2.0' && $ver ne '2.2';
+  my $apr_versions = $need_apr && get_latest_apr_versions;
+  my @tarball = ("$PMTarDirName/packages/apache/httpd-$httpd_version.tar.gz");
+  info 1, "Apache httpd Server $httpd_version";
+  if ($need_apr) {
+    info 1, "  with APR $apr_versions->{apr}";
+    info 1, "  with APR-util $apr_versions->{'apr-util'}";
+    save_apache_package $apr_versions->{_mirror}
+        => 'apr', $apr_versions->{apr};
+    save_apache_package $apr_versions->{_mirror}
+        => 'apr-util', $apr_versions->{'apr-util'};
+    unshift @tarball,
+        "$PMTarDirName/packages/apache/apr-$apr_versions->{apr}.tar.gz",
+        "$PMTarDirName/packages/apache/apr-util-$apr_versions->{'apr-util'}.tar.gz";
+  }
   save_apache_package $httpd_versions->{_mirror}
-      => 'httpd', $httpd_versions->{httpd};
+      => 'httpd', $httpd_version;
 
   my $container_dir_name = "$PMBPDirName/tmp/" . int rand 100000;
   make_path $container_dir_name;
-  for my $tar_file_name (
-    "$PMTarDirName/packages/apache/apr-$apr_versions->{apr}.tar.gz",
-    "$PMTarDirName/packages/apache/apr-util-$apr_versions->{'apr-util'}.tar.gz",
-    "$PMTarDirName/packages/apache/httpd-$httpd_versions->{httpd}.tar.gz",
-  ) {
+  for my $tar_file_name (@tarball) {
     run_command ['tar', 'zxf', $tar_file_name],
         chdir => $container_dir_name
         or info_die "Can't expand $tar_file_name";
   }
 
-  my $apr_dir_name = "$container_dir_name/apr-$apr_versions->{apr}";
-  info_die "Can't chdir to the package's root directory ($apr_dir_name)"
-      unless -d $apr_dir_name;
-  my $apu_dir_name = "$container_dir_name/apr-util-$apr_versions->{'apr-util'}";
-  info_die "Can't chdir to the package's root directory ($apu_dir_name)"
-      unless -d $apu_dir_name;
-
-  my $src_dir_name = "$container_dir_name/httpd-$httpd_versions->{httpd}";
+  my $src_dir_name = "$container_dir_name/httpd-$httpd_version";
   info_die "Can't chdir to the package's root directory ($src_dir_name)"
       unless -d $src_dir_name;
 
-  run_command ['mv', $apr_dir_name => "$src_dir_name/srclib/apr"]
-      or info_die "Can't move $apr_dir_name";
-  run_command ['mv', $apu_dir_name => "$src_dir_name/srclib/apr-util"]
-      or info_die "Can't move $apu_dir_name";
+  if ($need_apr) {
+    my $apr_dir_name = "$container_dir_name/apr-$apr_versions->{apr}";
+    info_die "Can't chdir to the package's root directory ($apr_dir_name)"
+        unless -d $apr_dir_name;
+    my $apu_dir_name = "$container_dir_name/apr-util-$apr_versions->{'apr-util'}";
+    info_die "Can't chdir to the package's root directory ($apu_dir_name)"
+        unless -d $apu_dir_name;
+    
+    run_command ['mv', $apr_dir_name => "$src_dir_name/srclib/apr"]
+        or info_die "Can't move $apr_dir_name";
+    run_command ['mv', $apu_dir_name => "$src_dir_name/srclib/apr-util"]
+        or info_die "Can't move $apu_dir_name";
+
+  }
 
   run_command ['sh', 'configure',
-               "--prefix=$dest_dir_name", '--with-included-apr'],
+               "--prefix=$dest_dir_name",
+               '--with-included-apr',
+               '--enable-rewrite=shared',
+               '--enable-ssl=shared',
+               '--enable-proxy=shared',
+               '--enable-proxy-http=shared'],
       chdir => $src_dir_name
       or info_die "Can't configure the package";
   run_command ['make'],
