@@ -2080,7 +2080,7 @@ sub install_apache_httpd ($) {
 
   }
 
-  run_command ['sh', 'configure',
+  run_command ['bash', 'configure',
                "--prefix=$dest_dir_name",
                '--with-included-apr',
                '--enable-mods-shared=all ssl cache proxy authn_alias mem_cache file_cache charset_lite dav_lock disk_cache'],
@@ -2119,7 +2119,7 @@ sub install_apache1 () {
   info_die "Can't chdir to the package's root directory ($src_dir_name)"
       unless -d $src_dir_name;
 
-  run_command ['sh', 'configure',
+  run_command ['bash', 'configure',
                "--prefix=$dest_dir_name",
                '--enable-module=so', 
                '--enable-rule=SHARED_CORE',
