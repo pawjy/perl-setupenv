@@ -78,18 +78,7 @@ system "cat", $start_log_file_name;
 
 system "ls", "$root_dir_name/local/apache/httpd-2.2/logs";
 
-my $log_file_name = "$root_dir_name/local/apache/httpd-2.2/logs/error_log";
-system "cat", $log_file_name;
-
-
-system $httpd, '-f', $conf_file_name, '-t', '-E', $start_log_file_name;
-system $httpd, '-h';
-
-system "ls", "-l", "$root_dir_name/local/apache/httpd-2.2/bin";
-
 system "cat", $conf_file_name;
-
-system $httpd, '-k', 'start';
 
 # XXX
 
