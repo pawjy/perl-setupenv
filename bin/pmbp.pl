@@ -150,6 +150,12 @@ GetOptions (
   (map {
     my $n = $_;
     ("--$n=s" => sub {
+      push @Command, {type => $n, value => $_[1]};
+    });
+  } qw(install-apache)),
+  (map {
+    my $n = $_;
+    ("--$n=s" => sub {
       my $module = PMBP::Module->new_from_module_arg ($_[1]);
       push @Command, {type => $n, module => $module};
     });
@@ -2009,6 +2015,14 @@ sub save_apache_package ($$$) {
 
 sub install_apache_httpd ($) {
   my $ver = shift;
+  if ($ver eq '1.3') {
+    install_apache1 ();
+  } elsif ($ver eq '2.0' or $ver eq '2.2' or $ver eq '2.4') {
+    #
+  } else {
+    info_die "Apache HTTP Server $ver is not supported";
+  }
+
   my $dest_dir_name = "$RootDirName/local/apache/httpd-$ver";
 
   if (-f "$dest_dir_name/bin/httpd") {
@@ -2377,6 +2391,10 @@ while (@Command) {
     print get_perl_path ($perl_version);
   } elsif ($command->{type} eq 'print') {
     print $command->{string};
+
+  } elsif ($command->{type} eq 'install-apache') {
+    install_apache_httpd $command->{value};
+
   } else {
     info_die "Command |$command->{type}| is not defined";
   }
@@ -2987,6 +3005,24 @@ package of the module.
 
 Print the string.  Any string can be specified as the argument.  This
 command might be useful to combine multiple C<--print-*> commands.
+
+=back
+
+=head2 Other commands
+
+=over 4
+
+=item --install-apache="VERSION"
+
+Install Apache HTTP server into C<local/apache/httpd-VERSION>.  The
+value identifies major and minor versions of the Apache to install,
+which must be one of: C<1.3>, C<2.0>, C<2.2>, or C<2.4>.
+
+Note that this command is automatically invoked when you are
+instructed to install mod_perl.
+
+If the specified version of Apache is already installed, this command
+does nothing.
 
 =back
 
