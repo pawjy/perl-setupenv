@@ -25,7 +25,8 @@ my $httpd = "$root_dir_name/local/apache/httpd-2.2/bin/httpd";
      '--install-module=mod_perl2') == 0
     or die "Can't install perl and mod_perl2";
 
-my @lib = split /:/, `perl $pmbp --print-libs --root-dir-name $root_dir_name`;
+my @lib = split /:/,
+    `perl $pmbp --print-libs --root-dir-name $root_dir_name --perl-version=5.12.4`;
 
 open my $conf_file, '>', $conf_file_name or die "$0: $conf_file_name: $!";
 printf $conf_file q{
@@ -107,6 +108,7 @@ sleep 2;
 print "ok 3\n";
 
 (system 'perl', $pmbp, '--root-dir-name' => $root_dir_name,
+     '--perl-version=5.12.4',
      '--install-module=Apache::Cookie') == 0
     or die "Can't install perl and mod_perl1 and libapreq";
 
