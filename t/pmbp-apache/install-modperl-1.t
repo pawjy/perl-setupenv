@@ -5,7 +5,7 @@ use Cwd qw(abs_path);
 
 my $DEBUG = 0;
 
-print "1..5\n";
+print "1..6\n";
 
 my $pmbp = __FILE__;
 $pmbp =~ s{[^/\\]+$}{};
@@ -66,19 +66,14 @@ PerlResponseHandler MyHandler
 close $conf_file;
 
 my $start_log_file_name = "$root_dir_name/local/apache/httpd-2.2/logs/start_error_log";
-system $httpd, '-f', $conf_file_name, '-k', 'start', '-E', $start_log_file_name;
+if ((system $httpd, '-f', $conf_file_name, '-k', 'start', '-E', $start_log_file_name) == 0) {
+  print "ok 1\n";
+} else {
+  print "not ok 1 # Can't start apache2\n";
+  system "cat", $start_log_file_name;
+}
 
 sleep 4;
-
-system "cat", $start_log_file_name;
-
-# XXX
-
-system "ls", "$root_dir_name/local/apache/httpd-2.2/logs";
-
-system "cat", $conf_file_name;
-
-# XXX
 
 print "ok 1\n";
 
@@ -88,11 +83,11 @@ if (`curl http://localhost:$port/` eq 'PASS') {
   print "not ok 2\n";
 }
 
-system $httpd, '-f', $conf_file_name, '-k', 'stop';
-
-sleep 2;
-
-print "ok 3\n";
+if ((system $httpd, '-f', $conf_file_name, '-k', 'stop') == 0) {
+  print "ok 3\n";
+} else {
+  print "not ok 3 # Can't stop apache2\n";
+}
 
 (system "$root_dir_name/perl", $pmbp, '--root-dir-name' => $root_dir_name,
      '--perl-version=5.12.4',
@@ -141,17 +136,26 @@ my $apachectl = "$root_dir_name/local/apache/httpd-1.3/bin/apachectl";
 
 {
   local $ENV{PERL5LIB} = join ':', @lib;
-  system $apachectl, 'start';
+  if ((system $apachectl, 'start') == 0) {
+    print "ok 4\n";
+  } else {
+    print "not ok 4 # Can't start apache1\n";
+  }
 }
 sleep 2;
+
+#XXX
+system "ls", "$root_dir_name/local/apache/httpd-1.3/logs";
+system "cat", "$root_dir_name/local/apache/httpd-1.3/logs/error_log";
 
 if (`curl http://localhost:$port/` eq 'PASS') {
-  print "ok 4\n";
+  print "ok 5\n";
 } else {
-  print "not ok 4\n";
+  print "not ok 5\n";
 }
 
-system $apachectl, 'stop';
-sleep 2;
-
-print "ok 5\n";
+if ((system $apachectl, 'stop') == 0) {
+  print "ok 6\n";
+} else {
+  print "not ok 6 # Can't stop apache1\n";
+}
