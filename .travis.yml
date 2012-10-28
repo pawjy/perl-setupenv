@@ -1,9 +1,10 @@
 perl:
   - "5.16"
-  - "5.10"
+#  - "5.10"
 env:
   - TARGET=normal
   - TARGET=perl
+  - TARGET=apache
 before_install: git submodule update --init
 install: "make test-deps"
 script: "make test"
