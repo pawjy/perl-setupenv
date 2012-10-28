@@ -66,6 +66,7 @@ close $conf_file;
 my $start_log_file_name = "$root_dir_name/local/apache/httpd-2.2/logs/start_error_log";
 system $httpd, '-f', $conf_file_name, '-k', 'start', '-E', $start_log_file_name;
 
+warn $?;
 sleep 4;
 
 system "cat", $start_log_file_name;
@@ -79,6 +80,12 @@ system "ls", "$root_dir_name/local/apache/httpd-2.2/logs";
 
 system $httpd, '-f', $conf_file_name, '-t', '-E', $start_log_file_name;
 system $httpd, '-h';
+
+system "ls", "-l", "$root_dir_name/local/apache/httpd-2.2/bin";
+
+system "cat", $conf_file_name;
+
+system $httpd, '-k', 'start';
 
 # XXX
 
