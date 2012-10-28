@@ -61,8 +61,7 @@ PerlResponseHandler MyHandler
 close $conf_file;
 
 system "ls", $httpd;
-(system $httpd, '-f', $conf_file_name, '-k', 'start') == 0
-;    warn "Can't start apache";
+system $httpd, '-f', $conf_file_name, '-k', 'start';
 
 sleep 2;
 
@@ -74,8 +73,7 @@ if (`curl http://localhost:$port/` eq 'PASS') {
   print "not ok 2\n";
 }
 
-(system $httpd, '-f', $conf_file_name, '-k', 'stop') == 0
-    or die "Can't stop apache";
+system $httpd, '-f', $conf_file_name, '-k', 'stop';
 
 sleep 2;
 
@@ -125,7 +123,7 @@ close $conf1_file;
 
 my $apachectl = "$root_dir_name/local/apache/httpd-1.3/bin/apachectl";
 
-(system $apachectl, 'start') == 0 or die "Can't start apache1";
+system $apachectl, 'start';
 sleep 2;
 
 if (`curl http://localhost:$port/` eq 'PASS') {
@@ -134,7 +132,7 @@ if (`curl http://localhost:$port/` eq 'PASS') {
   print "not ok 4\n";
 }
 
-(system $apachectl, 'stop') == 0 or die "Can't stop apache1";
+system $apachectl, 'stop';
 sleep 2;
 
 print "ok 5\n";

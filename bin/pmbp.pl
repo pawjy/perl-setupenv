@@ -2083,8 +2083,7 @@ sub install_apache_httpd ($) {
   run_command ['sh', 'configure',
                "--prefix=$dest_dir_name",
                '--with-included-apr',
-               '--enable-rewrite=shared',
-               '--enable-mods-shared="all ssl cache proxy authn_alias mem_cache file_cache charset_lite dav_lock disk_cache rewrite"'],
+               '--enable-mods-shared=all ssl cache proxy authn_alias mem_cache file_cache charset_lite dav_lock disk_cache'],
       chdir => $src_dir_name
       or info_die "Can't configure the package";
   run_command ['make'],
