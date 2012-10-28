@@ -60,13 +60,14 @@ PerlResponseHandler MyHandler
     (join "\n", map { "PerlSwitches -I$_" } @lib);
 close $conf_file;
 
-system "ls", $httpd;
 system $httpd, '-f', $conf_file_name, '-k', 'start';
+
+sleep 2;
 
 my $log_file_name = "$root_dir_name/local/apache/httpd-2.2/logs/error_log";
 system "cat", $log_file_name;
 
-sleep 2;
+system "ls", "$root_dir_name/local/apache/httpd-2.2/logs";
 
 print "ok 1\n";
 
