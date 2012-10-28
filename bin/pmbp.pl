@@ -2119,6 +2119,14 @@ sub install_apache1 () {
   info_die "Can't chdir to the package's root directory ($src_dir_name)"
       unless -d $src_dir_name;
 
+  ## <http://www.cambus.net/compiling-apache-1.3.x-on-modern-linux-distributions/>
+  run_command ['sed', '-i', 's/getline/apache_getline/', 'src/support/htdigest.c'],
+      chdir => $src_dir_name;
+  run_command ['sed', '-i', 's/getline/apache_getline/', 'src/support/htpasswd.c'],
+      chdir => $src_dir_name;
+  run_command ['sed', '-i', 's/getline/apache_getline/', 'src/support/logresolve.c'],
+      chdir => $src_dir_name;
+
   run_command ['bash', 'configure',
                "--prefix=$dest_dir_name",
                '--enable-module=so', 
