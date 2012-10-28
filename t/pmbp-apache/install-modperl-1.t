@@ -75,8 +75,6 @@ if ((system $httpd, '-f', $conf_file_name, '-k', 'start', '-E', $start_log_file_
 
 sleep 4;
 
-print "ok 1\n";
-
 if (`curl http://localhost:$port/` eq 'PASS') {
   print "ok 2\n";
 } else {
