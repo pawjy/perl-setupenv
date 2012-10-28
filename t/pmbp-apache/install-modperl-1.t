@@ -3,13 +3,15 @@ use warnings;
 use File::Temp qw(tempdir);
 use Cwd qw(abs_path);
 
+my $DEBUG = 0;
+
 print "1..5\n";
 
 my $pmbp = __FILE__;
 $pmbp =~ s{[^/\\]+$}{};
 $pmbp ||= '.';
 $pmbp .= '/../../bin/pmbp.pl';
-my $tempdir = tempdir ('PMBP-TEST-XX'.'XX'.'XX', TMPDIR => 1, CLEANUP => 1);
+my $tempdir = tempdir ('PMBP-TEST-XX'.'XX'.'XX', TMPDIR => 1, CLEANUP => !$DEBUG);
 
 my $conf_file_name = abs_path "$tempdir/httpd.conf";
 my $port = 1024 + int rand 10000;
@@ -62,12 +64,14 @@ close $conf_file;
 
 system $httpd, '-f', $conf_file_name, '-k', 'start';
 
-sleep 2;
+sleep 4;
 
+# XXX
 my $log_file_name = "$root_dir_name/local/apache/httpd-2.2/logs/error_log";
 system "cat", $log_file_name;
 
 system "ls", "$root_dir_name/local/apache/httpd-2.2/logs";
+# XXX
 
 print "ok 1\n";
 
@@ -127,7 +131,10 @@ close $conf1_file;
 
 my $apachectl = "$root_dir_name/local/apache/httpd-1.3/bin/apachectl";
 
-system $apachectl, 'start';
+{
+  local $ENV{PERL5LIB} = join ':', @lib;
+  system $apachectl, 'start';
+}
 sleep 2;
 
 if (`curl http://localhost:$port/` eq 'PASS') {
