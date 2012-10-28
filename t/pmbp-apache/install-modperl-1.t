@@ -131,6 +131,7 @@ AddModule mod_perl.c
 close $conf1_file;
 
 my $apachectl = "$root_dir_name/local/apache/httpd-1.3/bin/apachectl";
+system 'sed', '-i', "s/HTTPD=.\+/\Q$root_dir_name/local/apache/httpd-1.3/bin/httpd\E -f \Q$root_dir_name/local/apache/httpd-1.3/conf/httpd.conf\E/", $apachectl;
 
 {
   local $ENV{PERL5LIB} = join ':', @lib;
