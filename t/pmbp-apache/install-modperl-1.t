@@ -63,6 +63,9 @@ close $conf_file;
 system "ls", $httpd;
 system $httpd, '-f', $conf_file_name, '-k', 'start';
 
+my $log_file_name = "$root_dir_name/local/apache/httpd-2.2/logs/error_log";
+system "cat", $log_file_name;
+
 sleep 2;
 
 print "ok 1\n";
