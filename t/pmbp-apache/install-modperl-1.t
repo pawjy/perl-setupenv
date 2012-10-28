@@ -20,6 +20,7 @@ my $root_dir_name = $tempdir;
 my $httpd = "$root_dir_name/local/apache/httpd-2.2/bin/httpd";
 
 (system 'perl', $pmbp, '--root-dir-name' => $root_dir_name,
+     '--perl-version=5.12.4',
      '--install-perl',
      '--install-module=mod_perl2') == 0
     or die "Can't install perl and mod_perl2";
@@ -77,6 +78,7 @@ system "cat", $log_file_name;
 system "ls", "$root_dir_name/local/apache/httpd-2.2/logs";
 
 system $httpd, '-f', $conf_file_name, '-t', '-E', $start_log_file_name;
+system $httpd, '-h';
 
 # XXX
 
