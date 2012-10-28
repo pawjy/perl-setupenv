@@ -64,19 +64,22 @@ PerlResponseHandler MyHandler
 close $conf_file;
 
 my $start_log_file_name = "$root_dir_name/local/apache/httpd-2.2/logs/start_error_log";
-system $httpd, '-f', $conf_file_name, '-k', 'start', '-E', $start_log_file_name;
+{
+  local $ENV{PERL5LIB} = join ':', @lib;
+  system $httpd, '-f', $conf_file_name, '-k', 'start', '-E', $start_log_file_name;
+}
 
-warn $?;
 sleep 4;
 
 system "cat", $start_log_file_name;
 
 # XXX
 
+system "ls", "$root_dir_name/local/apache/httpd-2.2/logs";
+
 my $log_file_name = "$root_dir_name/local/apache/httpd-2.2/logs/error_log";
 system "cat", $log_file_name;
 
-system "ls", "$root_dir_name/local/apache/httpd-2.2/logs";
 
 system $httpd, '-f', $conf_file_name, '-t', '-E', $start_log_file_name;
 system $httpd, '-h';
