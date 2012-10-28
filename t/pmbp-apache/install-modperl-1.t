@@ -70,10 +70,14 @@ sleep 4;
 system "cat", $start_log_file_name;
 
 # XXX
+
 my $log_file_name = "$root_dir_name/local/apache/httpd-2.2/logs/error_log";
 system "cat", $log_file_name;
 
 system "ls", "$root_dir_name/local/apache/httpd-2.2/logs";
+
+system $httpd, '-f', $conf_file_name, '-t', '-E', $start_log_file_name;
+
 # XXX
 
 print "ok 1\n";
