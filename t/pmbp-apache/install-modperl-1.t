@@ -145,7 +145,13 @@ sleep 2;
 
 #XXX
 system "ls", "$root_dir_name/local/apache/httpd-1.3/logs";
+print "======\n";
 system "cat", "$root_dir_name/local/apache/httpd-1.3/logs/apache_error_log";
+print "======\n";
+system "cat", "$root_dir_name/local/apache/httpd-1.3/logs/apache_access_log";
+print "======\n";
+system "cat", "$root_dir_name/local/apache/httpd-1.3/bin/apachectl";
+print "======\n";
 
 if (`curl http://localhost:$port/` eq 'PASS') {
   print "ok 5\n";
