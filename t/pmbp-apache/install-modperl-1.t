@@ -131,13 +131,7 @@ AddModule mod_perl.c
 close $conf1_file;
 system 'cp', "$root_dir_name/local/apache/httpd-1.3/conf/httpd.conf" => "$root_dir_name/local/apache/httpd-1.3/conf/apache.conf";
 
-# XXX
-print "======\n";
-system "ls", "-lR", "$root_dir_name/local/apache/httpd-1.3/";
-print "======\n";
-
 my $apachectl = "$root_dir_name/local/apache/httpd-1.3/bin/apachectl";
-#system 'sed', '-i', "s/HTTPD=\(.\+\)/\\1 -f \Q$root_dir_name/local/apache/httpd-1.3/conf/httpd.conf\E/", $apachectl;
 
 {
   local $ENV{PERL5LIB} = join ':', @lib;
@@ -148,16 +142,6 @@ my $apachectl = "$root_dir_name/local/apache/httpd-1.3/bin/apachectl";
   }
 }
 sleep 2;
-
-#XXX
-system "ls", "$root_dir_name/local/apache/httpd-1.3/logs";
-print "======\n";
-system "cat", "$root_dir_name/local/apache/httpd-1.3/logs/apache_error_log";
-print "======\n";
-system "cat", "$root_dir_name/local/apache/httpd-1.3/logs/apache_access_log";
-print "======\n";
-system "cat", "$root_dir_name/local/apache/httpd-1.3/bin/apachectl";
-print "======\n";
 
 if (`curl http://localhost:$port/` eq 'PASS') {
   print "ok 5\n";
