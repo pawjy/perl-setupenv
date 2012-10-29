@@ -2213,8 +2213,8 @@ while (@Command) {
         {type => 'update-gitignore'};
 
     unless ($ENV{PMBP_NO_PERL_INSTALL}) {
-      unshift @Command, {type => 'install-perl-if-necessary'};
       unshift @Command, {type => 'create-perlbrew-perl-latest-symlink'};
+      unshift @Command, {type => 'install-perl-if-necessary'};
     }
 
   } elsif ($command->{type} eq 'print-pmbp-pl-etag') {
