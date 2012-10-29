@@ -129,6 +129,7 @@ AddModule mod_perl.c
     ++$port,
     join ':', @lib;
 close $conf1_file;
+system 'cp', "$root_dir_name/local/apache/httpd-1.3/conf/httpd.conf" => "$root_dir_name/local/apache/httpd-1.3/conf/apache.conf";
 
 # XXX
 print "======\n";
@@ -136,7 +137,7 @@ system "ls", "-lR", "$root_dir_name/local/apache/httpd-1.3/";
 print "======\n";
 
 my $apachectl = "$root_dir_name/local/apache/httpd-1.3/bin/apachectl";
-system 'sed', '-i', "s/HTTPD=\(.\+\)/\\1 -f \Q$root_dir_name/local/apache/httpd-1.3/conf/httpd.conf\E/", $apachectl;
+#system 'sed', '-i', "s/HTTPD=\(.\+\)/\\1 -f \Q$root_dir_name/local/apache/httpd-1.3/conf/httpd.conf\E/", $apachectl;
 
 {
   local $ENV{PERL5LIB} = join ':', @lib;
