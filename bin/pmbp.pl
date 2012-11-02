@@ -10,7 +10,7 @@ use Config;
 use Cwd qw(abs_path);
 use File::Path qw(mkpath rmtree);
 use File::Copy qw(copy move);
-use File::Temp ();
+use File::Temp qw(tempdir);
 use File::Spec ();
 use Getopt::Long;
 
@@ -1377,12 +1377,12 @@ sub scandeps ($$$;%) {
     }
   }
 
-  my $temp_dir = $args{temp_dir} || File::Temp->newdir;
+  my $temp_dir_name = $args{temp_dir_name} || tempdir('PMBP-XX'.'XX'.'XX', TMPDIR => 1, CLEANUP => 1);
 
   get_local_copy_if_necessary $module;
   my $result = cpanm {perl_version => $perl_version,
-                      perl_lib_dir_name => $temp_dir->dirname,
-                      temp_dir => $temp_dir,
+                      perl_lib_dir_name => $temp_dir_name,
+                      temp_dir_name => $temp_dir_name,
                       module_index_file_name => $args{module_index_file_name},
                       scandeps => {module_index => $module_index}}, [$module];
 
@@ -1684,10 +1684,10 @@ sub read_install_list ($$$;%) {
     
     ## CPAN package configuration scripts
     if (-f "$dir_name/Build.PL" or -f "$dir_name/Makefile.PL") {
-      my $temp_dir = File::Temp->newdir;
+      my $temp_dir_name = tempdir('PMBP-XX'.'XX'.'XX', TMPDIR => 1, CLEANUP => 1);
       my $result = cpanm {perl_version => $perl_version,
-                          perl_lib_dir_name => $temp_dir->dirname,
-                          temp_dir => $temp_dir,
+                          perl_lib_dir_name => $temp_dir_name,
+                          temp_dir_name => $temp_dir_name,
                           scandeps => {module_index => $module_index}},
                          [$dir_name];
       _scandeps_write_result ($result, undef, $module_index,
