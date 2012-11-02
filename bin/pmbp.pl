@@ -763,8 +763,10 @@ sub install_cpanm () {
   save_url $CPANMURL => $CPANMCommand;
 } # install_cpanm
 
+my $CPANMWrapperCreated;
 sub install_cpanm_wrapper () {
-  return if -f $CPANMWrapper;
+  #return if -f $CPANMWrapper;
+  return if $CPANMWrapperCreated;
   install_cpanm;
   info_writing 1, "cpanm_wrapper", $CPANMWrapper;
   mkdir_for_file $CPANMWrapper;
@@ -788,12 +790,40 @@ sub install_cpanm_wrapper () {
       }
       return $orig_search_module->($self, $module, $version);
     }; # search_module
+
+    my $orig_search_mirror_index_file = \&App::cpanminus::script::search_mirror_index_file;
+    *App::cpanminus::script::search_mirror_index_file = sub {
+      my $self = shift;
+      my ($file, $module, $version) = @_;
+      my $value = $orig_search_mirror_index_file->($self, @_);
+      return $value if $value;
+
+      open my $fh, '<', $file or return undef;
+      my $found;
+      while (<$fh>) {
+        if (m!^\Q$module\E\s+([\w\.]+)\s+(.*)!m) {
+          $found = $self->cpan_module($module, $2, $1);
+          last;
+        }
+      }
+
+      if ($found) {
+        if (!$version or
+          version->new($found->{module_version} || 0) >= version->new($version)) {
+          return $found;
+        } else {
+          $self->chat("Found $module version $found->{module_version} < $version.\n");
+        }
+      }
+      return undef;
+    }; # search_mirror_index_file
     
     my $app = App::cpanminus::script->new;
     $app->parse_options (@ARGV);
     $app->doit or exit 1;
   };
   close $file;
+  $CPANMWrapperCreated = 1;
 } # install_cpanm_wrapper
 
 sub install_makeinstaller ($$) {
@@ -1197,7 +1227,6 @@ sub supplemental_module_index () {
   my $index =  PMBP::ModuleIndex->new_from_arrayref ([
     ## Stupid workaround for cpanm's broken version comparison
     PMBP::Module->new_from_module_arg ('ExtUtils::MakeMaker~6.6302=http://search.cpan.org/CPAN/authors/id/M/MS/MSCHWERN/ExtUtils-MakeMaker-6.63_02.tar.gz'),
-    PMBP::Module->new_from_module_arg ('Pod::Text~3.16=http://search.cpan.org/CPAN/authors/id/R/RR/RRA/podlators-2.4.2.tar.gz'),
   ]);
   write_module_index ($index => $file_name);
   run_command ['gzip', '-f', $file_name];
