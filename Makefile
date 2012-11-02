@@ -30,14 +30,14 @@ test-stopproxy:
 
 test-main:
 ifeq "$(TARGET)" ""
-	http_proxy=localhost:16613 $(PROVE) --verbose t/pmbp/*.t t/pmbp-perl/*.t t/pmbp-apache/*.t
+	http_proxy=http://localhost:16613 $(PROVE) --verbose t/pmbp/*.t t/pmbp-perl/*.t t/pmbp-apache/*.t
 endif
 ifeq "$(TARGET)" "normal"
-	http_proxy=localhost:16613 $(PROVE) -j4 --verbose t/pmbp/*.t
+	http_proxy=http://localhost:16613 $(PROVE) -j4 --verbose t/pmbp/*.t
 endif
 ifeq "$(TARGET)" "perl"
-	http_proxy=localhost:16613 $(PROVE) --verbose t/pmbp-perl/*.t
+	http_proxy=http://localhost:16613 $(PROVE) --verbose t/pmbp-perl/*.t
 endif
 ifeq "$(TARGET)" "apache"
-	http_proxy=localhost:16613 $(PROVE) --verbose t/pmbp-apache/*.t
+	http_proxy=http://localhost:16613 $(PROVE) --verbose t/pmbp-apache/*.t
 endif
