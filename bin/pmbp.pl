@@ -1195,7 +1195,9 @@ sub supplemental_module_index () {
   return $dir_name if -f ($file_name . '.gz') and
       [stat ($file_name . '.gz')]->[9] + 24 * 60 * 60 > time;
   my $index =  PMBP::ModuleIndex->new_from_arrayref ([
+    ## Stupid workaround for cpanm's broken version comparison
     PMBP::Module->new_from_module_arg ('ExtUtils::MakeMaker~6.6302=http://search.cpan.org/CPAN/authors/id/M/MS/MSCHWERN/ExtUtils-MakeMaker-6.63_02.tar.gz'),
+    PMBP::Module->new_from_module_arg ('Pod::Text~3.16=http://search.cpan.org/CPAN/authors/id/R/RR/RRA/podlators-2.4.2.tar.gz'),
   ]);
   write_module_index ($index => $file_name);
   run_command ['gzip', '-f', $file_name];
