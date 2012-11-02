@@ -33,7 +33,7 @@ ifeq "$(TARGET)" ""
 	http_proxy=http://localhost:16613 $(PROVE) --verbose t/pmbp/*.t t/pmbp-perl/*.t t/pmbp-apache/*.t
 endif
 ifeq "$(TARGET)" "normal"
-	http_proxy=http://localhost:16613 $(PROVE) -j4 --verbose t/pmbp/*.t
+	http_proxy=http://localhost:16613 $(PROVE) -j1 --verbose t/pmbp/*.t
 endif
 ifeq "$(TARGET)" "perl"
 	http_proxy=http://localhost:16613 $(PROVE) --verbose t/pmbp-perl/*.t
