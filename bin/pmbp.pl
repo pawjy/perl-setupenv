@@ -21,6 +21,7 @@ my $SudoCommand = 'sudo';
 my $AptGetCommand = 'apt-get';
 my $YumCommand = 'yum';
 my $BrewCommand = 'brew';
+my $DownloadRetryCount = 2;
 my $PerlbrewInstallerURL = q<http://install.perlbrew.pl/>;
 my $PerlbrewParallelCount = $ENV{PMBP_PARALLEL_COUNT} || ($ENV{TRAVIS} ? 4 : 1);
 my $CPANModuleIndexURL = q<http://search.cpan.org/CPAN/modules/02packages.details.txt.gz>;
@@ -51,6 +52,7 @@ GetOptions (
   '--apt-get-command=s' => \$AptGetCommand,
   '--yum-command=s' => \$YumCommand,
   '--brew-command=s' => \$BrewCommand,
+  '--download-retry-count=s' => \$DownloadRetryCount,
   '--perlbrew-installer-url=s' => \$PerlbrewInstallerURL,
   '--perlbrew-parallel-count=s' => \$PerlbrewParallelCount,
   '--cpanm-url=s' => \$CPANMURL,
@@ -417,15 +419,21 @@ sub _save_url {
   my ($url => $file_name, %args) = @_;
   mkdir_for_file $file_name;
   info 1, "Downloading <$url>...";
-  my $result = run_command
-      [$WgetCommand,
-       '-O', $file_name,
-       ($args{save_response_headers} ? '--save-headers' : ()),
-       (map {
-         ('--header' => $_->[0] . ': ' . $_->[1]);
-       } @{$args{request_headers} or []}),
-       $url], info_level => 2;
-  return $result && -f $file_name;
+  for (0..$DownloadRetryCount) {
+    info 1, "Retrying download ($_/$DownloadRetryCount)...";
+    my $result = run_command
+        [$WgetCommand,
+         '-O', $file_name,
+         ($args{save_response_headers} ? '--save-headers' : ()),
+         (map {
+           ('--header' => $_->[0] . ': ' . $_->[1]);
+         } @{$args{request_headers} or []}),
+         $url],
+        info_level => 2,
+        prefix => "wget($_/$DownloadRetryCount): ";
+    return 1 if $result && -f $file_name;
+  }
+  return 0;
 } # _save_url
 
 sub save_url ($$;%) {
@@ -2755,6 +2763,19 @@ command.
 
 =back
 
+=head2 Options for downloading
+
+=over 4
+
+=item --download-retry-count="integer"
+
+Specify the number of retries of download.  Each download performed by
+the script itself (not including downloads by cpanm or perlbrew) is
+tried at most I<n> + 1 times, where I<n> is the number specified by
+this option.  Defaulted to 3.
+
+=back
+
 =head2 Options for Perl interpreter
 
 =over 4
@@ -3119,6 +3140,11 @@ C<local/config/perl/libs-$perl_version-$Config{archname}.txt>.  This
 file is placed under the C<config/perl> directory for backward
 compatibility.  You might want to add the file name to the
 C<.gitignore> file.
+
+=head2 config/perl/version.txt
+
+Specify the version of Perl to be installed by C<--install-perl>.  See
+description for C<--perl-version> for more information.
 
 =head2 local/bin/pmbp.pl
 
