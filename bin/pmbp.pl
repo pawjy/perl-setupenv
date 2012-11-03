@@ -387,6 +387,7 @@ sub _quote_dq ($) {
 
 sub run_command ($;%) {
   my ($command, %args) = @_;
+  local $_;
   my $prefix = defined $args{prefix} ? $args{prefix} : '';
   my $prefix0 = '';
   $prefix0 .= (length $prefix ? ':' : '') . $args{chdir} if defined $args{chdir};
