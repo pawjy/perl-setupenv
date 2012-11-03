@@ -479,15 +479,15 @@ sub load_json ($) {
   my $HasAPT;
   my $HasYUM;
   my $HasBrew;
-  sub install_system_packages ($$) {
-    my ($perl_version, $packages) = @_;
+  sub install_system_packages ($) {
+    my ($packages) = @_;
     return unless @$packages;
     
-    $HasAPT = which ($AptGetCommand, $perl_version) ? 1 : 0
+    $HasAPT = which ($AptGetCommand) ? 1 : 0
         if not defined $HasAPT;
-    $HasYUM = which ($YumCommand, $perl_version) ? 1 : 0
+    $HasYUM = which ($YumCommand) ? 1 : 0
         if not defined $HasYUM;
-    $HasBrew = which ($BrewCommand, $perl_version) ? 1 : 0
+    $HasBrew = which ($BrewCommand) ? 1 : 0
         if not defined $HasBrew;
 
     my $cmd;
@@ -534,11 +534,11 @@ sub load_json ($) {
     return $EnvPath->{$perl_version} ||= "$pm_path:$perl_path:$ENV{PATH}";
   } # get_env_path
 
-  sub which ($$) {
+  sub which ($;$) {
     my ($command, $perl_version) = @_;
     my $output;
     if (run_command ['which', $command],
-            envs => {PATH => get_env_path ($perl_version)},
+            envs => {defined $perl_version ? (PATH => get_env_path ($perl_version)) : ()},
             discard_stderr => 1,
             onoutput => sub { $output = $_[0]; 3 }) {
       if (defined $output and $output =~ m{^(\S*\Q$command\E)$}) {
@@ -1135,8 +1135,7 @@ sub cpanm ($$) {
           $redo = 1;
         }
         if (@required_system) {
-          $redo = 1
-              if install_system_packages $perl_version, \@required_system;
+          $redo = 1 if install_system_packages \@required_system;
         }
         if ($install_extutils_embed) {
           ## ExtUtils::Embed is core module since 5.003_07 and you
@@ -1304,6 +1303,7 @@ sub save_by_pathname ($$) {
       run_command
           ['sh', '-c', "cd \Q$PMTarDirName\E && pwd"],
           chdir => $RootDirName,
+          discard_stderr => 1,
           onoutput => sub { $PMTarDirName = $_[0]; 4 }
           or info_die "Can't get pmtar directory name";
       chomp $PMTarDirName;
@@ -1322,6 +1322,7 @@ sub save_by_pathname ($$) {
       run_command
           ['sh', '-c', "cd \Q$PMPPDirName\E && pwd"],
           chdir => $RootDirName,
+          discard_stderr => 1,
           onoutput => sub { $PMPPDirName = $_[0]; 4 }
           or info_die "Can't get pmpp directory name";
       chomp $PMPPDirName;
@@ -1354,6 +1355,7 @@ sub git_pull_current_or_master ($) {
   run_command
       ['git', 'branch'],
       chdir => $git_dir_name,
+      discard_stderr => 1,
       onoutput => sub { $branch .= $_[0]; 5 };
   if ($branch =~ /^\* \(no branch\)$/m) {
     run_command
@@ -2193,12 +2195,26 @@ sub install_apache_httpd ($) {
 
   }
 
-  run_command ['bash', 'configure',
-               "--prefix=$dest_dir_name",
-               '--with-included-apr',
-               '--enable-mods-shared=all ssl cache proxy authn_alias mem_cache file_cache charset_lite dav_lock disk_cache'],
-      chdir => $src_dir_name
-      or info_die "Can't configure the package";
+  {
+    my $log = '';
+    my $i = 0;
+    my $ok = run_command ['bash', 'configure',
+                 "--prefix=$dest_dir_name",
+                 '--with-included-apr',
+                 '--enable-mods-shared=all ssl cache proxy authn_alias mem_cache file_cache charset_lite dav_lock disk_cache'],
+        chdir => $src_dir_name,
+        onoutput => sub { $log .= $_[0]; 2 };
+    last if $ok;
+
+    if ($log =~ m{^configure: error: pcre-config for libpcre not found. PCRE is required and available from http://pcre.org/}m) {
+      if (install_system_packages [{name => 'pcre-devel',
+                                    debian_name => 'libpcre3-dev'}]) {
+        redo if $i++ < 1;
+      }
+    }
+    info_die "Can't configure the package";
+  }
+
   run_command ['make'],
       chdir => $src_dir_name
       or info_die "Can't build the package";
