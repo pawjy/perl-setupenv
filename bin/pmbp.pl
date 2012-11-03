@@ -504,7 +504,12 @@ sub load_json ($) {
     if ($cmd) {
       if (not $ExecuteSystemPackageInstaller) {
         info 0, "Execute following command and retry:";
+        info 0, '';
         info 0, '  $ ' . $env . join ' ', @$cmd;
+        info 0, '';
+        if ($_->{name} eq 'libperl-devel') {
+          info 0, '(Instead of installing libperl-devel, you can use --install-perl command)';
+        }
       } else {
         return run_command $cmd,
             info_level => 0,
@@ -514,7 +519,12 @@ sub load_json ($) {
       }
     } else {
       info 0, "Install following packages and retry:";
+      info 0, '';
       info 0, "  " . join ' ', map { $_->{name} } @$packages;
+      info 0, '';
+      if ($_->{name} eq 'libperl-devel') {
+        info 0, '(Instead of installing libperl-devel, you can use --install-perl command)';
+      }
     }
     return 0;
   } # install_system_packages
@@ -1082,6 +1092,10 @@ sub cpanm ($$) {
         push @required_system,
             {name => 'bdb-devel', redhat_name => 'db-devel',
              debian_name => 'libdb-dev'};
+        $failed = 1;
+      } elsif ($log =~ m{ld: cannot find -lperl$}m) {
+        push @required_system,
+            {name => 'perl-devel', debian_name => 'libperl-dev'};
         $failed = 1;
       } elsif ($log =~ /^Expat.xs:.+?: error: expat.h: No such file or directory/m) {
         push @required_system,
