@@ -18,6 +18,6 @@ perl $pmbp --root-dir-name="$tempdir" --scandeps=CGI::Carp
  echo "ok 2") || echo "not ok 2"
 
 libs=`perl $pmbp --root-dir-name="$tempdir" --print-libs`
-perl -e '@INC = split /:/, shift; eval { use CGI::Carp } ? die "not ok 3\n" : print "ok 3\n"' "$libs" || exit 1
+perl -e '@INC = split /:/, shift; eval q{ use CGI::Carp } ? die "not ok 3\n" : print "ok 3\n"' "$libs" || exit 1
 
 rm -fr $tempdir

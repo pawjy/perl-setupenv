@@ -29,8 +29,8 @@ my $CPANMURL = q<http://cpanmin.us/>;
 my $PMBPURL = q<https://github.com/wakaba/perl-setupenv/raw/master/bin/pmbp.pl>;
 my $ImageMagickURL = q<http://www.imagemagick.org/download/ImageMagick.tar.gz>;
 my $RootDirName = '.';
-my $PMTarDirName;
-my $PMPPDirName;
+my $PMTarDirName = $ENV{PMBP_PMTAR_DIR_NAME};
+my $PMPPDirName = $ENV{PMBP_PMPP_DIR_NAME};
 my @Command;
 my @CPANMirror = qw(
   http://search.cpan.org/CPAN
@@ -171,7 +171,8 @@ GetOptions (
     update install
     update-pmbp-pl print-pmbp-pl-etag
     install-perl print-latest-perl-version print-selected-perl-version
-    print-perl-archname print-libs print-pmtar-dir-name print-perl-path
+    print-perl-archname print-libs
+    print-pmtar-dir-name print-pmpp-dir-name print-perl-path
   )),
 ) or do {
   $HelpLevel = 2;
@@ -201,8 +202,6 @@ my $PMBPLogDirName = "$PMBPDirName/logs";
 # {root}/deps
 $PMTarDirName ||= $RootDirName . '/deps/pmtar';
 $PMPPDirName ||= $RootDirName . '/deps/pmpp';
-make_path $PMTarDirName;
-my $DepsJSONDirName = "$PMTarDirName/deps";
 
 ## ------ Logging ------
 
@@ -925,14 +924,14 @@ sub cpanm ($$) {
     my @module_arg = map {
       {'GD::Image' => 'GD'}->{$_} || $_;
     } map {
-      ref $_ ? $_->as_cpanm_arg ($PMTarDirName) : $_;
+      ref $_ ? $_->as_cpanm_arg (pmtar_dir_name ()) : $_;
     } @$modules;
     if (grep { not m{/misc/[^/]+\.tar\.gz$} } @module_arg) {
-      push @option, '--save-dists' => $PMTarDirName;
+      push @option, '--save-dists' => pmtar_dir_name ();
     }
 
     push @option,
-        '--mirror' => (abs_path $PMTarDirName),
+        '--mirror' => pmtar_dir_name (),
         map { ('--mirror' => $_) } @CPANMirror;
 
     if (defined $args->{module_index_file_name} and
@@ -1251,7 +1250,7 @@ sub get_local_copy_if_necessary ($) {
   my $url = $module->url;
 
   if (defined $path and defined $url) {
-    $path = "$PMTarDirName/authors/id/$path";
+    $path = pmtar_dir_name () . "/authors/id/$path";
     if (not -f $path) {
       save_url $url => $path;
     }
@@ -1261,9 +1260,9 @@ sub get_local_copy_if_necessary ($) {
 sub save_by_pathname ($$) {
   my ($pathname => $module) = @_;
 
-  my $dest_file_name = "$PMTarDirName/authors/id/$pathname";
+  my $dest_file_name = pmtar_dir_name () . "/authors/id/$pathname";
   if (-f $dest_file_name) {
-    $module->{url} = 'file://' . abs_path "$PMTarDirName/authors/id/$pathname";
+    $module->{url} = 'file://' . pmtar_dir_name () . "/authors/id/$pathname";
     $module->{pathname} = $pathname;
     return 1;
   }
@@ -1294,15 +1293,58 @@ sub save_by_pathname ($$) {
 
 ## ------ pmtar and pmpp repositories ------
 
+{
+  my $pmtar_dir_created;
+  sub pmtar_dir_name () {
+    unless ($pmtar_dir_created) {
+      run_command
+          ['mkdir', '-p', $PMTarDirName],
+          chdir => $RootDirName
+          or info_die "Can't create $PMTarDirName at $RootDirName";
+      run_command
+          ['sh', '-c', "cd \Q$PMTarDirName\E && pwd"],
+          chdir => $RootDirName,
+          onoutput => sub { $PMTarDirName = $_[0]; 4 }
+          or info_die "Can't get pmtar directory name";
+      chomp $PMTarDirName;
+      $pmtar_dir_created = 1;
+    }
+    return $PMTarDirName;
+  } # pmtar_dir_name
+
+  my $pmpp_dir_created;
+  sub pmpp_dir_name () {
+    unless ($pmpp_dir_created) {
+      run_command
+          ['mkdir', '-p', $PMPPDirName],
+          chdir => $RootDirName
+          or info_die "Can't create $PMPPDirName at $RootDirName";
+      run_command
+          ['sh', '-c', "cd \Q$PMPPDirName\E && pwd"],
+          chdir => $RootDirName,
+          onoutput => sub { $PMPPDirName = $_[0]; 4 }
+          or info_die "Can't get pmpp directory name";
+      chomp $PMPPDirName;
+      $pmpp_dir_created = 1;
+    }
+    return $PMPPDirName;
+  } # pmpp_dir_name
+}
+
+sub deps_json_dir_name () {
+  return pmtar_dir_name . "/deps";
+} # deps_json_dir_name
+
 sub init_pmtar_git () {
-  return if -f "$PMTarDirName/.git/config";
-  run_command ['sh', '-c', "cd \Q$PMTarDirName\E && git init"];
+  return if -f (pmtar_dir_name . "/.git/config");
+  run_command ['git', 'init'],
+      chdir => pmtar_dir_name;
 } # init_pmtar_git
 
 sub init_pmpp_git () {
-  return if -f "$PMPPDirName/.git/config";
-  make_path $PMPPDirName;
-  run_command ['sh', '-c', "cd \Q$PMPPDirName\E && git init"];
+  return if -f (pmpp_dir_name . "/.git/config");
+  run_command ['git', 'init'],
+      chdir => pmpp_dir_name;
 } # init_pmpp_git
 
 sub git_pull_current_or_master ($) {
@@ -1312,7 +1354,7 @@ sub git_pull_current_or_master ($) {
   run_command
       ['git', 'branch'],
       chdir => $git_dir_name,
-      onstdout => sub { $branch .= $_[0]; 5 };
+      onoutput => sub { $branch .= $_[0]; 5 };
   if ($branch =~ /^\* \(no branch\)$/m) {
     run_command
         ['git', 'checkout', 'master'],
@@ -1325,28 +1367,28 @@ sub git_pull_current_or_master ($) {
 } # git_pull_current_or_master
 
 sub pmtar_git_pull () {
-  git_pull_current_or_master $PMTarDirName;
+  git_pull_current_or_master pmtar_dir_name;
 } # pmtar_git_pull
 
 sub pmpp_git_pull () {
-  git_pull_current_or_master $PMPPDirName;
+  git_pull_current_or_master pmpp_dir_name;
 } # pmpp_git_pull
 
 sub copy_pmpp_modules ($$) {
   my ($perl_command, $perl_version) = @_;
-  return unless -d $PMPPDirName;
+  return unless run_command ['sh', '-c', "cd \Q$PMPPDirName\E"];
   delete_pmpp_arch_dir ($perl_command, $perl_version);
 
   my $ignores = [map { s{^/}{}; s{/$}{}; $_ } grep { 
     m{^/.+/$};
-  } @{read_gitignore "$PMPPDirName/.gitignore" || []}];
+  } @{read_gitignore (pmpp_dir_name . "/.gitignore") || []}];
 
   require File::Find;
-  my $from_base_path = abs_path $PMPPDirName;
+  my $from_base_path = pmpp_dir_name;
   my $to_base_path = get_pm_dir_name ($perl_version);
   make_path $to_base_path;
   $to_base_path = abs_path $to_base_path;
-  for my $dir_name ("$PMPPDirName/bin", "$PMPPDirName/lib") {
+  for my $dir_name (pmpp_dir_name . "/bin", pmpp_dir_name . "/lib") {
     next unless -d $dir_name;
     my $rewrite_shebang = $dir_name =~ /bin$/;
     my $perl_path = get_perl_path $perl_version;
@@ -1384,7 +1426,7 @@ sub copy_pmpp_modules ($$) {
 sub delete_pmpp_arch_dir ($$) {
   my ($perl_command, $perl_version) = @_;
   my $archname = get_perl_archname $perl_command, $perl_version;
-  add_to_gitignore ["/lib/perl5/$archname/"] => "$PMPPDirName/.gitignore";
+  add_to_gitignore ["/lib/perl5/$archname/"] => pmpp_dir_name . "/.gitignore";
 } # delete_pmpp_arch_dir
 
 ## ------ Local Perl module directories ------
@@ -1440,7 +1482,7 @@ sub scandeps ($$$;%) {
     if ($module_in_index) {
       my $name = $module_in_index->distvname;
       if (defined $name) {
-        my $json_file_name = "$DepsJSONDirName/$name.json";
+        my $json_file_name = deps_json_dir_name . "/$name.json";
         return if -f $json_file_name;
       }
     }
@@ -1498,10 +1540,11 @@ sub _scandeps_write_result ($$$;%) {
     } @$result;
   }
 
-  make_path $DepsJSONDirName;
+  my $deps_json_dir_name = deps_json_dir_name;
+  make_path $deps_json_dir_name;
   for my $m (@$result) {
     next unless defined $m->[0]->distvname;
-    my $file_name = $DepsJSONDirName . '/' . $m->[0]->distvname . '.json';
+    my $file_name = $deps_json_dir_name . '/' . $m->[0]->distvname . '.json';
     info_writing 1, "json file", $file_name;
     if (-f $file_name) {
       my $json = load_json $file_name;
@@ -1532,7 +1575,7 @@ sub load_deps ($$) {
     my $dist = $module->distvname;
     next if not defined $dist;
     next if $done{$dist}++;
-    my $json_file_name = "$DepsJSONDirName/$dist.json";
+    my $json_file_name = deps_json_dir_name . "/$dist.json";
     unless (-f $json_file_name) {
       info 2, "$json_file_name not found";
       return undef;
@@ -1859,7 +1902,8 @@ sub scan_dependency_from_directory ($) {
 sub install_module ($$$;%) {
   my ($perl_command, $perl_version, $module, %args) = @_;
   get_local_copy_if_necessary $module;
-  my $lib_dir_name = $args{pmpp} ? $PMPPDirName : get_pm_dir_name ($perl_version);
+  my $lib_dir_name = $args{pmpp}
+      ? pmpp_dir_name : get_pm_dir_name ($perl_version);
   if (has_module ($perl_command, $perl_version, $module, $lib_dir_name)) {
     info 1, "Module @{[$module->as_short]} is already installed; skipped";
     return;
@@ -1922,7 +1966,7 @@ sub has_module ($$$$) {
 ## ------ ImageMagick ------
 
 sub download_imagemagick () {
-  my $imagemagick_file_name = "$PMTarDirName/packages/ImageMagick.tar.gz";
+  my $imagemagick_file_name = pmtar_dir_name . "/packages/ImageMagick.tar.gz";
   if (not -f "$imagemagick_file_name.updated" or
       [stat "$imagemagick_file_name.updated"]->[9] + 24 * 60 * 60 < time) {
     save_url $ImageMagickURL => $imagemagick_file_name;
@@ -2067,7 +2111,7 @@ sub get_latest_apache_httpd_versions () {
 
 sub save_apache_package ($$$) {
   my ($mirror_url => $package_name, $version) = @_;
-  my $file_name = "$PMTarDirName/packages/apache/$package_name-$version.tar.gz";
+  my $file_name = pmtar_dir_name . "/packages/apache/$package_name-$version.tar.gz";
   
   my $url_dir_name = {'apr-util' => 'apr'}->{$package_name} || $package_name;
   for my $mirror ($mirror_url,
@@ -2106,7 +2150,7 @@ sub install_apache_httpd ($) {
   my $httpd_version = $httpd_versions->{"httpd-$ver"};
   my $need_apr = $ver ne '2.0' && $ver ne '2.2';
   my $apr_versions = $need_apr && get_latest_apr_versions;
-  my @tarball = ("$PMTarDirName/packages/apache/httpd-$httpd_version.tar.gz");
+  my @tarball = (pmtar_dir_name . "/packages/apache/httpd-$httpd_version.tar.gz");
   info 0, "Apache HTTP Server $httpd_version";
   if ($need_apr) {
     info 0, "  with APR $apr_versions->{apr}";
@@ -2116,8 +2160,8 @@ sub install_apache_httpd ($) {
     save_apache_package $apr_versions->{_mirror}
         => 'apr-util', $apr_versions->{'apr-util'};
     unshift @tarball,
-        "$PMTarDirName/packages/apache/apr-$apr_versions->{apr}.tar.gz",
-        "$PMTarDirName/packages/apache/apr-util-$apr_versions->{'apr-util'}.tar.gz";
+        pmtar_dir_name . "/packages/apache/apr-$apr_versions->{apr}.tar.gz",
+        pmtar_dir_name . "/packages/apache/apr-util-$apr_versions->{'apr-util'}.tar.gz";
   }
   save_apache_package $httpd_versions->{_mirror}
       => 'httpd', $httpd_version;
@@ -2174,7 +2218,7 @@ sub install_apache1 () {
   info 0, "Installing httpd-1.3...";
 
   my $version = '1.3.42';
-  my $tar_file_name = "$PMTarDirName/packages/apache/apache_$version.tar.gz";
+  my $tar_file_name = pmtar_dir_name . "/packages/apache/apache_$version.tar.gz";
   my $url = "http://archive.apache.org/dist/httpd/apache_$version.tar.gz";
   save_url $url => $tar_file_name;
 
@@ -2443,7 +2487,9 @@ while (@Command) {
     }
     unshift @CPANMirror, $command->{url};
   } elsif ($command->{type} eq 'print-pmtar-dir-name') {
-    print $PMTarDirName;
+    print pmtar_dir_name;
+  } elsif ($command->{type} eq 'print-pmpp-dir-name') {
+    print pmpp_dir_name;
   } elsif ($command->{type} eq 'init-pmtar-git') {
     init_pmtar_git;
     pmtar_git_pull;
@@ -2782,16 +2828,21 @@ must be writable by the user executing the script.
 
 Specify the directory for tarball packages of Perl modules.  Unless
 specified, the C<deps/pmtar> directory in the root directory is
-assumed.  Any tarball packages used to install Perl modules is saved
-under this directory.
+assumed.  The path is interpreted as relative to the B<application
+root directory> name rather than the current directory.  Any tarball
+packages used to install Perl modules is saved under this directory.
+This option can also be specified as C<PMBP_PMTAR_DIR_NAME>
+environment variable.
 
 =item --pmpp-dir-name="path/to/dir"
 
 Specify the directory for pure-Perl modules.  Unless specified, the
-C<deps/pmpp> directory in the root directory is assumed.  Pure-Perl
-modules prepared during the C<--update> command is placed under this
-directory for saving time to build those modules in the C<--install>
-command.
+C<deps/pmpp> directory in the root directory is assumed.  The path is
+interpreted as relative to the B<application root directory> name
+rather than the current directory.  Pure-Perl modules prepared during
+the C<--update> command is placed under this directory for saving time
+to build those modules in the C<--install> command.  This option can
+also be specified as C<PMBP_PMPP_DIR_NAME> environment variable.
 
 =back
 
@@ -3047,6 +3098,18 @@ pmbp.pl script) is compiled by C<--install-perl> command, and if their
 archnames are different, the archname printed by the command would be
 different from what you expect.
 
+=item --print-pmtar-dir-name
+
+Print the effective "pmtar" directory as full path name.  If the
+"pmtar" directory is not exist, this command creates one.  See also
+C<--pmtar-dir-name> option.
+
+=item --print-pmpp-dir-name
+
+Print the effective "pmpp" directory as full path name.  If the "pmpp"
+directory is not exist, this command creates one.  See also
+C<--pmpp-dir-name> option.
+
 =item --create-perl-command-shortcut="command-name"
 
 Create a shell script to invoke a command with environement variables
@@ -3133,6 +3196,12 @@ Set the default for the C<--dump-info-file-before-die> option.
 
 Set the default value for the C<--perlbrew-parallel-count> option.
 Defaulted to C<4> if the environment variable C<TRAVIS> is set.
+
+=item PMBP_PMTAR_DIR_NAME, PMBP_PMPP_DIR_NAME
+
+Set the default value for the C<--pmtar-dir-name> and
+C<--pmpp-dir-name> options, respectively.  See their description for
+details.
 
 =item PMBP_VERBOSE
 
