@@ -1028,8 +1028,11 @@ sub cpanm ($$) {
             map { PMBP::Module->new_from_package ($_) }
             qw{ExtUtils::MakeMaker ExtUtils::ParseXS};
         $failed = 1;
+      } elsif ($log =~ /^Failed to extract .+.zip - You need to have unzip or Archive::Zip installed./m) {
+        push @required_cpanm, PMBP::Module->new_from_package ('Archive::Zip');
       } elsif ($log =~ /^only nested arrays of non-refs are supported at .*?\/ExtUtils\/MakeMaker.pm/m) {
-        push @required_install, PMBP::Module->new_from_package ('ExtUtils::MakeMaker');
+        push @required_install,
+            PMBP::Module->new_from_package ('ExtUtils::MakeMaker');
       } elsif ($log =~ /^String found where operator expected at Makefile.PL line [0-9]+, near \"([0-9A-Za-z_]+)/m) {
         my $module_name = {
           author_tests => 'Module::Install::AuthorTests',
