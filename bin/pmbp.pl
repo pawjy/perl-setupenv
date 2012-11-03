@@ -1302,6 +1302,33 @@ sub init_pmpp_git () {
   run_command ['sh', '-c', "cd \Q$PMPPDirName\E && git init"];
 } # init_pmpp_git
 
+sub git_pull_current_or_master ($) {
+  my $git_dir_name = shift;
+  return 0 unless -f "$git_dir_name/.git/config";
+  my $branch = '';
+  run_command
+      ['git', 'branch'],
+      chdir => $git_dir_name,
+      onstdout => sub { $branch .= $_[0]; 5 };
+  if ($branch =~ /^\* \(no branch\)$/m) {
+    run_command
+        ['git', 'checkout', 'master'],
+        chdir => $git_dir_name
+            or return 0;
+  }
+  return run_command
+      ['git', 'pull'],
+      chdir => $git_dir_name;
+} # git_pull_current_or_master
+
+sub pmtar_git_pull () {
+  git_pull_current_or_master $PMTarDirName;
+} # pmtar_git_pull
+
+sub pmpp_git_pull () {
+  git_pull_current_or_master $PMPPDirName;
+} # pmpp_git_pull
+
 sub copy_pmpp_modules ($$) {
   my ($perl_command, $perl_version) = @_;
   return unless -d $PMPPDirName;
@@ -2416,8 +2443,10 @@ while (@Command) {
     print $PMTarDirName;
   } elsif ($command->{type} eq 'init-pmtar-git') {
     init_pmtar_git;
+    pmtar_git_pull;
   } elsif ($command->{type} eq 'init-pmpp-git') {
     init_pmpp_git;
+    pmpp_git_pull;
   } elsif ($command->{type} eq 'print-scanned-dependency') {
     my $mod_names = scan_dependency_from_directory $command->{dir_name};
     print map { $_ . "\n" } sort { $a cmp $b } keys %$mod_names;
