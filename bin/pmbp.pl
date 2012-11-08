@@ -29,6 +29,7 @@ my $CPANMURL = q<http://cpanmin.us/>;
 my $PMBPURL = q<https://github.com/wakaba/perl-setupenv/raw/master/bin/pmbp.pl>;
 my $ImageMagickURL = q<http://www.imagemagick.org/download/ImageMagick.tar.gz>;
 my $RootDirName = '.';
+my $FallbackPMTarDirName = $ENV{PMBP_FALLBACK_PMTAR_DIR_NAME};
 my $PMTarDirName = $ENV{PMBP_PMTAR_DIR_NAME};
 my $PMPPDirName = $ENV{PMBP_PMPP_DIR_NAME};
 my @Command;
@@ -1311,17 +1312,24 @@ sub save_by_pathname ($$) {
   my $pmtar_dir_created;
   sub pmtar_dir_name () {
     unless ($pmtar_dir_created) {
-      run_command
-          ['mkdir', '-p', $PMTarDirName],
-          chdir => $RootDirName
-          or info_die "Can't create $PMTarDirName at $RootDirName";
-      run_command
-          ['sh', '-c', "cd \Q$PMTarDirName\E && pwd"],
-          chdir => $RootDirName,
-          discard_stderr => 1,
-          onoutput => sub { $PMTarDirName = $_[0]; 4 }
-          or info_die "Can't get pmtar directory name";
-      chomp $PMTarDirName;
+      if (not (run_command ['sh', '-c', "cd \Q$PMTarDirName\E"],
+                  chdir => $RootDirName) and
+          defined $FallbackPMTarDirName and
+          -d $FallbackPMTarDirName) {
+        $PMTarDirName = abs_path $FallbackPMTarDirName;
+      } else {
+        run_command
+            ['mkdir', '-p', $PMTarDirName],
+            chdir => $RootDirName
+            or info_die "Can't create $PMTarDirName at $RootDirName";
+        run_command
+            ['sh', '-c', "cd \Q$PMTarDirName\E && pwd"],
+            chdir => $RootDirName,
+            discard_stderr => 1,
+            onoutput => sub { $PMTarDirName = $_[0]; 4 }
+            or info_die "Can't get pmtar directory name";
+        chomp $PMTarDirName;
+      }
       $pmtar_dir_created = 1;
     }
     return $PMTarDirName;
@@ -3233,6 +3241,14 @@ Defaulted to C<4> if the environment variable C<TRAVIS> is set.
 Set the default value for the C<--pmtar-dir-name> and
 C<--pmpp-dir-name> options, respectively.  See their description for
 details.
+
+=item PMBP_FALLBACK_PMTAR_DIR_NAME
+
+If the directory specified by C<--pmtar-dir-name> option or
+C<PMBP_PMTAR_DIR_NAME>, or their default value, i.e. C<deps/pmtar>,
+does not exist, but if there is the directory specified by the
+C<PMBP_FALLBACK_PMTAR_DIR_NAME> environment variable, then the
+directory is used instead.
 
 =item PMBP_VERBOSE
 

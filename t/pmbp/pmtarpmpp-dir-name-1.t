@@ -1,5 +1,5 @@
 #!/bin/sh
-echo "1..8"
+echo "1..11"
 basedir=`dirname $0`/../..
 pmbp=$basedir/bin/pmbp.pl
 tempdir=`perl -MFile::Temp=tempdir -e 'print tempdir'`/testapp
@@ -61,5 +61,31 @@ perl $pmbp --root-dir-name="$tempdir" \
 " > "$tempdir/result.txt"
 echo "$tempdir/abc" > "$tempdir/expected.txt"
 (diff "$tempdir/result.txt" "$tempdir/expected.txt" && echo "ok 8") || echo "not ok 8"
+
+PMBP_FALLBACK_PMTAR_DIR_NAME="$tempdir/fuga" \
+perl $pmbp --root-dir-name="$tempdir" \
+    --pmtar-dir-name hoge1 \
+    --print-pmtar-dir-name --print "
+" > "$tempdir/result.txt"
+echo "$tempdir/hoge1" > "$tempdir/expected.txt"
+(diff "$tempdir/result.txt" "$tempdir/expected.txt" && echo "ok 9") || echo "not ok 9"
+
+mkdir "$tempdir/fuga"
+PMBP_FALLBACK_PMTAR_DIR_NAME="$tempdir/fuga" \
+perl $pmbp --root-dir-name="$tempdir" \
+    --pmtar-dir-name hoge3 \
+    --print-pmtar-dir-name --print "
+" > "$tempdir/result.txt"
+echo "$tempdir/fuga" > "$tempdir/expected.txt"
+(diff "$tempdir/result.txt" "$tempdir/expected.txt" && echo "ok 10") || echo "not ok 10"
+
+mkdir "$tempdir/hoge2"
+PMBP_FALLBACK_PMTAR_DIR_NAME="$tempdir/fuga" \
+perl $pmbp --root-dir-name="$tempdir" \
+    --pmtar-dir-name hoge2 \
+    --print-pmtar-dir-name --print "
+" > "$tempdir/result.txt"
+echo "$tempdir/hoge2" > "$tempdir/expected.txt"
+(diff "$tempdir/result.txt" "$tempdir/expected.txt" && echo "ok 11") || echo "not ok 11"
 
 rm -fr $tempdir
