@@ -1,0 +1,31 @@
+Makefile.setupenv
+~~~~~~~~~~~~~~~~~
+
+A Makefile to setup a local or remote development environment for your
+Perl product.
+
+* Usage
+
+See "Makefile.example".
+
+* Distribution
+
+Latest version of Makefile.setupenv is available from
+<https://github.com/wakaba/perl-setupenv>.
+
+* Author
+
+Wakaba <w@suika.fam.cx>.
+
+* Acknowledgements
+
+Thanks to shibayu36 for his interesting suggestions.
+
+* License
+
+Copyright 2012 Hatena <http://www.hatena.com/>.
+
+Copyright 2012 Wakaba <w@suika.fam.cx>.
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.

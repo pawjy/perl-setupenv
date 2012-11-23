@@ -1,31 +1,39 @@
-Makefile.setupenv
-~~~~~~~~~~~~~~~~~
+Tools for Perl application environment setup
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A Makefile to setup a local or remote development environment for your
-Perl product.
+* pmbp.pl
 
-* Usage
+The pmbp.pl script is a tool to manage runtime environments for Perl
+applications, built on the top of infrastructures such as perlbrew and
+cpanm.
 
-See "Makefile".
+  bin/pmbp.pl
+  doc/pmbp.txt
+  doc/pmbp-tutorial.pod
 
-* Distribution
+* Makefile.setupenv
 
-Latest version of Makefile.setupenv is available from
-<https://github.com/wakaba/perl-setupenv>.
+  Makefile.setupenv
+  Makefile.example
+  doc/makefile-setupenv.txt
 
-* Author
+* pmb
 
-Wakaba <w@suika.fam.cx>.
+Integrated with Makefile.setupenv.
 
-* Acknowledgements
+  doc/pmb.txt
 
-Thanks to shibayu36 for his interesting suggestions.
+* pmbundler
+
+Integrated with Makefile.setupenv.
+
+  doc/pmbundler.txt
 
 * License
 
-Copyright 2012 Hatena <http://www.hatena.com/>.
+Unless otherwise stated, following terms are applied:
 
-Copyright 2012 Wakaba <w@suika.fam.cx>.
+Copyright 2012 Wakaba <wakaba@suikawiki.org>.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
