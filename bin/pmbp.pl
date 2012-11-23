@@ -3068,15 +3068,80 @@ Show name, author, and license of the script.
 
 =head2 Higher-level commands
 
+There are two commands which are expected to cover most of use cases
+of the script.  Most of functionality these commands provide are
+combination of other commands such that if you want more sensitive
+control for what the script should do, maybe you'd like to invoke
+commands described in following subsections.  These two commands and
+those commands can be combined, if desired.
+
 =over 4
 
 =item --install
 
-XXX
+The C<--install> command setup required environment for the
+application, including Perl and Perl modules.
+
+If the application, specified by the C<--root-dir-name> option,
+contains the C<config/perl/pmb-install.txt>, required Perl modules
+listed in the file are installed into the C<local/perl-{version}/pm>
+directory.  Otherwise, required modules are scanned from various
+sources, including C<carton.lock>, C<Makefile.PL>, C<cpanfile>, Perl
+modules, and Perl scripts within the directory and then installed.
+
+If the application specifies the version of the Perl by
+C<config/perl/version.txt>, that version of Perl is installed int o
+C<local/perlbrew/perls/perl-{version}> before installation of any
+module.
+
+The command generates C<config/perl/libs.txt>, which contains the
+paths to application's Perl modules (see C<--write-libs-txt> for
+details on its content).
+
+You might also want to invoke C<--create-perl-command-shortcut>
+command after the C<--install> for convinience of execution of your
+application.
+
+The C<--install> command can be invoked whenever you want, to reflect
+latest state of your application.  Only differences from previous
+invocation are processed by the command.  If you'd like to clean up
+your environment, delete the C<local/> directory and run the command
+again.
 
 =item --update
 
-XXX
+The C<--update> command generates the list of required components,
+which is portable such that you might want to add them to the
+application repository (e.g. Git repository) for later usage by
+C<--install>.
+
+The command generates C<config/perl/pmb-install.txt>, which contains
+full list of required Perl modules.  The file is generated from
+various kinds of dependency descriptions, including C<Makfile.PL> and
+C<carton.lock> of the application itself and some submodules.  It is
+encouraged to list the direct dependnecy of the application in the
+"pmb install list" format; it is simply the newline-separated list of
+Perl module names, saved as C<config/perl/modules.txt>, though this is
+not required.
+
+The command collects tarballs for required modules and save them into
+the C<deps/pmtar> directory.  If your application is a Git repository,
+you might want to handle this directory as a submodule.  (See also
+C<--pmtar-dir-name> option.)
+
+In addition, the commands creates a copy of set of required pure Perl
+modules at C<deps/pmpp> directory.  You might also want to handle this
+directory as Git submodule.
+
+These files would simplify processing and eliminate network accesses
+by the C<--install> command.
+
+The C<--update> command can be invoked whenever you want, to update
+list of dependency and to update CPAN modules.  Only differences from
+previous invocation are used to update various files.  If you'd like
+to clean up such files, delete C<deps>,
+C<config/perl/pmb-install.txt>, (and C<local/> if desired), and then
+invoke C<--update> again.
 
 =back
 
