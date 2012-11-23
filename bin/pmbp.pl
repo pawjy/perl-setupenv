@@ -3066,9 +3066,21 @@ Show name, author, and license of the script.
 
 =back
 
-=head2 Commands
+=head2 Higher-level commands
+
+=over 4
+
+=item --install
 
 XXX
+
+=item --update
+
+XXX
+
+=back
+
+=head2 Commands for pmbp.pl
 
 =over 4
 
@@ -3085,10 +3097,11 @@ script by the C<--update-pmbp-pl> command.  If the pmbp.pl script is
 not retrieved by the C<--update-pmbp-pl> command, the script does not
 know its C<ETag> and this command would print nothing.
 
-=item --add-to-gitignore="path"
+=back
 
-Add the specified file name or path to the C<.gitignore> file in the
-root directory (if not yet).
+=head2 Commands for Perl interpreter
+
+=over 4
 
 =item --print-latest-perl-version
 
@@ -3137,18 +3150,6 @@ pmbp.pl script) is compiled by C<--install-perl> command, and if their
 archnames are different, the archname printed by the command would be
 different from what you expect.
 
-=item --print-pmtar-dir-name
-
-Print the effective "pmtar" directory as full path name.  If the
-"pmtar" directory is not exist, this command creates one.  See also
-C<--pmtar-dir-name> option.
-
-=item --print-pmpp-dir-name
-
-Print the effective "pmpp" directory as full path name.  If the "pmpp"
-directory is not exist, this command creates one.  See also
-C<--pmpp-dir-name> option.
-
 =item --create-perl-command-shortcut="command-name"
 
 Create a shell script to invoke a command with environement variables
@@ -3175,14 +3176,186 @@ Therefore,
 ... would run C<perl> and C<prove> installed by the pmbp script with
 any Perl modules installed by the pmbp script.
 
-=item --print-perl-core-version="Perl::Module::Name"
+=back
 
-Print the first version of Perl where the specified module is bundled
-as a core module, as returned by L<Module::CoreList>.  For example,
-C<5.007003> is printed if the module specified is C<Encode>.  The
-L<Module::CoreList> module is automatically installed for the script
-if not available.  If the specified module is not part of core Perl
-distribution, nothing is printed.
+=head2 Commands for Perl modules
+
+=over 4
+
+=item --install-module="Module::Name"
+
+Install the Perl module, whose package name is specified as the
+argument to the command.  The module is installed into the
+C<local/perl-VERSION/pm> directory within the root directory, where
+C<VERSION> is current Perl version (see C<--perl-version> option).
+
+If the module is specified in I<Module::Name> format, the package name
+is looked up from CPAN package index.  If the module is specified in
+I<Module::Name~version> format, the package name with version greater
+than or equal to the specified value is looked up.  If the module is
+specified in I<Module::Name=URL> format, the tarball package located
+at the URL is downloaded and then installed, with the specified name
+of the module.
+
+If the specified module is not found, or the installation has failed,
+the script exits unsuccessfully.  If any missing dependency has been
+found during the installation process, the script performs its best
+effort to install the dependency and then retries several times.  If
+the detected dependency is non-Perl software components, its behavior
+depends on whether the C<--execute-system-package-installer> option is
+specified or not.
+
+=item --install-modules-by-file-name="path/to/list.txt"
+
+Install zero or more Perl modules listed in the specified text file.
+The argument to the command must be a path to the list file, relative
+to the current directory.  If the file is not found the script simply
+ignores the command (but reporting the failure) and does not fail.
+
+The file must be in the "pmb install list" format, that is,
+newline-character separated list of zero or more Perl module
+specifications.  Each line must identify the Perl module in the format
+that is allowed as the argument to the C<--install-module> command.
+Empty lines and lines starting with the C<#> character are ignored.
+
+=item --install-modules-by-list
+
+Install zero or more Perl modules listed in the text files.  Following
+files under the root directory are examined:
+
+  config/perl/modules.txt
+  config/perl/modules.*.txt
+  modules/*/config/perl/modules.txt
+  modules/*/config/perl/modules.*.txt
+
+Each file must be in the "pmb install list" format, as described for
+the C<--install-modules-by-file-name> command.
+
+=item --install-to-pmpp="Module::Name"
+
+Install the Perl module into the "pmpp" directory (see
+C<--pmpp-dir-name> option), instead of the "pm" directory.  Except for
+the installed directory, this command has same effect as the
+C<--install-module> command.
+
+=item --update-pmpp-by-file-name="path/to/list.txt"
+
+Install zero or more Perl modules listed in the specified text file,
+into the "pmpp" directory (see C<--pmpp-dir-name> option), instead of
+the "pm" directory.  Except for the installed directory, this command
+has same effect as the C<--install-modules-by-file-name> command.
+
+=item --update-pmpp-by-list
+
+Install zero or more Perl modules, listed in text files, into the
+"pmpp" directory (see C<--pmpp-dir-name> option), instead of the "pm"
+directory.  Except for the installed directory, this command has same
+effect as the C<--install-modules-by-list> command.
+
+=item --install-by-pmpp
+
+Copy pure-Perl modules prepared in the "pmpp" directory (see
+C<--pmpp-dir-name> option) to the "pm" directory (i.e. the directory
+to which Perl modules are installed by the C<--install-module>
+command).
+
+=item --scandeps="Module::Name"
+
+Scanning dependency of the specified Perl module.  The scanned result
+is saved in the C<deps> directory in the "pmtar" directory (see
+C<--pmtar-dir-name> option).  If there is already scanned result in
+the directory, this command does nothing.  The argument to the command
+must be in the same format as the argument to the C<--install-module>
+command.
+
+=item --select-module="Module::Name"
+
+Same as the C<--scandeps> command, but add the specified module and
+its dependency in to the "list of the selected module" of the script.
+
+=item --select-modules-by-file-name="path/to/list.txt"
+
+Similar to the C<--select-module> command, but the list of zero or
+more Perl modules to be selected are obtained from the specified file.
+The file must be in the "pmb install list" format (see
+C<--install-modules-by-file-name>).
+
+=item --select-modules-by-list
+
+Similar to the C<--select-modules-by-file-name> command, but the list
+files are chosen in the same rule as the C<--install-modules-by-list>
+command.
+
+=item --print-scanned-dependency="path/to/modules.txt"
+
+Scan Perl modules and scripts in the root directory and generate list
+of required Perl modules in the "pmb install list" format, writing
+into the specified file.  This command should be useful for generating
+initial content of the C<config/perl/modules.txt>.
+
+=item --read-module-index="path/to/packages.txt"
+
+Read the index of Perl modules, in the CPAN package list format.  The
+index is used for finding modules in install and scandeps commands.
+See also C<--set-module-index> command.
+
+=item --read-carton-lock="path/to/carton.lock"
+
+Read the index of Perl modules, in the "carton.lock" format generated
+by L<Carton>.
+
+=item --write-module-index="path/to/packages.txt"
+
+Write the index of known Perl modules, holded by the script, into the
+specified file.
+
+=item --write-pmb-install-list="path/to/modules.txt"
+
+Write the "list of the selected modules" into the specified file, in
+the "pmb install list" format.
+
+=item --write-install-module-index="path/to/packages.txt"
+
+Write the "list of the specified modules" into the specified file, in
+the CPAN package list format.
+
+=item --write-libs-txt="path/to/libs.txt"
+
+Write the list of directories for Perl modules of the application, as
+C<:> separated list of full paths.  The list contains:
+
+  {root-dir-name}/lib
+  {root-dir-name}/modules/*/lib
+  {root-dir-name}/local/submodules/*/lib
+  {root-dir-name}/local/perl-{version}/pm/lib/perl5/{archname}
+  {root-dir-name}/local/perl-{version}/pm/lib/perl5
+
+... at the time of execution.  This file can be used as value of the
+C<PERL5LIB> environment variable, like:
+
+  $ PERL5LIB="`cat path/to/libs.txt`" perl myapp.pl
+
+=item --print-libs
+
+Print the list of directories for Perl modules of the application, as
+C<:> separated list of full paths.  This is same as the content of the
+file generated by the C<--write-libs-txt> command.
+
+=item --write-makefile-pl="path/to/Makefile.PL"
+
+Write the C<Makefile.PL> that describes the dependency of the
+application using the C<config/perl/pmb-install.txt>.  The file can be
+created by the C<--update> command (or the
+C<--write-pmb-install-list=config/perl/pmb-install.txt> after
+selecting relevant modules).  This command might or might not be
+useful for integration with C<Makefile.PL> based application
+dependency management solutions.
+
+=item --print-module-pathname="Perl::Module::Name"
+
+Print the "pathname" of the specified module, if found in the CPAN
+package index.  The "pathname" of the module is the string like:
+C<A/AU/AUTHOR/Perl-Module-Name-1.23.tar.gz>.
 
 =item --print-module-version="Perl::Module::Name"
 
@@ -3193,16 +3366,52 @@ The version of the module is extracted from the module by C<use>ing
 the module and then accessing to the C<$VERSION> variable in the
 package of the module.
 
-=item --print="string"
+=item --print-perl-core-version="Perl::Module::Name"
 
-Print the string.  Any string can be specified as the argument.  This
-command might be useful to combine multiple C<--print-*> commands.
+Print the first version of Perl where the specified module is bundled
+as a core module, as returned by L<Module::CoreList>.  For example,
+C<5.007003> is printed if the module specified is C<Encode>.  The
+L<Module::CoreList> module is automatically installed for the script
+if not available.  If the specified module is not part of core Perl
+distribution, nothing is printed.
+
+=item --print-pmtar-dir-name
+
+Print the effective "pmtar" directory as full path name.  If the
+"pmtar" directory is not exist, this command creates one.  See also
+C<--pmtar-dir-name> option.
+
+=item --print-pmpp-dir-name
+
+Print the effective "pmpp" directory as full path name.  If the "pmpp"
+directory is not exist, this command creates one.  See also
+C<--pmpp-dir-name> option.
+
+=back
+
+=head2 Commands for controling cpanm behavior
+
+=over 4
+
+=item --set-module-index="path/to/index.txt"
+
+Set the path to the CPAN package index, relative to the current
+directory, used as input to the C<cpanm> command.
+
+=item --prepend-mirror=URL
+
+Prepend the specified CPAN mirror URL to the list of mirrors.
 
 =back
 
 =head2 Other commands
 
 =over 4
+
+=item --print="string"
+
+Print the string.  Any string can be specified as the argument.  This
+command might be useful to combine multiple C<--print-*> commands.
 
 =item --install-apache="VERSION"
 
@@ -3215,6 +3424,11 @@ instructed to install mod_perl.
 
 If the specified version of Apache is already installed, this command
 does nothing.
+
+=item --add-to-gitignore="path"
+
+Add the specified file name or path to the C<.gitignore> file in the
+root directory (if not yet).
 
 =back
 
