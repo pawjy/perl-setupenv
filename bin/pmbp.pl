@@ -1167,7 +1167,8 @@ sub cpanm ($$) {
           local $CPANMDepth = $CPANMDepth + 1;
           for my $module (@required_cpanm) {
             get_local_copy_if_necessary ($module);
-            cpanm {perl_version => $perl_version,
+            cpanm {perl_command => $perl_command,
+                   perl_version => $perl_version,
                    perl_lib_dir_name => $cpanm_lib_dir_name,
                    local_option => '-l', skip_satisfied => 1}, [$module];
           }
@@ -1183,7 +1184,8 @@ sub cpanm ($$) {
                           module_index_file_name => $args->{module_index_file_name});
                 push @{$result->{additional_deps} ||= []}, $module;
               }
-              cpanm ({perl_version => $perl_version,
+              cpanm ({perl_command => $perl_command,
+                      perl_version => $perl_version,
                       perl_lib_dir_name => $perl_lib_dir_name,
                       module_index_file_name => $args->{module_index_file_name}}, [$module])
                   unless $args->{no_install};
@@ -1192,7 +1194,8 @@ sub cpanm ($$) {
           } else {
             local $CPANMDepth = $CPANMDepth + 1;
             for my $module (@required_install) {
-              cpanm ({perl_version => $perl_version,
+              cpanm ({perl_command => $perl_command,
+                      perl_version => $perl_version,
                       perl_lib_dir_name => $perl_lib_dir_name,
                       module_index_file_name => $args->{module_index_file_name}}, [$module]);
             }
