@@ -185,6 +185,24 @@ with Perl 5.14 or later.  See
 <http://stackoverflow.com/questions/10564006/why-is-perl-5-14-using-0gvgpgv-gp-cv-definition-for-gvgc>
 for details.
 
+=head2 Install profiler
+
+Install profiler module L<Devel::NYTProf> into the working directory:
+
+  $ perl local/bin/pmbp.pl \
+        --install-module Devel::NYTProf \
+        --create-perl-command-shortcut nytprofhtml
+
+Since the module is not used by the application itself, you have to
+explicitly specify the module name with the C<--install-module>
+command.  The L<Devel::NYTProf> module provides several standalone
+Perl scripts such as C<nytprofhtml>.  For convenience, let the pmbp
+script create a shortcut to the command to the application's root
+directory.  At this time, you can run your application with profiler:
+
+  $ ./perl -d:NYTProf bin/myapp.pl
+  $ ./nytprofhtml
+
 =head1 LEARN MORE
 
 There are many commands not described in this turorial.  Complete list
