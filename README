@@ -10,6 +10,7 @@ cpanm.
   bin/pmbp.pl
   doc/pmbp.txt
   doc/pmbp-tutorial.pod
+  Makefile.pmbp.example
 
 * Makefile.setupenv
 
