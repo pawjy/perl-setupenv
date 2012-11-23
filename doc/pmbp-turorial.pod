@@ -63,9 +63,95 @@ Alternatively, once you invoke the following command:
 The C<perl> shell script sets environment variables appropriately then
 invoke the real C<perl> command.
 
-=head1 XXX
+=head1 BASIC USAGE
 
-XXX
+=head2 Creating list of required Perl modules
+
+By default the pmbp script try to do its best to detect Perl module
+dependency, as mentioned in earlier section.  It examined Perl scripts
+in the C<bin> directory and Perl modules in the C<lib> directory and
+extract C<use> and C<require> statements to create list of Perl
+modules that should be installed for the execution of the application.
+Apparenrly this dependency detection is incomplete, though it should
+work well for small applications.  There are complex ways to load
+external Perl modules, including C< eval qq{ use $module } >.
+Sometimes there are Git submodules containing Perl modules, which
+should also taken into account when detecting dependency of the
+application.
+
+You can notify the pmbp script of the list of Perl modules actually
+required by the application, by putting their names into the file
+C<config/perl/modules.txt>, like:
+
+  AnyEvent::HTTP
+  Exporter::Lite
+  Path::Class
+  Test::Differences
+
+If there is the file, the pmbp script use it as the list of required
+modules instead of sniffing Perl modules by itself.
+
+=head2 Merging dependency of submodules
+
+If your application requires modules contained in other Git
+repositories, make them Git submodules of the application (given that
+your application itself is maintained as a Git repository), putting
+under the C<modules> directory:
+
+  $ git submodule add git://github.com/wakaba/dongry modules/dongry
+  $ ls modules
+  dongry perl-json-functions-xs
+
+Then the pmbp script recognizes the submodules under the C<modules>
+directory and merge their dependency list into main application's
+list.
+
+Dependency of submodules can be described in the same format as the
+main application's list.  For example, the submodule C<modules/dongry>
+can contain the file C<modules/dongry/config/perl/modules.txt>, which
+descirbes its dependency.  Note that the pmbp script also supports
+other dependency description formats, including: C<Makefile.PL>,
+C<Build.PL>, C<cpanfile>, and C<carton.lock>.  If one of these files
+are included in the submodule, its required modules are extracted from
+that file.  When none of these files are found, then the pmbp script
+try to extract required modules by sniffing Perl script and module
+files, as described in the earlier section for the main application.
+
+Submodules of submodules are not supported at the moment.
+
+=head2 Constructing Perl module repository for your application
+
+It is often desired to create local repository that contains source
+packages for modules required by your application, for faster or
+networkless installation of them.  The pmbp.pl script has native
+support for such "bundling" usage.  Run the script with the
+C<--update> command:
+
+  $ perl local/bin/pmbp.pl --update
+
+This command scans the Perl modules required directly or indirectly by
+the application and put their tarballs into the C<deps/pmtar>
+directory.  In addition, it installs pure-Perl modules into the
+C<deps/pmpp> directory.  Finally, it generates the
+C<config/perl/pmb-install.txt>, which lists the name and version of
+Perl modules required directly or indirectly by the application.
+
+The C<--install> command takes these files into account when
+installing modules.  Instead of examining the required module
+directly, the C<--install> command use the
+C<config/perl/pmb-install.txt> file as the input.  It copies pure Perl
+modules from the C<deps/pmpp> directory and then install XS modules,
+using tarballs in the C<deps/pmtar> directory.
+
+If your application is a Git repository, the
+C<config/perl/pmb-install.txt> file should be added to the repository.
+In addition, the C<deps/pmtar> and C<deps/pmpp> directories should be
+maintained as Git submodules of the application repository.
+
+You need to run the C<--update> command again when you added required
+Perl module into the source list (e.g. C<config/perl/modules.txt>), or
+you'd like to update CPAN modules to latest version.  You should add
+updated files to relevant Git repositories.
 
 =head1 COOKBOOK
 
@@ -98,6 +184,13 @@ Please note that, at the time of writing, mod_perl2 cannot be compiled
 with Perl 5.14 or later.  See
 <http://stackoverflow.com/questions/10564006/why-is-perl-5-14-using-0gvgpgv-gp-cv-definition-for-gvgc>
 for details.
+
+=head1 LEARN MORE
+
+There are many commands not described in this turorial.  Complete list
+of available commands are included in the pod of the C<pmbp.pl>
+script.  The document also describes interaction of various
+environment variables.
 
 =head1 DEPENDENCY
 

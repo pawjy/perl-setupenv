@@ -1,6 +1,9 @@
 pmbundler
 ~~~~~~~~~
 
+Warning!  The pmbundler tool is now considered obsolete in favor of
+pmb and pmbp.
+
 * Options
 
 Maybe you want to set PMBUNDLER_REPO_URL, in your Makefile or
