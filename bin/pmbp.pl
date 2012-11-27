@@ -837,6 +837,8 @@ sub install_cpanm_wrapper () {
       }
       return undef;
     }; # search_mirror_index_file
+
+    setpgrp 0, 0;
     
     my $app = App::cpanminus::script->new;
     $app->parse_options (@ARGV);
