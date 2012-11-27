@@ -215,6 +215,7 @@ $PMPPDirName ||= $RootDirName . '/deps/pmpp';
     $InfoFileName = "$PMBPLogDirName/pmbp-" . time . "-" . $$ . ".log";
     mkdir_for_file ($InfoFileName);
     open $InfoFile, '>', $InfoFileName or die "$0: $InfoFileName: $!";
+    $InfoFile->autoflush (1);
     info_writing (0, "operation log file", $InfoFileName);
   } # open_info_file
   
