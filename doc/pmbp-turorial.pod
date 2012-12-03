@@ -203,6 +203,22 @@ directory.  At this time, you can run your application with profiler:
   $ ./perl -d:NYTProf bin/myapp.pl
   $ ./nytprofhtml
 
+=head1 TROUBLESHOOTING
+
+=head2 Second invocation of pmbp --update takes as long time as the first time, nevertheless you said this should not happen :-<
+
+Usually the C<--update> command saves Perl modules' dependency into
+files in C<deps/pmtar/deps> directory.  If the application repository
+is cloned at different machine such that those files are missing,
+second invocation will perform the same scanning operation as the
+first invocation.
+
+In addition, if the application or a submodule of the application uses
+C<Makefile.PL> or C<Build.PL> as the only way to describe their
+dependency, those previously-saved files can't be used for them.
+Therefore it is recommended to list up required modules in
+C<config/perl/modules.txt> for them.
+
 =head1 LEARN MORE
 
 There are many commands not described in this turorial.  Complete list
