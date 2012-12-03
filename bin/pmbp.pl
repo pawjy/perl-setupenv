@@ -1037,6 +1037,9 @@ sub cpanm ($$) {
           }
         }
         $failed = 1;
+      } elsif ($log =~ m{^(\S+) \S+ is required to configure this module; please install it or upgrade your CPAN/CPANPLUS shell.}m) {
+        push @required_install, PMBP::Module->new_from_package ($1);
+        # Don't set $failed flag.
       } elsif ($log =~ m{^make(?:\[[0-9]+\])?: .+?ExtUtils/xsubpp}m or
                $log =~ m{^Can\'t open perl script ".*?ExtUtils/xsubpp"}m) {
         push @required_install,
