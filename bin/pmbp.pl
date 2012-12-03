@@ -1030,6 +1030,12 @@ sub cpanm ($$) {
                 $log =~ /^! Configure failed for (\S+). See (.+?) for details\.$/m)) {
         my $log = copy_log_file $2 => $1;
         $scan_errors->($level + 1, $log);
+        if ($log =~ m{! You might have to install the following modules first to get --scandeps working correctly.\n!((?:\n! \* \S+)+)}) {
+          my $modules = $1;
+          while ($modules =~ /^! \* (\S+)/mg) {
+            push @required_install, PMBP::Module->new_from_package ($1);
+          }
+        }
         $failed = 1;
       } elsif ($log =~ m{^make(?:\[[0-9]+\])?: .+?ExtUtils/xsubpp}m or
                $log =~ m{^Can\'t open perl script ".*?ExtUtils/xsubpp"}m) {
