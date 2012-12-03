@@ -1653,7 +1653,7 @@ sub select_module ($$$$;%) {
             (PMBP::Module->new_from_package ($module->package));
         if ($current_module) {
           my $path = $current_module->pathname;
-          if (defined $path and $path =~ s{-[0-9A-Za-z.+-]+\.(tar\.(?:gz|bz2)|zip)$}{-@{[$module->version]}.$1}) {
+          if (defined $path and $path =~ s{-[0-9A-Za-z.+-]+\.(tar\.(?:gz|bz2)|zip|tgz)$}{-@{[$module->version]}.$1}) {
             if (save_by_pathname $path => $module) {
               scandeps $src_module_index, $module, $perl_version, %args;
               $mods = load_deps $src_module_index => $module;
@@ -2667,9 +2667,9 @@ sub _set_distname ($) {
   my $self = shift;
 
   if (not defined $self->{pathname} and defined $self->{url}) {
-    if ($self->{url} =~ m{/authors/id/(.+\.(?:tar\.(?:gz|bz2)|zip))$}) {
+    if ($self->{url} =~ m{/authors/id/(.+\.(?:tar\.(?:gz|bz2)|zip|tgz))$}) {
       $self->{pathname} = $1;
-    } elsif ($self->{url} =~ m{([^/]+\.(?:tar\.(?:gz|bz2)|zip))$}) {
+    } elsif ($self->{url} =~ m{([^/]+\.(?:tar\.(?:gz|bz2)|zip|tgz))$}) {
       $self->{pathname} = "misc/$1";
     }
   }
@@ -2714,7 +2714,7 @@ sub distvname ($) {
   my $pathname = $self->pathname;
   if (defined $pathname) {
     $pathname =~ s{^.+/}{};
-    $pathname =~ s{\.(?:tar\.(?:gz|bz2)|zip)$}{};
+    $pathname =~ s{\.(?:tar\.(?:gz|bz2)|zip|tgz)$}{};
     return $self->{distvname} = $pathname;
   }
   return $self->{distvname} = undef;
