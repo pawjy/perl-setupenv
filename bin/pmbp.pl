@@ -997,16 +997,18 @@ sub cpanm ($$) {
           qq{USE_APXS=1 WITH_APXS="$RootDirName/local/apache/httpd-1.3/bin/apxs" EVERYTHING=1};
       $envs->{SHELL} = "$MakeInstaller.modperl1";
       push @option, '--look';
-    } elsif ($args->{scandeps} and
-             @$modules and
-             defined $modules->[0]->distvname and
-             $modules->[0]->distvname =~ /^mod_perl-2\./) {
-      install_apache_httpd ('2.2');
-    } elsif ($args->{scandeps} and
-             @$modules and
-             defined $modules->[0]->distvname and
-             $modules->[0]->distvname =~ /^mod_perl-1\./) {
-      install_apache1 ();
+    #} elsif ($args->{scandeps} and
+    #         @$modules and
+    #         defined $modules->[0]->distvname and
+    #         $modules->[0]->distvname =~ /^mod_perl-2\./) {
+    #  install_apache_httpd ('2.2');
+    #  # XXX This does not work well...
+    #} elsif ($args->{scandeps} and
+    #         @$modules and
+    #         defined $modules->[0]->distvname and
+    #         $modules->[0]->distvname =~ /^mod_perl-1\./) {
+    #  install_apache1 ();
+    #  # XXX This does not work well...
     }
 
     my $failed;
