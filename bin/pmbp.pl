@@ -591,6 +591,7 @@ sub add_to_gitignore ($$) {
 sub update_gitignore () {
   my $gitignore_file_name = "$RootDirName/.gitignore";
   add_to_gitignore [qw(
+    *~
     /local/
     /perl
     /prove
@@ -1478,7 +1479,8 @@ sub copy_pmpp_modules ($$) {
 sub delete_pmpp_arch_dir ($$) {
   my ($perl_command, $perl_version) = @_;
   my $archname = get_perl_archname $perl_command, $perl_version;
-  add_to_gitignore ["/lib/perl5/$archname/"] => pmpp_dir_name . "/.gitignore";
+  add_to_gitignore ["/lib/perl5/$archname/", '/man/']
+      => pmpp_dir_name . "/.gitignore";
 } # delete_pmpp_arch_dir
 
 ## ------ Local Perl module directories ------
