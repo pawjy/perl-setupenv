@@ -42,6 +42,7 @@ my $Verbose = $ENV{PMBP_VERBOSE} || 0;
 my $PreserveInfoFile = 0;
 my $DumpInfoFileBeforeDie = $ENV{PMBP_DUMP_BEFORE_DIE} || $ENV{TRAVIS} || 0;
 my $ExecuteSystemPackageInstaller = $ENV{TRAVIS} || 0;
+my $MeCabCharset;
 my $HelpLevel;
 
 my @Argument = @ARGV;
@@ -65,6 +66,7 @@ GetOptions (
   '--preserve-info-file' => \$PreserveInfoFile,
   '--dump-info-file-before-die' => \$DumpInfoFileBeforeDie,
   '--execute-system-package-installer' => \$ExecuteSystemPackageInstaller,
+  '--mecab-charset' => \$MeCabCharset,
 
   '--help' => sub { $HelpLevel = 1 },
   '--version' => sub { $HelpLevel = {-verbose => 99, -sections => [qw(NAME AUTHOR LICENSE)]} },
@@ -174,6 +176,7 @@ GetOptions (
     install-perl print-latest-perl-version print-selected-perl-version
     print-perl-archname print-libs
     print-pmtar-dir-name print-pmpp-dir-name print-perl-path
+    install-mecab
   )),
 ) or do {
   $HelpLevel = 2;
@@ -857,10 +860,12 @@ sub install_makeinstaller ($$) {
   open my $file, '>', "$MakeInstaller.$name"
       or info_die "$0: $MakeInstaller.name: $!";
   printf $file q{#!/bin/sh
-    export SHELL="%s"
-    echo perl Makefile.PL %s && perl Makefile.PL %s && \
-    echo make                && make && \
-    echo make install        && make install
+    (
+      export SHELL="%s"
+      echo perl Makefile.PL %s && perl Makefile.PL %s && \
+      echo make                && make && \
+      echo make install        && make install
+    ) || echo "!!! MakeInstaller failed !!!"
   }, _quote_dq $ENV{SHELL}, $makefilepl_args, $makefilepl_args;
   close $file;
   chmod 0755, "$MakeInstaller.$name";
@@ -917,6 +922,7 @@ sub cpanm ($$) {
   install_cpanm_wrapper;
 
   my $archname = $args->{info} ? $Config{archname} : get_perl_archname $perl_command, $perl_version;
+  my @additional_path;
 
   my $redo = 0;
   COMMAND: {
@@ -924,6 +930,7 @@ sub cpanm ($$) {
     my @required_install;
     my @required_install2;
     my @required_system;
+    my %required_misc;
 
     my $cpanm_lib_dir_name = "$RootDirName/local/perl-$perl_version/cpanm";
     my @perl_option = ("-I$cpanm_lib_dir_name/lib/perl5/$archname",
@@ -965,7 +972,7 @@ sub cpanm ($$) {
     push @option, '--mirror-only';
 
     my $envs = {LANG => 'C',
-                PATH => $path,
+                PATH => (join ':', @additional_path, $path),
                 HOME => get_cpanm_dummy_home_dir_name ($perl_lib_dir_name),
                 PERL_CPANM_HOME => $CPANMHomeDirName};
     
@@ -1010,6 +1017,20 @@ sub cpanm ($$) {
     #         $modules->[0]->distvname =~ /^mod_perl-1\./) {
     #  install_apache1 ();
     #  # XXX This does not work well...
+    } elsif (@module_arg and $module_arg[0] eq 'Text::MeCab' and
+             not $args->{info} and not $args->{scandeps}) {
+      my $mecab_config = mecab_config_file_name ();
+      unless (defined $mecab_config) {
+        install_mecab ();
+        $mecab_config = mecab_config_file_name ();
+      }
+      # <http://cpansearch.perl.org/src/DMAKI/Text-MeCab-0.20014/tools/probe_mecab.pl>
+      install_makeinstaller 'textmecab',
+          qq{--mecab-config="$mecab_config" } .
+          qq{--encoding="} . mecab_charset () . q{"};
+      $envs->{SHELL} = "$MakeInstaller.textmecab";
+      $envs->{LD_LIBRARY_PATH} = mecab_lib_dir_name ();
+      push @option, '--look';
     }
 
     my $failed;
@@ -1132,6 +1153,9 @@ sub cpanm ($$) {
         push @required_system,
             {name => 'libidn-devel', debian_name => 'libidn11-dev'};
         $failed = 1;
+      } elsif ($log =~ /^Can\'t proceed without mecab-config./m) {
+        $required_misc{mecab} = 1;
+        $failed = 1;
       } elsif ($log =~ /^ERROR: proj library not found, where is cs2cs\?/m) {
         push @required_system,
             {name => 'proj-devel', debian_name => 'libproj-dev'};
@@ -1143,6 +1167,8 @@ sub cpanm ($$) {
         }->{$1};
         push @required_install,
             PMBP::Module->new_from_package ($mod) if $mod;
+      } elsif ($log =~ /^!!! MakeInstaller failed !!!$/m) {
+        $failed = 1;
       }
     }; # $scan_errors
 
@@ -1177,6 +1203,11 @@ sub cpanm ($$) {
         }
         if (@required_system) {
           $redo = 1 if install_system_packages \@required_system;
+        }
+        if ($required_misc{mecab}) {
+          if (install_mecab ()) {
+            $redo = 1;
+          }
         }
         if ($install_extutils_embed) {
           ## ExtUtils::Embed is core module since 5.003_07 and you
@@ -2327,6 +2358,101 @@ sub install_apache1 () {
   remove_tree $container_dir_name;
 } # install_apache1
 
+sub install_tarball ($$$;%) {
+  my ($src_url => $package_category => $dest_dir_name, %args) = @_;
+  my $name = $args{name};
+  if (not $name and $src_url =~ /([0-9A-Za-z_.-]+)\.tar\.gz$/) {
+    $name = $1;
+  }
+  info_die "No package name specified" unless $name;
+
+  if ($args{check} and $args{check}->()) {
+    info 2, "Package $1 already installed";
+    return 1;
+  }
+
+  info 0, "Installing $1...";
+  my $tar_file_name = pmtar_dir_name . "/packages/$package_category/$name.tar.gz";
+  save_url $src_url => $tar_file_name unless -f $tar_file_name;
+  
+  my $container_dir_name = "$PMBPDirName/tmp/" . int rand 100000;
+  make_path $container_dir_name;
+  run_command ['tar', 'zxf', $tar_file_name],
+      chdir => $container_dir_name
+      or info_die "Can't expand $tar_file_name";
+  my $src_dir_name = "$container_dir_name/$name";
+
+  run_command
+      ['sh', 'configure',
+       "--prefix=$dest_dir_name",
+       @{$args{configure_args} or []}],
+      chdir => $src_dir_name
+          or info_die "$name ./configure failed";
+  run_command
+      ['make'],
+      chdir => $src_dir_name
+          or info_die "$name make failed";
+  run_command
+      ['make', 'install'],
+      chdir => $src_dir_name
+          or info_die "$name make install failed";
+
+  remove_tree $container_dir_name;
+
+  return $args{check} ? $args{check}->() : 1;
+} # install_tarball
+
+## ------ MeCab ------
+
+sub mecab_version () {
+  return '0.994';
+} # mecab_version
+
+sub mecab_charset () {
+  return $MeCabCharset || 'utf-8';
+} # mecab_charset
+
+sub mecab_bin_dir_name () {
+  return "$RootDirName/local/mecab-@{[mecab_version]}-@{[mecab_charset]}/bin";
+} # mecab_bin_dir_name
+
+sub mecab_lib_dir_name () {
+  return "$RootDirName/local/mecab-@{[mecab_version]}-@{[mecab_charset]}/lib";
+} # mecab_lib_dir_name
+
+sub mecab_config_file_name () {
+  my $bin = mecab_bin_dir_name;
+  if (-x "$bin/mecab-config") {
+    return "$bin/mecab-config";
+  } else {
+    return which 'mecab-config';
+  }
+} # mecab_config_file_name
+
+sub install_mecab () {
+  my $mecab_charset = mecab_charset;
+  my $mecab_version = '0.994';
+  my $dest_dir_name = "$RootDirName/local/mecab-@{[mecab_version]}-@{[mecab_charset]}";
+  return 0 unless install_tarball
+      qq<http://mecab.googlecode.com/files/mecab-$mecab_version.tar.gz>
+      => 'mecab' => $dest_dir_name,
+      configure_args => [
+        '--with-charset=' . $mecab_charset,
+      ],
+      check => sub { -x "@{[mecab_bin_dir_name]}/mecab-config" };
+  return install_tarball
+      'http://mecab.googlecode.com/files/mecab-ipadic-2.7.0-20070801.tar.gz'
+      => 'mecab' => $dest_dir_name,
+      configure_args => [
+        #  --with-dicdir=DIR  set dicdir location
+        '--with-charset=' . $mecab_charset,
+        "--with-mecab-config=" . mecab_config_file_name,
+      ],
+      check => sub {
+        return -f "@{[mecab_lib_dir_name]}/mecab/dic/ipadic/sys.dic";
+      };
+} # install_mecab
+
 ## ------ Cleanup ------
 
 sub destroy () {
@@ -2585,6 +2711,8 @@ while (@Command) {
 
   } elsif ($command->{type} eq 'install-apache') {
     install_apache_httpd $command->{value};
+  } elsif ($command->{type} eq 'install-mecab') {
+    install_mecab;
 
   } else {
     info_die "Command |$command->{type}| is not defined";
@@ -3046,6 +3174,11 @@ specified, the C<yum> command in the default search path is used.
 
 Specify the path to the C<brew> command (homebrew).  If this option is
 not specified, the C<brew> command in the default search path is used.
+
+=item --mecab-charset="utf-8/euc-jp/sjis"
+
+Specify the charset of MeCab.  If this option is not specified,
+C<utf-8> is used as charset.
 
 =back
 
@@ -3529,6 +3662,11 @@ instructed to install mod_perl.
 
 If the specified version of Apache is already installed, this command
 does nothing.
+
+=item --install-mecab
+
+Install MeCab into C<local/mecab-VERSION-CHARSET>.  If MeCab is
+already installed, this command does nothing.
 
 =item --add-to-gitignore="path"
 

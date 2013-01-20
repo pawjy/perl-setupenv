@@ -11,7 +11,7 @@ git-submodules:
 
 PROVE = prove
 
-test: test-deps test-startproxy test-main test-stopproxy
+test: test-deps test-startproxy test-main test-stopproxy test-done
 
 test-deps: git-submodules deps test-proxy-deps
 
@@ -41,3 +41,6 @@ endif
 ifeq "$(TARGET)" "apache"
 	http_proxy=http://localhost:16613 $(PROVE) --verbose t/pmbp-apache/*.t
 endif
+
+test-done:
+	true
