@@ -15,7 +15,7 @@ use File::Spec ();
 use Getopt::Long;
 
 my $PerlCommand = 'perl';
-my $SpecifiedPerlVersion;
+my $SpecifiedPerlVersion = $ENV{PMBP_PERL_VERSION};
 my $WgetCommand = 'wget';
 my $SudoCommand = 'sudo';
 my $AptGetCommand = 'apt-get';
@@ -2952,11 +2952,13 @@ the C<--install-perl> command is invoked, then the value must be one
 of Perl versions.  Otherwise, it must match the version of the default
 C<perl> command.
 
-Otherwise, if this option is not specified but there is
-C<config/perl/version.txt> in the root directory, then the content of
-the file is used as the version instead.  The content of the file must
-be a valid value for the C<--perl-version> option, optionally followed
-by a newline.
+If this option is not specified, the value of the environment variable
+C<PMBP_PERL_VERSION>, if specified, is used.
+
+Otherwise, if there is C<config/perl/version.txt> in the root
+directory, then the content of the file is used as the version
+instead.  The content of the file must be a valid value for the
+C<--perl-version> option, optionally followed by a newline.
 
 Otherwise, if this option is not specified and there is no
 C<config/perl/version.txt>, the version of the default C<perl> command
@@ -3552,6 +3554,10 @@ Set the default for the C<--dump-info-file-before-die> option.
 
 Set the default value for the C<--perlbrew-parallel-count> option.
 Defaulted to C<4> if the environment variable C<TRAVIS> is set.
+
+=item PMBP_PERL_VERSION
+
+Set the default value for the C<--perl-version> option.
 
 =item PMBP_PMTAR_DIR_NAME, PMBP_PMPP_DIR_NAME
 
