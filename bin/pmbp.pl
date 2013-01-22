@@ -48,12 +48,12 @@ my $HelpLevel;
 my @Argument = @ARGV;
 
 GetOptions (
-  '--perl-command=s' => sub { $PerlCommand = split /\s+/, $_[1] },
-  '--wget-command=s' => sub { $WgetCommand = split /\s+/, $_[1] },
-  '--sudo-command=s' => sub { $SudoCommand = split /\s+/, $_[1] },
-  '--apt-get-command=s' => sub { $AptGetCommand = split /\s+/, $_[1] },
-  '--yum-command=s' => sub { $YumCommand = split /\s+/, $_[1] },
-  '--brew-command=s' => sub { $BrewCommand = split /\s+/, $_[1] },
+  '--perl-command=s' => \$PerlCommand,
+  '--wget-command=s' => \$WgetCommand,
+  '--sudo-command=s' => \$SudoCommand,
+  '--apt-get-command=s' => \$AptGetCommand,
+  '--yum-command=s' => \$YumCommand,
+  '--brew-command=s' => \$BrewCommand,
   '--download-retry-count=s' => \$DownloadRetryCount,
   '--perlbrew-installer-url=s' => \$PerlbrewInstallerURL,
   '--perlbrew-parallel-count=s' => \$PerlbrewParallelCount,
