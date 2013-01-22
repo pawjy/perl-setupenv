@@ -17,6 +17,7 @@ use Getopt::Long;
 my $PerlCommand = 'perl';
 my $SpecifiedPerlVersion = $ENV{PMBP_PERL_VERSION};
 my $WgetCommand = 'wget';
+my @WgetOption = ($ENV{PMBP_IGNORE_TLS_ERRORS} ? '--no-check-certificate' : ());
 my $SudoCommand = 'sudo';
 my $AptGetCommand = 'apt-get';
 my $YumCommand = 'yum';
@@ -428,6 +429,7 @@ sub _save_url {
     info 1, "Retrying download ($_/$DownloadRetryCount)...";
     my $result = run_command
         [$WgetCommand,
+         @WgetOption,
          '-O', $file_name,
          ($args{save_response_headers} ? '--save-headers' : ()),
          (map {
@@ -3710,6 +3712,11 @@ C<PMBP_PMTAR_DIR_NAME>, or their default value, i.e. C<deps/pmtar>,
 does not exist, but if there is the directory specified by the
 C<PMBP_FALLBACK_PMTAR_DIR_NAME> environment variable, then the
 directory is used instead.
+
+=item PMBP_IGNORE_TLS_ERRORS
+
+If specified to a true value, any TLS (SSL) certificate error in HTTPS
+connection is ignored.
 
 =item PMBP_VERBOSE
 
