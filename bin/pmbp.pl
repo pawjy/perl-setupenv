@@ -1125,6 +1125,8 @@ sub cpanm ($$) {
         }->{$1};
         push @required_install, PMBP::Module->new_from_package ($module_name)
             if $module_name;
+      } elsif ($log =~ m{(Devel::CheckLib) not found in inc/ nor @INC at inc/Module/Install/XSUtil.pm}) {
+        push @required_install, PMBP::Module->new_from_package ($1);
       } elsif ($log =~ /^Can\'t call method "load_all_extensions" on an undefined value at inc\/Module\/Install.pm /m) {
         $remove_inc = 1;
       } elsif ($log =~ /^(\S+) version \S+ required--this is only version \S+/m) {
