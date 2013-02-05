@@ -1088,6 +1088,7 @@ sub cpanm ($$) {
             push @required_install, PMBP::Module->new_from_package ($1);
           }
         }
+
         $failed = 1;
       } elsif ($log =~ m{^(\S+) \S+ is required to configure this module; please install it or upgrade your CPAN/CPANPLUS shell.}m) {
         push @required_install, PMBP::Module->new_from_package ($1);
@@ -1139,7 +1140,7 @@ sub cpanm ($$) {
         ## can no longer reproduce the problem.)
         push @required_install, PMBP::Module->new_from_module_arg
             ('Net::SSLeay~1.36=http://search.cpan.org/CPAN/authors/id/F/FL/FLORA/Net-SSLeay-1.36.tar.gz');
-      } elsif ($log =~ m{^Can't link/include 'gmp.h', 'gmp'}m) {
+      } elsif ($log =~ m{^Can't link/include (?:C library )?'gmp.h', 'gmp'}m) {
         push @required_system,
             {name => 'gmp-devel', debian_name => 'libgmp-dev',
              homebrew_name => 'gmp'};
