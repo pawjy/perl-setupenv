@@ -990,6 +990,10 @@ sub cpanm ($$) {
 
     my $envs = {LANG => 'C',
                 PATH => (join ':', @additional_path, $path),
+                PERL5LIB => (join ':', grep { defined } 
+                                 "$cpanm_lib_dir_name/lib/perl5/$archname",
+                                 "$cpanm_lib_dir_name/lib/perl5",
+                                 $ENV{PERL5LIB}),
                 HOME => get_cpanm_dummy_home_dir_name ($perl_lib_dir_name),
                 PERL_CPANM_HOME => $CPANMHomeDirName};
     
