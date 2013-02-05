@@ -1053,6 +1053,7 @@ sub cpanm ($$) {
     my $failed;
     my $remove_inc;
     my $install_extutils_embed;
+    my $cpanm_pid;
     my $scan_errors; $scan_errors = sub ($$) {
       my ($level, $log) = @_;
       if ($log =~ /Can\'t locate (\S+\.pm) in \@INC/m) {
@@ -1200,7 +1201,6 @@ sub cpanm ($$) {
                @option,
                @module_arg);
     my $json_temp_file = File::Temp->new;
-    my $cpanm_pid;
     my $cpanm_ok = run_command \@cmd,
         envs => $envs,
         info_command_level => $args->{info} ? 2 : 1,
@@ -1303,12 +1303,12 @@ sub cpanm ($$) {
     } elsif ($args->{scandeps} and -f $json_temp_file->filename) {
       $result->{output_json} = load_json $json_temp_file->filename;
     }
-  } # COMMAND
 
-  if (@module_arg and $module_arg[0] eq 'CPAN' and
-      not $args->{info} and not $args->{scandeps}) {
-    install_cpan_config $perl_command, $perl_version, $perl_lib_dir_name;
-  }
+    if (@module_arg and $module_arg[0] eq 'CPAN' and
+        not $args->{info} and not $args->{scandeps}) {
+      install_cpan_config $perl_command, $perl_version, $perl_lib_dir_name;
+    }
+  } # COMMAND
 
   return $result;
 } # cpanm
