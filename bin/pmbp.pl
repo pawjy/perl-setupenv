@@ -1996,7 +1996,7 @@ sub scan_dependency_from_directory ($) {
       while ($base =~ /([0-9A-Za-z_:]+)/g) {
         $modules->{$1} = 1;
       }
-    } elsif (/(?:use|require)\s*([0-9A-Za-z_:]+)/) {
+    } elsif (/\b(?:use|require)\s*([0-9A-Za-z_:]+)/) {
       my $name = $1;
       next if $name =~ /["']/;
       $modules->{$name} = 1;
