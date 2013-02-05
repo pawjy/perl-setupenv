@@ -404,13 +404,17 @@ sub run_command ($;%) {
           qq{$prefix$prefix0\$ @{[map { $_ . '="' . (_quote_dq $envs->{$_}) . '" ' } sort { $a cmp $b } keys %$envs]}@$command});
   }
   local %ENV = (%ENV, %$envs);
-  open my $cmd, "-|",
+  my $pid = open my $cmd, "-|",
       (defined $args{chdir} ? "cd \Q$args{chdir}\E && " : "") .
+      (defined $args{stdin_value} ? "echo \Q$args{stdin_value}\E" : '') .
       (join ' ', map quotemeta, @$command) .
       ($args{discard_stderr} ? " 2> /dev/null" : " 2>&1") .
       (defined $args{">"} ? ' > ' . quotemeta $args{">"} : '') .
-      ($args{accept_input} ? '' : ' < /dev/null')
+      (($args{accept_input} || defined $args{stdin_value}) ? '' : ' < /dev/null')
       or info_die "$0: $command->[0]: $!";
+  if (defined $args{'$$'}) {
+    ${$args{'$$'}} = $pid;
+  }
   while (<$cmd>) {
     my $level = defined $args{info_level} ? $args{info_level} : 1;
     $level = $args{onoutput}->($_) if $args{onoutput};
@@ -781,6 +785,17 @@ sub get_perl_path ($) {
     return get_perl_config $perl_command, $perl_version, 'archname';
   } # get_perl_archname
 }
+
+sub install_cpan_config ($$$) {
+  my ($perl_command, $perl_version, $perl_lib_dir_name) = @_;
+  return run_command
+      [$perl_command, '-MCPAN', '-MCPAN::HandleConfig',
+       '-e' => q{CPAN::HandleConfig->load; CPAN::HandleConfig->commit}],
+      envs => {LANG => 'C',
+               PATH => get_env_path ($perl_version),
+               HOME => get_cpanm_dummy_home_dir_name ($perl_lib_dir_name)},
+      stdin_value => "yes\n";
+} # install_cpan_config
 
 ## ------ cpanm ------
 
@@ -1169,6 +1184,11 @@ sub cpanm ($$) {
         }->{$1};
         push @required_install,
             PMBP::Module->new_from_package ($mod) if $mod;
+      } elsif ($log =~ /^We have to reconfigure CPAN.pm due to following uninitialized parameters:/m) {
+        kill 15, $cpanm_pid;
+        push @required_cpanm, PMBP::Module->new_from_package ('CPAN');
+        $required_misc{cpan} = 1;
+        $failed = 1;
       } elsif ($log =~ /^!!! MakeInstaller failed !!!$/m) {
         $failed = 1;
       }
@@ -1180,11 +1200,13 @@ sub cpanm ($$) {
                @option,
                @module_arg);
     my $json_temp_file = File::Temp->new;
+    my $cpanm_pid;
     my $cpanm_ok = run_command \@cmd,
         envs => $envs,
         info_command_level => $args->{info} ? 2 : 1,
         prefix => "cpanm($CPANMDepth/$redo): ",
         '>' => ($args->{scandeps} || $args->{info} ? $json_temp_file : undef),
+        '$$' => \$cpanm_pid,
         onoutput => sub {
           my $info_level = 1;
           if ($_[0] =~ /^! Couldn\'t find module or a distribution /) {
@@ -1260,6 +1282,11 @@ sub cpanm ($$) {
             $redo = 1;
           }
         }
+        if ($required_misc{cpan}) {
+          if (install_cpan_config $perl_command, $perl_version, $perl_lib_dir_name) {
+            $redo = 1;
+          }
+        }
         redo COMMAND if $redo;
       }
       if ($args->{info}) {
@@ -1277,6 +1304,12 @@ sub cpanm ($$) {
       $result->{output_json} = load_json $json_temp_file->filename;
     }
   } # COMMAND
+
+  if (@module_arg and $module_arg[0] eq 'CPAN' and
+      not $args->{info} and not $args->{scandeps}) {
+    install_cpan_config $perl_command, $perl_version, $perl_lib_dir_name;
+  }
+
   return $result;
 } # cpanm
 
