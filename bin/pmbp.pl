@@ -2005,6 +2005,7 @@ sub scan_dependency_from_directory ($) {
 
   @include_dir_name = map { glob "$dir_name/$_" } qw(lib t/lib modules/*/lib t_deps/modules/*/lib);
   for (split /\n/, qx{cd \Q$dir_name\E && find @{[join ' ', grep quotemeta, @include_dir_name]} 2> /dev/null | grep "\\.\\(pm\\|pl\\)\$" | xargs grep "package " --no-filename}) {
+    s/\#.*//;
     if (/package\s*([0-9A-Za-z_:]+)/) {
       delete $modules->{$1};
     }
@@ -2015,7 +2016,7 @@ sub scan_dependency_from_directory ($) {
     strict warnings base lib encoding utf8 overload
     constant vars integer
     Config
-    moco and or
+    moco and or on
   );
   for (keys %$modules) {
     delete $modules->{$_} unless /\A[0-9A-Za-z_]+(?:::[0-9A-Za-z_]+)*\z/;
