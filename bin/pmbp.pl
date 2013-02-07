@@ -2016,7 +2016,7 @@ sub scan_dependency_from_directory ($) {
     strict warnings base lib encoding utf8 overload
     constant vars integer
     Config
-    moco and or on
+    moco and or on this that
   );
   for (keys %$modules) {
     delete $modules->{$_} unless /\A[0-9A-Za-z_]+(?:::[0-9A-Za-z_]+)*\z/;
