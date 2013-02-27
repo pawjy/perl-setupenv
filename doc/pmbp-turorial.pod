@@ -219,6 +219,11 @@ dependency, those previously-saved files can't be used for them.
 Therefore it is recommended to list up required modules in
 C<config/perl/modules.txt> for them.
 
+=head2 My application stops working after the application directory is moved into another place!
+
+Remove the C<local> directory and re-install dependency of your
+application.
+
 =head1 LEARN MORE
 
 There are many commands not described in this turorial.  Complete list
@@ -263,7 +268,7 @@ Wakaba <wakaba@suikawiki.org>.
 
 =head1 LICENSE
 
-Copyright 2012 Wakaba <wakaba@suikawiki.org>.
+Copyright 2012-2013 Wakaba <wakaba@suikawiki.org>.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
