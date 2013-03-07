@@ -1123,6 +1123,7 @@ sub cpanm ($$) {
             if $module_name;
       } elsif ($log =~ /^Bareword "([0-9A-Za-z_]+)" not allowed while "strict subs" in use at Makefile.PL /m) {
         my $module_name = {
+          auto_manifest => 'Module::Install::AutoManifest',
           auto_set_repository => 'Module::Install::Repository',
           githubmeta => 'Module::Install::GithubMeta',
           use_test_base => 'Module::Install::TestBase',
