@@ -2966,3 +2966,6 @@ None known.
 
 
 1;
+$INC{"Module/Pluggable.pm"} = 1;
+$INC{"Module/Pluggable/Object.pm"} = 1;
+$INC{"Devel/InnerPackage.pm"} = 1;
