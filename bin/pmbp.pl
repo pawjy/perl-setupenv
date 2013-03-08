@@ -667,7 +667,8 @@ sub get_perlbrew_envs () {
 } # get_perlbrew_envs
 
 sub install_perlbrew () {
-  return if -f "$RootDirName/local/perlbrew/bin/perlbrew";
+  return if -f "$RootDirName/local/perlbrew/bin/perlbrew" and
+            -f "$RootDirName/local/perlbrew/bin/patchperl.main";
   save_url $PerlbrewInstallerURL
       => "$RootDirName/local/install.perlbrew";
 
@@ -690,7 +691,9 @@ sub install_perlbrew () {
     use lib "@{[abs_path "$RootDIrName/local/perlbrew/lib/perl5"]}";
     require "@{[abs_path "$RootDirName/local/perlbrew/bin/patchperl.main"]}";
   };
-
+  close $f;
+  run_command ['chmod', 'ugo+x', "$RootDirName/local/perlbrew/bin/patchperl"]
+      or info_die "Can't move $RootDirName/local/perlbrew/bin/patchperl";
 } # install_perlbrew
 
 sub install_perl ($) {
