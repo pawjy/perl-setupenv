@@ -663,13 +663,18 @@ sub init_perl_version_by_file_name ($) {
 
 sub get_perlbrew_envs () {
   return {PERLBREW_ROOT => (abs_path "$RootDirName/local/perlbrew"),
-          PERL5LIB => ''}
+          PERL5LIB => (abs_path "$RootDirName/local/perlbrew/lib/perl5")}
 } # get_perlbrew_envs
 
 sub install_perlbrew () {
   return if -f "$RootDirName/local/perlbrew/bin/perlbrew";
   save_url $PerlbrewInstallerURL
       => "$RootDirName/local/install.perlbrew";
+
+  # Core module in Perl 5.9.5+
+  save_url q<http://cpansearch.perl.org/src/BINGOS/IPC-Cmd-0.80/lib/IPC/Cmd.pm>
+      => "$RootDirName/local/perlbrew/lib/perl5/IPC/Cmd.pm";
+
   run_command
       ['sh', "$RootDirName/local/install.perlbrew"],
       envs => get_perlbrew_envs;
