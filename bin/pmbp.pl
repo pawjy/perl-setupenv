@@ -663,7 +663,7 @@ sub init_perl_version_by_file_name ($) {
 
 sub get_perlbrew_envs () {
   return {PERLBREW_ROOT => (abs_path "$RootDirName/local/perlbrew"),
-          PERL5LIB => (abs_path "$RootDirName/local/perlbrew/lib/perl5")}
+          PERL5LIB => ''}
 } # get_perlbrew_envs
 
 sub install_perlbrew () {
@@ -671,16 +671,26 @@ sub install_perlbrew () {
   save_url $PerlbrewInstallerURL
       => "$RootDirName/local/install.perlbrew";
 
-  # Core module in Perl 5.9.5+
-  save_url q<http://cpansearch.perl.org/src/BINGOS/IPC-Cmd-0.80/lib/IPC/Cmd.pm>
-      => "$RootDirName/local/perlbrew/lib/perl5/IPC/Cmd.pm";
-
   run_command
       ['sh', "$RootDirName/local/install.perlbrew"],
       envs => get_perlbrew_envs;
   unless (-f "$RootDirName/local/perlbrew/bin/perlbrew") {
     info_die "Can't install perlbrew";
   }
+
+  # Core module in Perl 5.9.5+
+  save_url q<http://cpansearch.perl.org/src/BINGOS/IPC-Cmd-0.80/lib/IPC/Cmd.pm>
+      => "$RootDirName/local/perlbrew/lib/perl5/IPC/Cmd.pm";
+  run_command ['mv', "$RootDirName/local/perlbrew/bin/patchperl"
+                  => "$RootDirName/local/perlbrew/bin/patchperl.main"]
+      or info_die "Can't move $RootDirName/local/perlbrew/bin/patchperl";
+  open my $f, '>', "$RootDirName/local/perlbrew/bin/patchperl"
+      or info_die "Can't write $RootDirName/local/perlbrew/bin/patchperl";
+  print $f q{\#!/usr/bin/perl
+    use lib "@{[abs_path "$RootDIrName/local/perlbrew/lib/perl5"]}";
+    require "@{[abs_path "$RootDirName/local/perlbrew/bin/patchperl.main"]}";
+  };
+
 } # install_perlbrew
 
 sub install_perl ($) {
