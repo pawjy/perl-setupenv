@@ -681,7 +681,7 @@ sub install_perlbrew () {
 
   # Core module in Perl 5.9.5+
   # (IPC::Cmd modified to remove dependency)
-  save_url q<https://raw.github.com/wakaba/perl-setupenv/raw/master/lib/IPC/Cmd.pm>
+  save_url q<https://raw.github.com/wakaba/perl-setupenv/master/lib/IPC/Cmd.pm>
       => "$RootDirName/local/perlbrew/lib/perl5/IPC/Cmd.pm";
 
   run_command ['mv', "$RootDirName/local/perlbrew/bin/patchperl"
