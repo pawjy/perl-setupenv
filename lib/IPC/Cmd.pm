@@ -45,7 +45,6 @@ BEGIN {
 require Carp;
 use Socket;
 use File::Spec;
-use Params::Check               qw[check];
 use Text::ParseWords            ();             # import ONLY if needed!
 use Module::Load::Conditional   qw[can_load];
 use Locale::Maketext::Simple    Style => 'gettext';
@@ -1068,11 +1067,11 @@ sub run {
         timeout => { default  => 0,         store => \$timeout },
     };
 
-    unless( check( $tmpl, \%hash, $VERBOSE ) ) {
-        Carp::carp( loc( "Could not validate input: %1",
-                         Params::Check->last_error ) );
-        return;
-    };
+    #unless( check( $tmpl, \%hash, $VERBOSE ) ) {
+    #    Carp::carp( loc( "Could not validate input: %1",
+    #                     Params::Check->last_error ) );
+    #    return;
+    #};
 
     $cmd = _quote_args_vms( $cmd ) if IS_VMS;
 

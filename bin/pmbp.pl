@@ -680,14 +680,9 @@ sub install_perlbrew () {
   }
 
   # Core module in Perl 5.9.5+
-  save_url q<http://cpansearch.perl.org/src/BINGOS/IPC-Cmd-0.80/lib/IPC/Cmd.pm>
+  # (IPC::Cmd modified to remove dependency)
+  save_url q<https://raw.github.com/wakaba/perl-setupenv/raw/master/lib/IPC/Cmd.pm>
       => "$RootDirName/local/perlbrew/lib/perl5/IPC/Cmd.pm";
-  save_url q<http://cpansearch.perl.org/src/BINGOS/Params-Check-0.36/lib/Params/Check.pm>
-      => "$RootDirName/local/perlbrew/lib/perl5/Params/Check.pm";
-  save_url q<http://cpansearch.perl.org/src/JESSE/Locale-Maketext-Simple-0.21/lib/Locale/Maketext/Simple.pm>
-      => "$RootDirName/local/perlbrew/lib/perl5/Locale/Maketext/Simple.pm";
-  save_url q<http://cpansearch.perl.org/src/BINGOS/Module-Load-0.24/lib/Module/Load.pm>
-      => "$RootDirName/local/perlbrew/lib/perl5/Module/Load.pm";
 
   run_command ['mv', "$RootDirName/local/perlbrew/bin/patchperl"
                   => "$RootDirName/local/perlbrew/bin/patchperl.main"]
