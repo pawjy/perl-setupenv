@@ -10,13 +10,15 @@ git-submodules:
 ## ------ Build ------
 
 lib/perl58perlbrewdeps.pm: Makefile
-	cat lib/IPC/Cmd.pm > $@
-	curl http://cpansearch.perl.org/src/SIMONW/Module-Pluggable-4.7/lib/Module/Pluggable.pm >> $@
-	curl http://cpansearch.perl.org/src/SIMONW/Module-Pluggable-4.7/lib/Module/Pluggable/Object.pm >> $@
-	curl http://cpansearch.perl.org/src/SIMONW/Module-Pluggable-4.7/lib/Devel/InnerPackage.pm >> $@
+	echo 'BEGIN {' > $@
 	echo '$$INC{"Module/Pluggable.pm"} = 1;' >> $@
 	echo '$$INC{"Module/Pluggable/Object.pm"} = 1;' >> $@
 	echo '$$INC{"Devel/InnerPackage.pm"} = 1;' >> $@
+	echo '}' >> $@
+	cat lib/IPC/Cmd.pm >> $@
+	curl http://cpansearch.perl.org/src/SIMONW/Module-Pluggable-4.7/lib/Module/Pluggable.pm >> $@
+	curl http://cpansearch.perl.org/src/SIMONW/Module-Pluggable-4.7/lib/Module/Pluggable/Object.pm >> $@
+	curl http://cpansearch.perl.org/src/SIMONW/Module-Pluggable-4.7/lib/Devel/InnerPackage.pm >> $@
 
 ## ------ Tests ------
 
