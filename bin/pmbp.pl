@@ -691,7 +691,7 @@ sub install_perlbrew () {
       or info_die "Can't write $RootDirName/local/perlbrew/bin/patchperl";
   print $f qq{\#!/usr/bin/perl
     use lib "@{[abs_path "$RootDirName/local/perlbrew/lib/perl5"]}";
-    require "@{[abs_path "$RootDirName/local/perlbrew/bin/patchperl.main"]}";
+    do "@{[abs_path "$RootDirName/local/perlbrew/bin/patchperl.main"]}";
   };
   close $f;
   run_command ['chmod', 'ugo+x', "$RootDirName/local/perlbrew/bin/patchperl"]
