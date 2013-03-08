@@ -686,6 +686,8 @@ sub install_perlbrew () {
       => "$RootDirName/local/perlbrew/lib/perl5/Params/Check.pm";
   save_url q<http://cpansearch.perl.org/src/JESSE/Locale-Maketext-Simple-0.21/lib/Locale/Maketext/Simple.pm>
       => "$RootDirName/local/perlbrew/lib/perl5/Locale/Maketext/Simple.pm";
+  save_url q<http://cpansearch.perl.org/src/BINGOS/Module-Load-0.24/lib/Module/Load.pm>
+      => "$RootDirName/local/perlbrew/lib/perl5/Module/Load.pm";
 
   run_command ['mv', "$RootDirName/local/perlbrew/bin/patchperl"
                   => "$RootDirName/local/perlbrew/bin/patchperl.main"]
