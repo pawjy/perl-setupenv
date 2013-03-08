@@ -46,8 +46,9 @@ require Carp;
 use Socket;
 use File::Spec;
 use Text::ParseWords            ();             # import ONLY if needed!
-use Module::Load::Conditional   qw[can_load];
-use Locale::Maketext::Simple    Style => 'gettext';
+#use Module::Load::Conditional   qw[can_load];
+#use Locale::Maketext::Simple    Style => 'gettext';
+sub loc (@) { return sprintf @_ }
 
 =pod
 
@@ -124,10 +125,11 @@ sub can_use_ipc_run     {
     return if IS_WIN98;
 
     ### if we dont have ipc::run, we obviously can't use it.
-    return unless can_load(
-                        modules => { 'IPC::Run' => '0.55' },
-                        verbose => ($WARN && $verbose),
-                    );
+    return;
+    #return unless can_load(
+    #                    modules => { 'IPC::Run' => '0.55' },
+    #                    verbose => ($WARN && $verbose),
+    #                );
 
     ### otherwise, we're good to go
     return $IPC::Run::VERSION;
@@ -151,10 +153,11 @@ sub can_use_ipc_open3   {
 
     ### IPC::Open3 works on every non-VMS platform platform, but it can't
     ### capture buffers on win32 :(
-    return unless can_load(
-        modules => { map {$_ => '0.0'} qw|IPC::Open3 IO::Select Symbol| },
-        verbose => ($WARN && $verbose),
-    );
+    return;
+    #return unless can_load(
+    #    modules => { map {$_ => '0.0'} qw|IPC::Open3 IO::Select Symbol| },
+    #    verbose => ($WARN && $verbose),
+    #);
 
     return $IPC::Open3::VERSION;
 }
