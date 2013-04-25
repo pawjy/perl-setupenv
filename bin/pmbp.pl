@@ -2933,6 +2933,7 @@ sub distvname ($) {
 
 sub is_perl ($) {
   my $self = shift;
+  return 1 if ($self->package || '') eq 'perl';
   my $dist = $self->distvname;
   return $dist && $dist =~ /^perl-[0-9.]+$/;
 } # is_perl
