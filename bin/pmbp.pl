@@ -1153,8 +1153,8 @@ sub cpanm ($$) {
             if $module_name;
       } elsif ($log =~ m{^(Devel::CheckLib) not found in inc/ nor \@INC at inc/Module/Install/XSUtil.pm}m) {
         push @required_cpanm, PMBP::Module->new_from_package ($1);
-      } elsif ($log =~ /Checking if you have Module::Build [0-9.]+ ... No /m) {
-        push @required_cpanm, PMBP::Module->new_from_package ('Module::Build');
+      } elsif ($log =~ /Checking if you have Module::Build [0-9.]+ ... No \([0-9.]+ < ([0-9.]+)\)/m) {
+        push @required_cpanm, PMBP::Module->new_from_package ('Module::Build~' . $1);
       } elsif ($log =~ /^Can\'t call method "load_all_extensions" on an undefined value at inc\/Module\/Install.pm /m) {
         $remove_inc = 1;
       } elsif ($log =~ /^(\S+) version \S+ required--this is only version \S+/m) {
