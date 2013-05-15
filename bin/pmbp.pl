@@ -3493,6 +3493,31 @@ Therefore,
 ... would run C<perl> and C<prove> installed by the pmbp script with
 any Perl modules installed by the pmbp script.
 
+=item --create-exec-command="command-name"
+
+Create a shell script to invoke a command with environment variables
+C<PATH> and C<PERL5LIB> set to appropriate values for any locally
+installed Perl and its modules under the "root" directory.
+
+The command name can be prefixed by path
+(e.g. C<hoge/fuga/command-name>).  If path is specified, the shell
+script is created within that directory instead (i.e. in C<hoge/fuga>
+in the example).
+
+For example, by invoking the following command:
+
+  $ perl path/to/pmbp.pl --install \
+        --create-exec-command exec
+
+... then an xecutable file C<exec> is created.
+Therefore,
+
+  $ ./exec perl bin/myapp.pl
+  $ ./exec prove t/mymodule-*.t
+
+... would run C<perl> and C<prove> installed by the pmbp script with
+any Perl modules installed by the pmbp script.
+
 =back
 
 =head2 Commands for Perl modules
