@@ -146,6 +146,10 @@ GetOptions (
     push @Command, {type => 'write-libs-txt'},
                    {type => 'create-perl-command-shortcut', command => $_[1]};
   },
+  '--create-exec-command=s' => sub {
+    push @Command, {type => 'write-libs-txt'},
+                   {type => 'create-exec-command', command => $_[1]};
+  },
   '--print-scanned-dependency=s' => sub {
     push @Command, {type => 'print-scanned-dependency',
                     dir_name => $_[1]};
@@ -1607,10 +1611,11 @@ sub get_libs_txt_file_name ($) {
   return "$RootDirName/local/config/perl/libs-$perl_version-$Config{archname}.txt";
 } # get_libs_txt_file_name
 
-sub create_perl_command_shortcut ($$) {
-  my ($perl_version, $command) = @_;
-  my $file_name = $command =~ m{/} ? $command : "$RootDirName/$command";
+sub create_perl_command_shortcut ($$;$) {
+  my ($perl_version, $file_name, $command) = @_;
+  $file_name = $file_name =~ m{/} ? $file_name : "$RootDirName/$file_name";
   mkdir_for_file $file_name;
+  $command ||= '';
   $command = $1 if $command =~ m{/([^/]*)$};
   info_writing 1, "command shortcut", $file_name;
   my $perl_path = get_perlbrew_perl_bin_dir_name $perl_version;
@@ -2722,6 +2727,8 @@ while (@Command) {
     remove_tree $link_name;
     symlink $real_name => $link_name or info_die "$0: $link_name: $!";
   } elsif ($command->{type} eq 'create-perl-command-shortcut') {
+    create_perl_command_shortcut $perl_version, $command->{command}, $command->{command};
+  } elsif ($command->{type} eq 'create-exec-command') {
     create_perl_command_shortcut $perl_version, $command->{command};
   } elsif ($command->{type} eq 'write-makefile-pl') {
     mkdir_for_file $command->{file_name};
@@ -3482,6 +3489,31 @@ Therefore,
 
   $ ./perl bin/myapp.pl
   $ ./prove t/mymodule-*.t
+
+... would run C<perl> and C<prove> installed by the pmbp script with
+any Perl modules installed by the pmbp script.
+
+=item --create-exec-command="command-name"
+
+Create a shell script to invoke a command with environment variables
+C<PATH> and C<PERL5LIB> set to appropriate values for any locally
+installed Perl and its modules under the "root" directory.
+
+The command name can be prefixed by path
+(e.g. C<hoge/fuga/command-name>).  If path is specified, the shell
+script is created within that directory instead (i.e. in C<hoge/fuga>
+in the example).
+
+For example, by invoking the following command:
+
+  $ perl path/to/pmbp.pl --install \
+        --create-exec-command exec
+
+... then an executable file C<exec> is created.
+Therefore,
+
+  $ ./exec perl bin/myapp.pl
+  $ ./exec prove t/mymodule-*.t
 
 ... would run C<perl> and C<prove> installed by the pmbp script with
 any Perl modules installed by the pmbp script.
