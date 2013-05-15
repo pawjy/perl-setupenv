@@ -3509,7 +3509,7 @@ For example, by invoking the following command:
   $ perl path/to/pmbp.pl --install \
         --create-exec-command exec
 
-... then an xecutable file C<exec> is created.
+... then an executable file C<exec> is created.
 Therefore,
 
   $ ./exec perl bin/myapp.pl
