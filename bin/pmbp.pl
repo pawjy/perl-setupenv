@@ -1205,6 +1205,10 @@ sub cpanm ($$) {
       } elsif ($log =~ /^Can\'t proceed without mecab-config./m) {
         $required_misc{mecab} = 1;
         $failed = 1;
+      } elsif ($log =~ /^The GeoIP CAPI is not installed you should do that. Otherwise try/m) {
+        push @required_system,
+            {name => 'GeoIP-devel', debian_name => 'libgeoip-dev'};
+        $failed = 1;
       } elsif ($log =~ /^ERROR: proj library not found, where is cs2cs\?/m) {
         push @required_system,
             {name => 'proj-devel', debian_name => 'libproj-dev'};
