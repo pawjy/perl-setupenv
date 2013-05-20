@@ -424,7 +424,11 @@ sub run_command ($;%) {
     $level = $args{onoutput}->($_) if $args{onoutput};
     info $level, "$prefix$_";
   }
-  return close $cmd;
+  my $return = close $cmd;
+  if ($args{'$?'}) {
+    ${$args{'$?'}} = $?;
+  }
+  return $return;
 } # run_command
 
 ## ------ Downloading ------
@@ -1248,12 +1252,14 @@ sub cpanm ($$) {
                @option,
                @module_arg);
     my $json_temp_file = File::Temp->new;
+    my $cpanm_error;
     my $cpanm_ok = run_command \@cmd,
         envs => $envs,
         info_command_level => $args->{info} ? 2 : 1,
         prefix => "cpanm($CPANMDepth/$redo): ",
         '>' => ($args->{scandeps} || $args->{info} ? $json_temp_file : undef),
         '$$' => \$cpanm_pid,
+        '$?' => \$cpanm_error,
         onoutput => sub {
           my $info_level = 1;
           if ($_[0] =~ /^! Couldn\'t find module or a distribution /) {
@@ -1263,6 +1269,11 @@ sub cpanm ($$) {
           return $info_level;
         };
     info 2, "cpanm done";
+    if (not $cpanm_ok and not $failed and (($$cpanm_error >> 8) == 1) and
+        $args->{scandeps} and -f $json_temp_file->filename) {
+      ## cpanm --scandeps exits with return value 1...
+      $cpanm_ok = 1;
+    }
     ($cpanm_ok and not $failed) or do {
       unless ($CPANMDepth > 100 or $redo++ > 10) {
         my $redo;
