@@ -1669,25 +1669,16 @@ sub scandeps ($$$;%) {
     }
   }
 
-  my $count = 0;
-  CPANM: {
-    info 4, "scandeps($count): @{[$module->as_short]}";
-    my $temp_dir_name = $args{temp_dir_name} || tempdir('PMBP-XX'.'XX'.'XX', TMPDIR => 1, CLEANUP => 1);
+  my $temp_dir_name = $args{temp_dir_name} || tempdir('PMBP-XX'.'XX'.'XX', TMPDIR => 1, CLEANUP => 1);
 
-    get_local_copy_if_necessary $module;
-    my $result = cpanm +{perl_version => $perl_version,
-                         perl_lib_dir_name => $temp_dir_name,
-                         temp_dir_name => $temp_dir_name,
-                         module_index_file_name => $args{module_index_file_name},
-                         scandeps => {module_index => $module_index}},
-                       [$module];
+  get_local_copy_if_necessary $module;
+  my $result = cpanm {perl_version => $perl_version,
+                      perl_lib_dir_name => $temp_dir_name,
+                      temp_dir_name => $temp_dir_name,
+                      module_index_file_name => $args{module_index_file_name},
+                      scandeps => {module_index => $module_index}}, [$module];
 
-    _scandeps_write_result ($result, $module, $module_index);
-
-    unless ($module_index->find_by_module ($module)) {
-      redo CPANM if $count++ < 10;
-    }
-  } # CPANM
+  _scandeps_write_result ($result, $module, $module_index);
 } # scandeps
 
 sub _scandeps_write_result ($$$;%) {
