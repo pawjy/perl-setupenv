@@ -857,6 +857,15 @@ sub install_cpanm_wrapper () {
 
     sub CPAN::Meta::TO_JSON { undef }
 
+    my $orig_unsatisfied_deps = \&App::cpanminus::script::unsatisfied_deps;
+    *App::cpanminus::script::unsatisfied_deps = sub {
+      if ($_[0]->{scandeps}) {
+        return ();
+      } else {
+        return $orig_unsatisfied_deps->(@_);
+      }
+    };
+
     my $orig_search_module = \&App::cpanminus::script::search_module;
     *App::cpanminus::script::search_module = sub {
       my ($self, $module, $version) = @_;
