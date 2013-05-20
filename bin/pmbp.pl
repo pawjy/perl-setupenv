@@ -1345,6 +1345,10 @@ sub cpanm ($$) {
             $redo = 1;
           }
         }
+        if (not $cpanm_ok and not $failed and (($cpanm_error >> 8) == 1) and
+            $args->{scandeps} and not -f $json_temp_file->filename) {
+          $redo = 1;
+        }
         redo COMMAND if $redo;
       }
       if ($args->{info}) {
