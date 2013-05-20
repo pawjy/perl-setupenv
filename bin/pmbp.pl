@@ -845,6 +845,14 @@ sub install_cpanm_wrapper () {
       require ($file_name . "/cpanm");
     }
 
+    require JSON::PP;
+    my $orig_jsonpp = \&JSON::PP::new;
+    *JSON::PP::new = sub {
+      return $orig_jsonpp->(@_)->allow_blessed;
+    };
+
+    sub CPAN::Meta::TO_JSON { undef }
+
     my $orig_search_module = \&App::cpanminus::script::search_module;
     *App::cpanminus::script::search_module = sub {
       my ($self, $module, $version) = @_;
