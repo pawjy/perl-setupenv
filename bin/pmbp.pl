@@ -1366,9 +1366,10 @@ sub cpanm ($$) {
       } elsif ($args->{ignore_errors}) {
         info 0, "cpanm($CPANMDepth): Processing @{[join ' ', map { ref $_ ? $_->as_short : $_ } @$modules]} failed (@{[$? >> 8]}) (Ignored)";
       } else {
+        if ($diag{env}) {
+          info 0, "Environment variables |PERL5LIB| and/or |PERL5OPT| is set.  Is this really intentional?";
+        }
         info_die "cpanm($CPANMDepth): Processing @{[join ' ', map { ref $_ ? $_->as_short : $_ } @$modules]} failed (@{[$? >> 8]})\n";
-      } elsif ($diag{env}) {
-        info 0, "Environment variables |PERL5LIB| and/or |PERL5OPT| is set.  Is this really intentional?";
       }
     }; # close or do
     if ($args->{info} and -f $json_temp_file->filename) {
