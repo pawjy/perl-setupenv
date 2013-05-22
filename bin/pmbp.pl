@@ -994,6 +994,7 @@ sub cpanm ($$) {
     my @required_install2;
     my @required_system;
     my %required_misc;
+    my %diag;
 
     my $cpanm_lib_dir_name = "$RootDirName/local/perl-$perl_version/cpanm";
     my @perl_option = ("-I$cpanm_lib_dir_name/lib/perl5/$archname",
@@ -1250,6 +1251,10 @@ sub cpanm ($$) {
         push @required_cpanm, PMBP::Module->new_from_package ('CPAN');
         $required_misc{cpan} = 1;
         $failed = 1;
+      } elsif ($log =~ /^Undefined subroutine &Scalar::Util::blessed called/m) {
+        if ($ENV{PERL5LIB} or $ENV{PERL5OPT}) {
+          $diag{env} = 1;
+        }
       } elsif ($log =~ /^!!! MakeInstaller failed !!!$/m) {
         $failed = 1;
       }
@@ -1362,6 +1367,8 @@ sub cpanm ($$) {
         info 0, "cpanm($CPANMDepth): Processing @{[join ' ', map { ref $_ ? $_->as_short : $_ } @$modules]} failed (@{[$? >> 8]}) (Ignored)";
       } else {
         info_die "cpanm($CPANMDepth): Processing @{[join ' ', map { ref $_ ? $_->as_short : $_ } @$modules]} failed (@{[$? >> 8]})\n";
+      } elsif ($diag{env}) {
+        info 0, "Environment variables |PERL5LIB| and/or |PERL5OPT| is set.  Is this really intentional?";
       }
     }; # close or do
     if ($args->{info} and -f $json_temp_file->filename) {
