@@ -2576,6 +2576,9 @@ my $pmpp_touched;
 my $start_time = time;
 open_info_file;
 init_pmbp;
+for my $env (qw(PATH PERL5LIB PERL5OPT)) {
+  info 6, $env . '=' . (defined $ENV{$env} ? $ENV{$env} : '');
+}
 info 6, '$ ' . join ' ', $0, @Argument;
 info 6, sprintf '%s %vd (%s)', $^X, $^V, $Config{archname};
 info 6, '@INC = ' . join ' ', @INC;
