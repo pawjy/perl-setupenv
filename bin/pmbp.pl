@@ -1157,6 +1157,8 @@ sub cpanm ($$) {
         $failed = 1;
       } elsif ($log =~ /^Failed to extract .+.zip - You need to have unzip or Archive::Zip installed./m) {
         push @required_cpanm, PMBP::Module->new_from_package ('Archive::Zip');
+      } elsif ($log =~ /^(JSON::PP) ([0-9.]+) is not available/m) {
+        push @required_cpanm, PMBP::Module->new_from_package ($1 . '~' . $2);
       } elsif ($log =~ /^only nested arrays of non-refs are supported at .*?\/ExtUtils\/MakeMaker.pm/m) {
         push @required_install,
             PMBP::Module->new_from_package ('ExtUtils::MakeMaker');
