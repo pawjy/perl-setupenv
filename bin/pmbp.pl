@@ -28,6 +28,7 @@ my $PerlbrewParallelCount = $ENV{PMBP_PARALLEL_COUNT} || ($ENV{TRAVIS} ? 4 : 1);
 my $CPANModuleIndexURL = q<http://search.cpan.org/CPAN/modules/02packages.details.txt.gz>;
 my $CPANMURL = q<http://cpanmin.us/>;
 my $PMBPURL = q<https://github.com/wakaba/perl-setupenv/raw/master/bin/pmbp.pl>;
+my $MakefileURL = q<https://github.com/wakaba/perl-setupenv/raw/master/Makefile.pmbp.example>;
 my $ImageMagickURL = q<http://www.imagemagick.org/download/ImageMagick.tar.gz>;
 my $RootDirName = '.';
 my $FallbackPMTarDirName = $ENV{PMBP_FALLBACK_PMTAR_DIR_NAME};
@@ -162,7 +163,7 @@ GetOptions (
     ("--$n=s" => sub {
       push @Command, {type => $n, value => $_[1]};
     });
-  } qw(install-apache)),
+  } qw(install-apache create-pmbp-makefile)),
   (map {
     my $n = $_;
     ("--$n=s" => sub {
@@ -2776,6 +2777,8 @@ while (@Command) {
     create_perl_command_shortcut $perl_version, $command->{command}, $command->{command};
   } elsif ($command->{type} eq 'create-exec-command') {
     create_perl_command_shortcut $perl_version, $command->{command};
+  } elsif ($command->{type} eq 'create-pmbp-makefile') {
+    save_url $MakefileURL => $command->{value};
   } elsif ($command->{type} eq 'write-makefile-pl') {
     mkdir_for_file $command->{file_name};
     open my $file, '>', $command->{file_name}
@@ -3459,6 +3462,11 @@ available.  This is internally used to detect newer version of the
 script by the C<--update-pmbp-pl> command.  If the pmbp.pl script is
 not retrieved by the C<--update-pmbp-pl> command, the script does not
 know its C<ETag> and this command would print nothing.
+
+=item --create-pmbp-makefile="path/to/Makefile"
+
+Create a sample Makefile containing rules for installing dependency
+and running test scripts using pmbp.pl infrastructure.
 
 =back
 
