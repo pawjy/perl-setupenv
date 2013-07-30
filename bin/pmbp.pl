@@ -2926,6 +2926,7 @@ sub new_from_carton_lock_entry ($$) {
     'IO::Compress' => 'IO::Compress::Base',
     'Mail' => 'Mail::Address',
     'Gearman' => 'Gearman::Client',
+    'Template::Toolkit' => 'Template',
   }->{$entry->{package}} || $entry->{package};
   return $entry;
 } # new_from_carton_lock_entry
