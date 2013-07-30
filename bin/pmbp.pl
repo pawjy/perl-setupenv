@@ -2917,9 +2917,11 @@ sub new_from_cpanm_scandeps_json_module ($$) {
 
 sub new_from_carton_lock_entry ($$) {
   my ($class, $json) = @_;
-  return bless {package => $json->{target} || $json->{name},
-                version => $json->{version},
-                pathname => $json->{pathname}}, $class;
+  my $entry = bless {package => $json->{target} || $json->{name},
+                     version => $json->{version},
+                     pathname => $json->{pathname}}, $class;
+  $entry =~ s{^libxml::perl$}{XML::Perl2SAX};
+  return $entry;
 } # new_from_carton_lock_entry
 
 sub new_from_jsonable ($$) {
