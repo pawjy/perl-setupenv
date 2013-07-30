@@ -829,7 +829,7 @@ sub install_cpan_config ($$$) {
 ## ------ cpanm ------
 
 sub install_cpanm () {
-  return if -f $CPANMCommand;
+  #return if -f $CPANMCommand;
   save_url $CPANMURL => $CPANMCommand;
 } # install_cpanm
 
@@ -909,7 +909,7 @@ sub install_cpanm_wrapper () {
     
     my $app = App::cpanminus::script->new;
     $app->parse_options (@ARGV);
-    $app->doit or exit 1;
+    exit $app->doit;
   };
   close $file;
   $CPANMWrapperCreated = 1;
