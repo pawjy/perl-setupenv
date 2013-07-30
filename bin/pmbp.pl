@@ -2920,7 +2920,7 @@ sub new_from_carton_lock_entry ($$) {
   my $entry = bless {package => $json->{target} || $json->{name},
                      version => $json->{version},
                      pathname => $json->{pathname}}, $class;
-  $entry =~ s{^libxml::perl$}{XML::Perl2SAX};
+  $entry->{package} =~ s{^libxml::perl$}{XML::Perl2SAX};
   return $entry;
 } # new_from_carton_lock_entry
 
