@@ -2921,6 +2921,7 @@ sub new_from_carton_lock_entry ($$) {
                      version => $json->{version},
                      pathname => $json->{pathname}}, $class;
   $entry->{package} =~ s{^libxml::perl$}{XML::Perl2SAX};
+  $entry->{package} =~ s{^MIME::tools$}{MIME::Tools};
   return $entry;
 } # new_from_carton_lock_entry
 
