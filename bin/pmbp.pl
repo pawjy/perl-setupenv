@@ -2925,6 +2925,7 @@ sub new_from_carton_lock_entry ($$) {
     'MIME::tools' => 'MIME::Tools',
     'IO::Compress' => 'IO::Compress::Base',
     'Mail' => 'Mail::Address',
+    'Gearman' => 'Gearman::Client',
   }->{$entry->{package}} || $entry->{package};
   return $entry;
 } # new_from_carton_lock_entry
