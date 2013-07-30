@@ -2920,9 +2920,12 @@ sub new_from_carton_lock_entry ($$) {
   my $entry = bless {package => $json->{target} || $json->{name},
                      version => $json->{version},
                      pathname => $json->{pathname}}, $class;
-  $entry->{package} =~ s{^libxml::perl$}{XML::Perl2SAX};
-  $entry->{package} =~ s{^MIME::tools$}{MIME::Tools};
-  $entry->{package} =~ s{^IO::Compress$}{IO::Compress::Base};
+  $entry->{package} = {
+    'libxml::perl' => 'XML::Perl2SAX',
+    'MIME::tools' => 'MIME::Tools',
+    'IO::Compress' => 'IO::Compress::Base',
+    'Mail' => 'Mail::Address',
+  }->{$entry->{package}} || $entry->{package};
   return $entry;
 } # new_from_carton_lock_entry
 
