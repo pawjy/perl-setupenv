@@ -2917,7 +2917,7 @@ sub new_from_cpanm_scandeps_json_module ($$) {
 
 sub new_from_carton_lock_entry ($$) {
   my ($class, $json) = @_;
-  return bless {package => $json->{target} || $json->{name},
+  return bless {package => $json->{module} || $json->{target} || $json->{name},
                 version => $json->{version},
                 pathname => $json->{pathname}}, $class;
 } # new_from_carton_lock_entry
