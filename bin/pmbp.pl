@@ -526,6 +526,16 @@ sub load_json ($) {
   return $json;
 } # load_json
 
+sub load_json_after_garbage ($) {
+  open my $file, '<', $_[0] or info_die "$0: $_[0]: $!";
+  local $/ = undef;
+  my $data = <$file>;
+  $data =~ s{^.*\n\[}{[}s;
+  my $json = decode_json ($data);
+  close $file;
+  return $json;
+} # load_json_after_garbage
+
 ## ------ System environment ------
 
 {
@@ -1311,6 +1321,7 @@ sub cpanm ($$) {
         profiler_name => 'cpanm',
         prefix => "cpanm($CPANMDepth/$redo): ",
         '>' => ($args->{scandeps} || $args->{info} ? $json_temp_file : undef),
+        discard_stderr => ($args->{scandeps} || $args->{info} ? 1 : 0),
         '$$' => \$cpanm_pid,
         '$?' => \$cpanm_error,
         onoutput => sub {
@@ -1415,7 +1426,8 @@ sub cpanm ($$) {
       open my $file, '<', $json_temp_file->filename or info_die "$0: $!";
       $result->{output_text} = <$file>;
     } elsif ($args->{scandeps} and -f $json_temp_file->filename) {
-      $result->{output_json} = load_json $json_temp_file->filename;
+      ## Parse JSON data, ignoring any progress before it...
+      $result->{output_json} = load_json_after_garbage $json_temp_file->filename;
     }
 
     if (@module_arg and $module_arg[0] eq 'CPAN' and
@@ -3132,24 +3144,40 @@ sub add_modules ($$) {
 
 sub merge_modules {
   my ($i1, $i2) = @_;
-  my @m;
-  for my $m (@$i2) {
-    unless ($i1->find_by_module ($m)) {
-      push @m, $m;
+  my $modules = {};
+  my @result;
+  for ($i1->to_list, (ref $i2 eq 'ARRAY' ? @$i2 : $i2->to_list)) {
+    my $package = $_->package;
+    if (defined $package) {
+      if ($modules->{$package}) {
+        my $v1 = $_->version;
+        my $v2 = $modules->{$package}->version;
+        if (defined $v1 and defined $v2) {
+          main::install_pmbp_module (PMBP::Module->new_from_package ('version'));
+          if (version->new ($v1) > version->new ($v2)) {
+            $modules->{$package} = $_;
+          } else {
+            #
+          }
+        } elsif (defined $v1) {
+          $modules->{$package} = $_;
+        } elsif (defined $v2) {
+          #
+        } else {
+          #
+        }
+      } else {
+        $modules->{$package} = $_;
+      }
+    } else {
+      push @result, $_;
     }
   }
-  $i1->add_modules (\@m);
+  @{$i1->{list}} = (values %$modules, @result);
 } # merge_modules
 
 sub merge_module_index {
-  my ($i1, $i2) = @_;
-  my @m;
-  for my $m (($i2->to_list)) {
-    unless ($i1->find_by_module ($m)) {
-      push @m, $m;
-    }
-  }
-  $i1->add_modules (\@m);
+  $_[0]->merge_modules ($_[1]);
 } # merge_module_index
 
 sub to_list ($) {
