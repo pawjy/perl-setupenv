@@ -3173,7 +3173,7 @@ sub merge_modules {
       push @result, $_;
     }
   }
-  @{$i1->{list}} = (values %$modules, @result);
+  @{$i1->{list}} = (grep { $_ } values %$modules, @result);
 } # merge_modules
 
 sub merge_module_index {
