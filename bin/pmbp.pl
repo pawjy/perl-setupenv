@@ -863,8 +863,10 @@ sub install_cpan_config ($$$) {
 ## ------ cpanm ------
 
 sub install_cpanm () {
-  #return if -f $CPANMCommand;
-  save_url $CPANMURL => $CPANMCommand;
+  if (not -f $CPANMCommand or
+      [stat $CPANMCommand]->[9] < [stat $0]->[9]) { # mtime
+    save_url $CPANMURL => $CPANMCommand;
+  }
 } # install_cpanm
 
 my $CPANMWrapperCreated;
@@ -1436,7 +1438,7 @@ sub get_default_mirror_file_name () {
   my $txt_file_name = qq<$CPANMDirName/modules/02packages.details.txt>;
   my $updated;
   if (not -f $file_name or
-      [stat $file_name]->[9] + 24 * 60 * 60 < time or
+      [stat $file_name]->[9] + 24 * 60 * 60 < time or # mtime
       [stat $file_name]->[7] < 1 * 1024 * 1024) {
     save_url $CPANModuleIndexURL => $file_name;
     utime time, time, $file_name;
