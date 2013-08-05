@@ -816,7 +816,7 @@ sub get_perl_path ($) {
     unless ($PerlVersionChecked->{$path, $perl_command}) {
       my $actual_perl_version = get_perl_version ($perl_command) || '?';
       if ($actual_perl_version eq $perl_version) {
-        $PerlVersionChecked->{$path} = 1;
+        $PerlVersionChecked->{$path, $perl_command} = 1;
       } else {
         info_die "Perl version mismatch: $actual_perl_version ($perl_version expected)" . Carp::longmess ();
       }
