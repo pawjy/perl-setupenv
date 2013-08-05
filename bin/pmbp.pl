@@ -1826,6 +1826,7 @@ sub load_deps ($$) {
     next if not defined $dist;
     next if $done{$dist}++;
     my $json_file_name = deps_json_dir_name . "/$dist.json";
+    info 2, "Loading $json_file_name...";
     unless (-f $json_file_name) {
       info 2, "$json_file_name not found";
       return undef;
