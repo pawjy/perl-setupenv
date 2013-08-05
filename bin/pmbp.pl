@@ -2923,9 +2923,12 @@ sub set_module_index_file_name ($$) {
   $LoadedModuleIndexFileName->{$file_name} = 1;
 } # set_module_index_file_name
 
-my $PackageCompat = {
-  'GD::Image' => 'GD',
-};
+my $PackageCompat;
+BEGIN {
+  $PackageCompat = {
+    'GD::Image' => 'GD',
+  };
+}
 
 sub new_from_package ($$) {
   return bless {package => $PackageCompat->{$_[1]} || $_[1]}, $_[0];
