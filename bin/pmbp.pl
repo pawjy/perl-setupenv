@@ -3165,6 +3165,7 @@ sub merge_modules {
         my $v2 = $modules->{$package}->version;
         if (defined $v1 and defined $v2) {
           main::install_pmbp_module (PMBP::Module->new_from_package ('version'));
+          require version;
           if (version->new ($v1) > version->new ($v2)) {
             $modules->{$package} = $_;
           } else {
