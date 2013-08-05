@@ -2189,6 +2189,21 @@ sub get_module_version ($$$) {
   return $result;
 } # get_module_version
 
+my $MMDLoaded;
+sub require_module_metadata () {
+  return if $MMDLoaded;
+  install_pmbp_module PMBP::Module->new_from_package ('Module::Metadata');
+  install_pmbp_module PMBP::Module->new_from_package ('version');
+  ## Since the currently loaded version of |version| module might be
+  ## older than the one required by the |Module::Metadata|, clear the
+  ## module's loaded flag.
+  delete $INC{'Module/Metadata.pm'};
+  delete $INC{'version.pm'};
+  require Module::Metadata;
+  require version;
+  $MMDLoaded = 1;
+} # require_module_metadata
+
 sub has_module ($$$$) {
   my ($perl_command, $perl_version, $module, $dir_name) = @_;
   my $package = $module->package;
@@ -2204,10 +2219,7 @@ sub has_module ($$$$) {
     next unless -f $_;
     return 1 if not defined $version;
     
-    install_pmbp_module PMBP::Module->new_from_package ('Module::Metadata');
-    install_pmbp_module PMBP::Module->new_from_package ('version');
-    require Module::Metadata;
-    require version;
+    require_module_metadata;
 
     my $meta = Module::Metadata->new_from_file ($_) or next;
     my $actual_version = $meta->version;
