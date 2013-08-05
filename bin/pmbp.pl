@@ -294,11 +294,16 @@ $PMPPDirName ||= $RootDirName . '/deps/pmpp';
   my %start_time;
   sub profiler_start ($) {
     $start_time{$_[0]} = time;
+    info 6, sprintf "Profiler: %.3f: %s started",
+        $start_time{$_[0]}, $_[0];
   } # profiler_start
 
   my %profile;
   sub profiler_stop ($) {
-    $profile{$_[0]} += time - $start_time{$_[0]};
+    my $time = time;
+    $profile{$_[0]} += $time - $start_time{$_[0]};
+    info 6, sprintf "Profiler: %.3f: %s stopped (%.3f s)",
+        $time, $_[0], $profile{$_[0]};
   } # profiler_stop
 
   sub profiler_data () {
@@ -2614,8 +2619,8 @@ my $global_module_index = PMBP::ModuleIndex->new_empty;
 my $selected_module_index = PMBP::ModuleIndex->new_empty;
 my $module_index_file_name;
 my $pmpp_touched;
-profiler_start 'all';
 open_info_file;
+profiler_start 'all';
 init_pmbp;
 for my $env (qw(PATH PERL5LIB PERL5OPT)) {
   info 6, $env . '=' . (defined $ENV{$env} ? $ENV{$env} : '');
