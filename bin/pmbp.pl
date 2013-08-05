@@ -2922,15 +2922,19 @@ sub set_module_index_file_name ($$) {
   $LoadedModuleIndexFileName->{$file_name} = 1;
 } # set_module_index_file_name
 
+my $PackageCompat = {
+  'GD::Image' => 'GD',
+};
+
 sub new_from_package ($$) {
-  return bless {package => $_[1]}, $_[0];
+  return bless {package => $PackageCompat->{$_[1]} || $_[1]}, $_[0];
 } # new_from_package
 
 sub new_from_pm_file_name ($$) {
   my $m = $_[1];
   $m =~ s/\.pm$//;
   $m =~ s{[/\\]+}{::}g;
-  return bless {package => $m}, $_[0];
+  return bless {package => $PackageCompat->{$m} || $m}, $_[0];
 } # new_from_pm_file_name
 
 sub new_from_module_arg ($$) {
@@ -2938,15 +2942,18 @@ sub new_from_module_arg ($$) {
   if (not defined $arg) {
     croak "Module argument is not specified";
   } elsif ($arg =~ /\A([0-9A-Za-z_:]+)\z/) {
-    return bless {package => $1}, $class;
+    return bless {package => $PackageCompat->{$1} || $1}, $class;
   } elsif ($arg =~ /\A([0-9A-Za-z_:]+)~([0-9A-Za-z_.-]+)\z/) {
-    return bless {package => $1, version => $2}, $class;
+    return bless {package => $PackageCompat->{$1} || $1,
+                  version => $2}, $class;
   } elsif ($arg =~ m{\A([0-9A-Za-z_:]+)=([Hh][Tt][Tt][Pp][Ss]?://.+)\z}) {
-    my $self = bless {package => $1, url => $2}, $class;
+    my $self = bless {package => $PackageCompat->{$1} || $1,
+                      url => $2}, $class;
     $self->_set_distname;
     return $self;
   } elsif ($arg =~ m{\A([0-9A-Za-z_:]+)~([0-9A-Za-z_.-]+)=([Hh][Tt][Tt][Pp][Ss]?://.+)\z}) {
-    my $self = bless {package => $1, version => $2, url => $3}, $class;
+    my $self = bless {package => $PackageCompat->{$1} || $1,
+                      version => $2, url => $3}, $class;
     $self->_set_distname;
     return $self;
   } elsif ($arg =~ m{\A([Hh][Tt][Tt][Pp][Ss]?://.+)\z}) {
@@ -2961,7 +2968,7 @@ sub new_from_module_arg ($$) {
 
 sub new_from_cpanm_scandeps_json_module ($$) {
   my ($class, $json) = @_;
-  return bless {package => $json->{module},
+  return bless {package => $PackageCompat->{$json->{module}} || $json->{module},
                 version => $json->{module_version},
                 distvname => $json->{distvname} || $json->{dir},
                 pathname => $json->{pathname} || (defined $json->{dir} ? 'misc/' . $json->{dir} . '.tar.gz' : undef)}, $class;
@@ -2988,7 +2995,7 @@ sub new_from_jsonable ($$) {
 } # new_from_jsonable
 
 sub new_from_indexable ($$) {
-  return bless {package => $_[1]->[0],
+  return bless {package => $PackageCompat->{$_[1]->[0]} || $_[1]->[0],
                 version => $_[1]->[1] eq 'undef' ? undef : $_[1]->[1],
                 pathname => $_[1]->[2]}, $_[0];
 } # new_from_indexable
