@@ -13,6 +13,7 @@ use File::Copy qw(copy move);
 use File::Temp qw(tempdir);
 use File::Spec ();
 use Getopt::Long;
+use Time::HiRes qw(time);
 
 my $PerlCommand = 'perl';
 my $SpecifiedPerlVersion = $ENV{PMBP_PERL_VERSION};
@@ -282,6 +283,22 @@ $PMPPDirName ||= $RootDirName . '/deps/pmpp';
   } # info_end
 }
 
+{
+  my %start_time;
+  sub profiler_start ($) {
+    $start_time{$_[0]} = time;
+  } # profiler_start
+
+  my %profile;
+  sub profiler_stop ($) {
+    $profile{$_[0]} += time - $start_time{$_[0]};
+  } # profiler_stop
+
+  sub profiler_data () {
+    return \%profile;
+  } # profiler_data
+}
+
 ## ------ PMBP ------
 
 {
@@ -409,6 +426,7 @@ sub run_command ($;%) {
           qq{$prefix$prefix0\$ @{[map { $_ . '="' . (_quote_dq $envs->{$_}) . '" ' } sort { $a cmp $b } keys %$envs]}@$command});
   }
   local %ENV = (%ENV, %$envs);
+  profiler_start ($args{profiler_name} || 'command');
   my $pid = open my $cmd, "-|",
       (defined $args{chdir} ? "cd \Q$args{chdir}\E && " : "") .
       (defined $args{stdin_value} ? "echo \Q$args{stdin_value}\E" : '') .
@@ -429,6 +447,7 @@ sub run_command ($;%) {
   if ($args{'$?'}) {
     ${$args{'$?'}} = $?;
   }
+  profiler_stop ($args{profiler_name} || 'command');
   return $return;
 } # run_command
 
@@ -450,6 +469,7 @@ sub _save_url {
          } @{$args{request_headers} or []}),
          $url],
         info_level => 2,
+        profiler_name => 'network',
         prefix => "wget($_/$DownloadRetryCount): ";
     return 1 if $result && -f $file_name;
   }
@@ -725,6 +745,7 @@ sub install_perl ($) {
                  '-D' => 'usethreads'],
                 envs => get_perlbrew_envs,
                 prefix => "perlbrew($i): ",
+                profiler_name => 'perlbrew',
                 onoutput => sub {
                   if ($_[0] =~ m{^  tail -f (.+?/perlbrew/build.perl-.+?\.log)}) {
                     $log_file_name = $1;
@@ -1273,6 +1294,7 @@ sub cpanm ($$) {
     my $cpanm_ok = run_command \@cmd,
         envs => $envs,
         info_command_level => $args->{info} ? 2 : 1,
+        profiler_name => 'cpanm',
         prefix => "cpanm($CPANMDepth/$redo): ",
         '>' => ($args->{scandeps} || $args->{info} ? $json_temp_file : undef),
         '$$' => \$cpanm_pid,
@@ -2585,7 +2607,7 @@ my $global_module_index = PMBP::ModuleIndex->new_empty;
 my $selected_module_index = PMBP::ModuleIndex->new_empty;
 my $module_index_file_name;
 my $pmpp_touched;
-my $start_time = time;
+profiler_start 'all';
 open_info_file;
 init_pmbp;
 for my $env (qw(PATH PERL5LIB PERL5OPT)) {
@@ -2848,7 +2870,11 @@ while (@Command) {
 
 delete_pmpp_arch_dir $PerlCommand, $perl_version if $pmpp_touched;
 destroy;
-info 0, "Done: " . (time - $start_time) . " s";
+profiler_stop 'all';
+{
+  my $data = profiler_data;
+  info 0, (sprintf "Done: %.3f s (", $data->{all}) . (join ', ', map { sprintf '%s: %.3f s', $_, $data->{$_} } grep { $_ ne 'all' } keys %$data) . ")";
+}
 info_end;
 delete_info_file unless $PreserveInfoFile;
 
