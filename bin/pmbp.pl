@@ -281,6 +281,13 @@ $PMPPDirName ||= $RootDirName . '/deps/pmpp';
   sub info_end () {
     $InfoNeedNewline--, print STDERR "\n" if $InfoNeedNewline;
   } # info_end
+
+  sub info_closing () {
+    if ($PreserveInfoFile) {
+      info 0, "Operation log is saved as $InfoFileName";
+    }
+    delete_info_file unless $PreserveInfoFile;
+  } # info_closing
 }
 
 {
@@ -2876,7 +2883,7 @@ profiler_stop 'all';
   info 0, (sprintf "Done: %.3f s (", $data->{all}) . (join ', ', map { sprintf '%s: %.3f s', $_, $data->{$_} } grep { $_ ne 'all' } keys %$data) . ")";
 }
 info_end;
-delete_info_file unless $PreserveInfoFile;
+info_closing;
 
 ## ------ End of main ------
 
