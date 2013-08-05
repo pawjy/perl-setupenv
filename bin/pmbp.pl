@@ -2968,7 +2968,7 @@ sub new_from_module_arg ($$) {
 
 sub new_from_cpanm_scandeps_json_module ($$) {
   my ($class, $json) = @_;
-  return bless {package => $PackageCompat->{$json->{module}} || $json->{module},
+  return bless {package => $PackageCompat->{$json->{module} || ''} || $json->{module},
                 version => $json->{module_version},
                 distvname => $json->{distvname} || $json->{dir},
                 pathname => $json->{pathname} || (defined $json->{dir} ? 'misc/' . $json->{dir} . '.tar.gz' : undef)}, $class;
@@ -2995,7 +2995,7 @@ sub new_from_jsonable ($$) {
 } # new_from_jsonable
 
 sub new_from_indexable ($$) {
-  return bless {package => $PackageCompat->{$_[1]->[0]} || $_[1]->[0],
+  return bless {package => $PackageCompat->{$_[1]->[0] || ''} || $_[1]->[0],
                 version => $_[1]->[1] eq 'undef' ? undef : $_[1]->[1],
                 pathname => $_[1]->[2]}, $_[0];
 } # new_from_indexable
