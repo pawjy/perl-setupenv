@@ -437,7 +437,7 @@ sub run_command ($;%) {
     info ((defined $args{info_command_level} ? $args{info_command_level} : 2),
           qq{$prefix$prefix0\$ @{[map { $_ . '="' . (_quote_dq $envs->{$_}) . '" ' } sort { $a cmp $b } keys %$envs]}@$command});
   }
-  local %ENV = (%ENV, %$envs);
+  local %ENV = map { defined $_ ? $_ : '' } (%ENV, %$envs);
   profiler_start ($args{profiler_name} || 'command');
   my $pid = open my $cmd, "-|",
       (defined $args{chdir} ? "cd \Q$args{chdir}\E && " : "") .
