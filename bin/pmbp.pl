@@ -1177,7 +1177,7 @@ sub cpanm ($$) {
         }
       } elsif ($level == 1 and
                ($log =~ /! (?:Installing|Configuring) (\S+) failed\. See (.+?) for details\./m or
-                $log =~ /^! Configure failed for (\S+). See (.+?) for details\.$/m)) {
+                $log =~ /! Configure failed for (\S+). See (.+?) for details\.$/m)) {
         my $log = copy_log_file $2 => $1;
         $scan_errors->($level + 1, $log);
         if ($log =~ m{! You might have to install the following modules first to get --scandeps working correctly.\n!((?:\n! \* \S+)+)}) {
