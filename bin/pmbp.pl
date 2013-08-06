@@ -303,7 +303,7 @@ $PMPPDirName ||= $RootDirName . '/deps/pmpp';
     my $time = time;
     $profile{$_[0]} += $time - $start_time{$_[0]};
     info 6, sprintf "Profiler: %.3f: %s stopped (%.3f s)",
-        $time, $_[0], $profile{$_[0]};
+        $time, $_[0], $time - $start_time{$_[0]};
   } # profiler_stop
 
   sub profiler_data () {
