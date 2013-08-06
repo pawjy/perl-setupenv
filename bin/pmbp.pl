@@ -1084,7 +1084,7 @@ sub cpanm ($$) {
 
     my $envs = {LANG => 'C',
                 PATH => (join ':', @additional_path, $path),
-                PERL5LIB => (join ':', grep { defined } 
+                PERL5LIB => (join ':', grep { defined and length } 
                                  "$cpanm_lib_dir_name/lib/perl5/$archname",
                                  "$cpanm_lib_dir_name/lib/perl5",
                                  $ENV{PERL5LIB}),
