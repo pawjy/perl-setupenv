@@ -1036,6 +1036,7 @@ sub cpanm ($$) {
   my $redo = 0;
   COMMAND: {
     my @required_cpanm;
+    my @required_force_cpanm;
     my @required_install;
     my @required_install2;
     my @required_system;
@@ -1230,7 +1231,7 @@ sub cpanm ($$) {
       } elsif ($log =~ /Checking if you have Module::Build [0-9.]+ ... No \([0-9.]+ < ([0-9.]+)\)/m) {
         push @required_cpanm, PMBP::Module->new_from_package ('Module::Build~' . $1);
       } elsif ($log =~ m{^Module::CoreList \S+ \(loaded from .*\) doesn't seem to have entries for perl \S+. You're strongly recommended to upgrade Module::CoreList from CPAN.}m) {
-        push @required_cpanm, PMBP::Module->new_from_package ('Module::CoreList');
+        push @required_force_cpanm, PMBP::Module->new_from_package ('Module::CoreList');
       } elsif ($log =~ /^Can\'t call method "load_all_extensions" on an undefined value at inc\/Module\/Install.pm /m) {
         $remove_inc = 1;
       } elsif ($log =~ /^(\S+) version \S+ required--this is only version \S+/m) {
@@ -1367,7 +1368,7 @@ sub cpanm ($$) {
           undef $install_extutils_embed;
           $redo = 1;
         }
-        if (@required_cpanm) {
+        if (@required_cpanm or @required_force_cpanm) {
           local $CPANMDepth = $CPANMDepth + 1;
           for my $module (@required_cpanm) {
             get_local_copy_if_necessary ($module);
@@ -1375,6 +1376,13 @@ sub cpanm ($$) {
                    perl_version => $perl_version,
                    perl_lib_dir_name => $cpanm_lib_dir_name,
                    local_option => '-l', skip_satisfied => 1}, [$module];
+          }
+          for my $module (@required_force_cpanm) {
+            get_local_copy_if_necessary ($module);
+            cpanm {perl_command => $perl_command,
+                   perl_version => $perl_version,
+                   perl_lib_dir_name => $cpanm_lib_dir_name,
+                   local_option => '-l', skip_satisfied => 0}, [$module];
           }
           $redo = 1;
         } elsif (@required_install) {
