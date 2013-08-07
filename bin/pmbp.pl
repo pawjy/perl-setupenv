@@ -861,8 +861,8 @@ sub get_perl_path ($) {
   sub get_perl_core_lib_paths ($$) {
     my ($perl_command, $perl_version) = @_;
     return (
-      get_perl_config $perl_command, $perl_version, 'privlibexp',
-      get_perl_config $perl_command, $perl_versionm 'archlibexp',
+      (get_perl_config $perl_command, $perl_version, 'privlibexp'),
+      (get_perl_config $perl_command, $perl_version, 'archlibexp'),
     );
   } # get_perl_core_lib_paths
 }
