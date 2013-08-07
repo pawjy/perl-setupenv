@@ -1926,8 +1926,8 @@ sub _read_module_index ($) {
   my @data;
   while (<$file>) {
     if ($has_blank_line) {
-      my @d = split /\s+/, $_, 3;
-      push @data, \@d if @d == 3;
+      my @d = split /\s+/, $_, 4;
+      push @data, \@d if @d >= 3;
     } elsif (/^$/) {
       $has_blank_line = 1;
     }
