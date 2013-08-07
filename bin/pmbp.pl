@@ -1900,14 +1900,13 @@ sub select_module ($$$$;%) {
 sub read_module_index ($$) {
   my ($file_name => $module_index) = @_;
   my $modules = [];
-  _read_module_index ($file_name => sub {
-    push @$modules, PMBP::Module->new_from_indexable ($_[0]);
-  });
+  push @$modules, map { PMBP::Module->new_from_indexable ($_) }
+      (_read_module_index ($file_name));
   $module_index->merge_modules ($modules);
 } # read_module_index
 
-sub _read_module_index ($$) {
-  my ($file_name => $code) = @_;
+sub _read_module_index ($) {
+  my ($file_name) = @_;
   unless (-f $file_name) {
     info 0, "$file_name not found; skipped\n";
     return;
@@ -1915,14 +1914,16 @@ sub _read_module_index ($$) {
   info 2, "Reading module index $file_name...";
   open my $file, '<', $file_name or info_die "$0: $file_name: $!";
   my $has_blank_line;
+  my @data;
   while (<$file>) {
     if ($has_blank_line and /^(\S+)\s+(\S+)\s+(\S+)/) {
-      $code->([$1, $2, $3]);
+      push @data, [$1, $2, $3];
     } elsif (/^$/) {
       $has_blank_line = 1;
     }
   }
   info 2, "done";
+  return @data;
 } # _read_module_index
 
 sub write_module_index ($$) {
@@ -2948,9 +2949,9 @@ sub set_module_index_file_name ($$) {
   my (undef, $file_name) = @_;
   return unless defined $file_name;
   return if $LoadedModuleIndexFileName->{$file_name};
-  main::_read_module_index $file_name => sub {
-    $ModulePackagePathnameMapping->{$_[0]->[0]} = $_[0]->[2];
-  };
+  for ((main::_read_module_index $file_name)) {
+    $ModulePackagePathnameMapping->{$_->[0]} = $_->[2];
+  }
   $LoadedModuleIndexFileName->{$file_name} = 1;
 } # set_module_index_file_name
 
