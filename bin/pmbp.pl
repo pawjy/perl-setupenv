@@ -857,6 +857,14 @@ sub get_perl_path ($) {
     my ($perl_command, $perl_version) = @_;
     return get_perl_config $perl_command, $perl_version, 'archname';
   } # get_perl_archname
+
+  sub get_perl_core_lib_paths ($$) {
+    my ($perl_command, $perl_version) = @_;
+    return (
+      get_perl_config $perl_command, $perl_version, 'privlibexp',
+      get_perl_config $perl_command, $perl_versionm 'archlibexp',
+    );
+  } # get_perl_core_lib_paths
 }
 
 sub install_cpan_config ($$$) {
@@ -2225,7 +2233,8 @@ sub has_module ($$$$) {
   
   my $archname = get_perl_archname $perl_command, $perl_version;
   for (qq{$dir_name/lib/perl5/$archname/$file_name},
-       qq{$dir_name/lib/perl5/$file_name}) {
+       qq{$dir_name/lib/perl5/$file_name},
+       map { "$_/$file_name" } (get_perl_core_lib_paths $perl_command, $perl_version)) {
     next unless -f $_;
     return 1 if not defined $version;
     
