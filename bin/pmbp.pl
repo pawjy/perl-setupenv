@@ -1105,6 +1105,7 @@ sub cpanm ($$) {
                 HOME => get_cpanm_dummy_home_dir_name ($perl_lib_dir_name),
                 PERL_CPANM_HOME => $CPANMHomeDirName};
     
+    ## --- Error message sniffer ---
     if (@module_arg and $module_arg[0] eq 'GD' and
         not $args->{info} and not $args->{scandeps}) {
       ## <http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=636649>
@@ -1261,6 +1262,9 @@ sub cpanm ($$) {
         ## can no longer reproduce the problem.)
         push @required_install, PMBP::Module->new_from_module_arg
             ('Net::SSLeay~1.36=http://search.cpan.org/CPAN/authors/id/F/FL/FLORA/Net-SSLeay-1.36.tar.gz');
+      } elsif ($log =~ /fatal error: openssl\/err.h: No such file or directory/m) {
+        push @required_system,
+            {name => 'openssl-devel', debian_name => 'libssl-dev'};
       } elsif ($log =~ m{^Can't link/include (?:C library )?'gmp.h', 'gmp'}m) {
         push @required_system,
             {name => 'gmp-devel', debian_name => 'libgmp-dev',
@@ -1311,6 +1315,11 @@ sub cpanm ($$) {
         }->{$1};
         push @required_install,
             PMBP::Module->new_from_package ($mod) if $mod;
+      } elsif ($log =~ /^Could not find Python.h in include path. make will not work at Makefile.PL/m) {
+        push @required_system,
+            {name => 'python-devel', debian_name => 'python-dev'};
+      } elsif ($log =~ /\bsh: 1: cc: not found$/m) {
+        push @required_system, {name => 'gcc'};
       } elsif ($log =~ /^We have to reconfigure CPAN.pm due to following uninitialized parameters:/m) {
         kill 15, $cpanm_pid;
         push @required_cpanm, PMBP::Module->new_from_package ('CPAN');
@@ -1324,6 +1333,7 @@ sub cpanm ($$) {
         $failed = 1;
       }
     }; # $scan_errors
+    ## --- End of error message sniffer ---
 
     my @cmd = ($perl_command,
                @perl_option,
