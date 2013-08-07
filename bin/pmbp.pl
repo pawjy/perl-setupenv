@@ -1649,6 +1649,7 @@ sub copy_pmpp_modules ($$) {
     m{^/.+/$};
   } @{read_gitignore (pmpp_dir_name . "/.gitignore") || []}];
 
+  profiler_start 'file';
   require File::Find;
   my $from_base_path = pmpp_dir_name;
   my $to_base_path = get_pm_dir_name ($perl_version);
@@ -1687,6 +1688,7 @@ sub copy_pmpp_modules ($$) {
       }
     }, $dir_name);
   }
+  profiler_stop 'file';
 } # copy_pmpp_modules
 
 sub delete_pmpp_arch_dir ($$) {
@@ -1916,8 +1918,9 @@ sub _read_module_index ($) {
   my $has_blank_line;
   my @data;
   while (<$file>) {
-    if ($has_blank_line and /^(\S+)\s+(\S+)\s+(\S+)/) {
-      push @data, [$1, $2, $3];
+    if ($has_blank_line) {
+      my @d = split /\s+/, $_, 3;
+      push @data, \@d if @d == 3;
     } elsif (/^$/) {
       $has_blank_line = 1;
     }
@@ -2241,9 +2244,15 @@ sub has_module ($$$$) {
     
     require_module_metadata;
 
+    profiler_start 'version_sniffing';
     my $meta = Module::Metadata->new_from_file ($_) or next;
     my $actual_version = $meta->version;
-    return 1 if $actual_version >= version->new ($version);
+    if ($actual_version >= version->new ($version)) {
+      profiler_stop 'version_sniffing';
+      return 1;
+    } else {
+      profiler_stop 'version_sniffing';
+    }
   }
   
   return 0;
@@ -4098,7 +4107,7 @@ Wakaba <wakaba@suikawiki.org>.
 
 =head1 LICENSE
 
-Copyright 2012 Wakaba <wakaba@suikawiki.org>.
+Copyright 2012-2013 Wakaba <wakaba@suikawiki.org>.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
