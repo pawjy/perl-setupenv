@@ -519,20 +519,24 @@ sub save_url ($$;%) {
 }
 
 sub load_json ($) {
+  profiler_start 'file';
   open my $file, '<', $_[0] or info_die "$0: $_[0]: $!";
   local $/ = undef;
   my $json = decode_json (<$file>);
   close $file;
+  profiler_stop 'file';
   return $json;
 } # load_json
 
 sub load_json_after_garbage ($) {
+  profiler_start 'file';
   open my $file, '<', $_[0] or info_die "$0: $_[0]: $!";
   local $/ = undef;
   my $data = <$file>;
   $data =~ s{^.*\n\[}{[}s;
   my $json = decode_json ($data);
   close $file;
+  profiler_stop 'file';
   return $json;
 } # load_json_after_garbage
 
@@ -627,8 +631,10 @@ sub load_json_after_garbage ($) {
 sub read_gitignore ($) {
   my $file_name = shift;
   return undef unless -f $file_name;
+  profiler_start 'file';
   open my $file, '<', $file_name or info_die "$0: $file_name: $!";
   my @ignore = map { chomp; $_ } grep { length } <$file>;
+  profiler_stop 'file';
   return \@ignore;
 } # read_gitignore
 
@@ -1914,6 +1920,7 @@ sub _read_module_index ($) {
     return;
   }
   info 2, "Reading module index $file_name...";
+  profiler_start 'file';
   open my $file, '<', $file_name or info_die "$0: $file_name: $!";
   my $has_blank_line;
   my @data;
@@ -1925,6 +1932,7 @@ sub _read_module_index ($) {
       $has_blank_line = 1;
     }
   }
+  profiler_stop 'file';
   info 2, "done";
   return @data;
 } # _read_module_index
@@ -1966,6 +1974,7 @@ sub read_pmb_install_list ($$;%) {
     info 0, "$file_name not found; skipped\n";
     return;
   }
+  profiler_start 'file';
   open my $file, '<', $file_name or info_die "$0: $file_name: $!";
   my $modules = [];
   while (<$file>) {
@@ -1986,6 +1995,7 @@ sub read_pmb_install_list ($$;%) {
       $args{onadd}->($module) if $args{onadd};
     }
   }
+  profiler_stop 'file';
   $module_index->merge_modules ($modules);
 } # read_pmb_install_list
 
