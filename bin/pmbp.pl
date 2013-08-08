@@ -1457,8 +1457,14 @@ sub cpanm ($$) {
       }
     }; # close or do
     if ($args->{info} and -f $json_temp_file->filename) {
+      ## Example output:
+      ## ==> Found dependencies: ExtUtils::MakeMaker, ExtUtils::Install
+      ## BINGOS/ExtUtils-MakeMaker-6.72.tar.gz
+      ## YVES/ExtUtils-Install-1.54.tar.gz
+      ## FAYLAND/WWW-Contact-0.47.tar.gz
       open my $file, '<', $json_temp_file->filename or info_die "$0: $!";
-      $result->{output_text} = <$file>;
+      local $/ = undef;
+      $result->{output_text} = [grep { length } split /\x0D?\x0A/, <$file>]->[-1];
     } elsif ($args->{scandeps} and -f $json_temp_file->filename) {
       ## Parse JSON data, ignoring any progress before it...
       $result->{output_json} = load_json_after_garbage $json_temp_file->filename;
@@ -1851,9 +1857,12 @@ sub load_deps ($$) {
   my ($module_index, $input_module) = @_;
   my $module = $input_module;
   if (defined $module->version) {
-      $module = $module_index->find_by_module ($module) || $module;
-    }
-  return undef unless defined $module->distvname;
+    $module = $module_index->find_by_module ($module) || $module;
+  }
+  unless (defined $module->distvname) {
+    info 2, "distvname of module |@{[$module->as_short]}| is not known";
+    return undef;
+  }
 
   my $result = [];
 
