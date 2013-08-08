@@ -1849,8 +1849,10 @@ sub _scandeps_write_result ($$$;%) {
 
 sub load_deps ($$) {
   my ($module_index, $input_module) = @_;
-  my $module = $module_index->find_by_module ($input_module)
-      || $input_module;
+  my $module = $input_module;
+  if (defined $module->version) {
+      $module = $module_index->find_by_module ($module) || $module;
+    }
   return undef unless defined $module->distvname;
 
   my $result = [];
