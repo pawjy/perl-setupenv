@@ -1910,6 +1910,10 @@ sub load_deps ($$) {
 
 sub select_module ($$$$;%) {
   my ($src_module_index => $perl_version, $module => $dest_module_index, %args) = @_;
+
+  unless (defined $module->distvname) {
+    info_die "distvname of module |@{[$module->as_short]}| is not known";
+  }
   
   my $mods = load_deps $src_module_index => $module;
   unless ($mods) {
