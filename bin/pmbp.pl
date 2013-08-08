@@ -416,6 +416,19 @@ sub copy_log_file ($$) {
   return $content;
 } # copy_log_file
 
+sub info_log_file ($$$) {
+  my ($level, $file_name, $label) = @_;
+  open my $file, '<', $file_name or info_die "$0: $file_name: $!";
+  local $/ = undef;
+  my $content = <$file>;
+  info $level, "";
+  info $level, "========== Start - $label ==========";
+  info $level, $content;
+  info $level, "========== End - $label ==========";
+  info $level, "";
+  return $content;
+} # info_log_file
+
 ## ------ Commands ------
 
 sub _quote_dq ($) {
@@ -1459,7 +1472,7 @@ sub cpanm ($$) {
       }
     }; # close or do
     if (defined $json_temp_file and -f $json_temp_file->filename) {
-      copy_log_file $json_temp_file->filename => 'cpanm';
+      info_log_file 3, $json_temp_file->filename => 'cpanm STDOUT';
     }
     if ($args->{info} and -f $json_temp_file->filename) {
       ## Example output:
