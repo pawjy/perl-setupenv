@@ -450,13 +450,18 @@ sub run_command ($;%) {
     info ((defined $args{info_command_level} ? $args{info_command_level} : 2),
           qq{$prefix$prefix0\$ @{[map { $_ . '="' . (_quote_dq $envs->{$_}) . '" ' } sort { $a cmp $b } keys %$envs]}@$command});
   }
+  my $stderr_file;
+  if ($args{discard_stderr}) {
+    $stderr_file = File::Temp->new;
+    $args{"2>"} = $stderr_file->filename;
+  }
   local %ENV = map { defined $_ ? $_ : '' } (%ENV, %$envs);
   profiler_start ($args{profiler_name} || 'command');
   my $pid = open my $cmd, "-|",
       (defined $args{chdir} ? "cd \Q$args{chdir}\E && " : "") .
       (defined $args{stdin_value} ? "echo \Q$args{stdin_value}\E" : '') .
       (join ' ', map quotemeta, @$command) .
-      ($args{discard_stderr} ? " 2> /dev/null" : " 2>&1") .
+      (defined $args{"2>"} ? ' 2> ' . quotemeta $args{"2>"} : ' 2>&1') .
       (defined $args{">"} ? ' > ' . quotemeta $args{">"} : '') .
       (($args{accept_input} || defined $args{stdin_value}) ? '' : ' < /dev/null')
       or info_die "$0: $command->[0]: $!";
@@ -473,6 +478,9 @@ sub run_command ($;%) {
     ${$args{'$?'}} = $?;
   }
   profiler_stop ($args{profiler_name} || 'command');
+  if ($stderr_file and -f $stderr_file->filename) {
+    info_log_file 3, $stderr_file->filename => 'stderr';
+  }
   return $return;
 } # run_command
 
