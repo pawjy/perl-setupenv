@@ -1456,6 +1456,9 @@ sub cpanm ($$) {
         info_die "cpanm($CPANMDepth): Processing @{[join ' ', map { ref $_ ? $_->as_short : $_ } @$modules]} failed (@{[$? >> 8]})\n";
       }
     }; # close or do
+    if (-f $json_temp_file->filename) {
+      copy_log_file $json_temp_file->filename => 'cpanm';
+    }
     if ($args->{info} and -f $json_temp_file->filename) {
       ## Example output:
       ## ==> Found dependencies: ExtUtils::MakeMaker, ExtUtils::Install
