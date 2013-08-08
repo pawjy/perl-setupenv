@@ -1367,7 +1367,7 @@ sub cpanm ($$) {
     my $cpanm_ok = run_command \@cmd,
         envs => $envs,
         info_command_level => $args->{info} ? 2 : 1,
-        profiler_name => $args->{profiler_name} || 'cpanm',
+        profiler_name => ($args->{scandeps} ? 'cpanm-scandeps' : $args->{info} ? 'cpanm-info' : 'cpanm'),
         prefix => "cpanm($CPANMDepth/$redo): ",
         '>' => (($args->{scandeps} || $args->{info}) ? do {
           $json_temp_file = File::Temp->new;
@@ -1813,7 +1813,6 @@ sub scandeps ($$$;%) {
   my $result = cpanm {perl_version => $perl_version,
                       perl_lib_dir_name => $temp_dir_name,
                       temp_dir_name => $temp_dir_name,
-                      profiler_name => 'cpanm_scandeps',
                       module_index_file_name => $args{module_index_file_name},
                       scandeps => {module_index => $module_index}}, [$module];
 
