@@ -1340,15 +1340,17 @@ sub cpanm ($$) {
                $CPANMWrapper,
                @option,
                @module_arg);
-    my $json_temp_file = File::Temp->new;
+    my $json_temp_file;
     my $cpanm_error = '';
     my $cpanm_ok = run_command \@cmd,
         envs => $envs,
         info_command_level => $args->{info} ? 2 : 1,
         profiler_name => $args->{profiler_name} || 'cpanm',
         prefix => "cpanm($CPANMDepth/$redo): ",
-        '>' => ($args->{scandeps} || $args->{info} ? $json_temp_file : undef),
-        discard_stderr => ($args->{scandeps} || $args->{info} ? 1 : 0),
+        '>' => (($args->{scandeps} || $args->{info}) ? do {
+          $json_temp_file = File::Temp->new;
+        } : undef),
+        discard_stderr => (($args->{scandeps} || $args->{info}) ? 1 : 0),
         '$$' => \$cpanm_pid,
         '$?' => \$cpanm_error,
         onoutput => sub {
@@ -1456,7 +1458,7 @@ sub cpanm ($$) {
         info_die "cpanm($CPANMDepth): Processing @{[join ' ', map { ref $_ ? $_->as_short : $_ } @$modules]} failed (@{[$? >> 8]})\n";
       }
     }; # close or do
-    if (-f $json_temp_file->filename) {
+    if (defined $json_temp_file and -f $json_temp_file->filename) {
       copy_log_file $json_temp_file->filename => 'cpanm';
     }
     if ($args->{info} and -f $json_temp_file->filename) {
