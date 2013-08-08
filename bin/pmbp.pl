@@ -1082,6 +1082,7 @@ sub cpanm ($$) {
     my @perl_option = ("-I$cpanm_lib_dir_name/lib/perl5/$archname",
                        "-I$cpanm_lib_dir_name/lib/perl5");
 
+    $args{local_option} ||= '-l' if $args->{info};
     my @option = ($args->{local_option} || '-L' => $perl_lib_dir_name,
                   ($args->{skip_satisfied} ? '--skip-satisfied' : ()),
                   qw(--notest --cascade-search),
