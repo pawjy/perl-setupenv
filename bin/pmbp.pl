@@ -2309,7 +2309,8 @@ sub has_module ($$$$) {
     profiler_start 'version_sniffing';
     my $meta = Module::Metadata->new_from_file ($_) or next;
     my $actual_version = $meta->version;
-    if ($actual_version >= version->new ($version)) {
+    my $ver = eval { version->new ($version) };
+    if (defined $ver and $actual_version >= $ver) {
       profiler_stop 'version_sniffing';
       return 1;
     } else {
@@ -3269,7 +3270,9 @@ sub merge_modules {
         if (defined $v1 and defined $v2) {
           main::install_pmbp_module (PMBP::Module->new_from_package ('version'));
           require version;
-          if (version->new ($v1) > version->new ($v2)) {
+          my $ver1 = eval { version->new ($v1) };
+          my $ver2 = eval { version->new ($v2) };
+          if (defined $ver1 and defined $ver2 and $ver1 > $ver2) {
             $modules->{$package} = $_;
           } else {
             #
