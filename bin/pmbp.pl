@@ -13,7 +13,8 @@ use File::Copy qw(copy move);
 use File::Temp qw(tempdir);
 use File::Spec ();
 use Getopt::Long;
-eval { use Time::HiRes qw(time) }; ## Some environment does not have this module.
+## Some environment does not have this module.
+eval { use Time::HiRes qw(time) } or warn $@;
 
 my $PerlCommand = 'perl';
 my $SpecifiedPerlVersion = $ENV{PMBP_PERL_VERSION};
