@@ -1900,17 +1900,20 @@ sub load_deps ($$) {
     next if not defined $dist;
     next if $done{$dist}++;
     my $json_file_name = deps_json_dir_name . "/$dist.json";
-    info 2, "Loading $json_file_name...";
+    info 2, "Loading |$json_file_name|...";
     unless (-f $json_file_name) {
-      info 2, "$json_file_name not found";
+      info 2, "Module dependency data file |$json_file_name| not found";
       return undef;
     }
     my $json = load_json $json_file_name;
     if (defined $json and ref $json eq 'ARRAY') {
       push @module, (PMBP::ModuleIndex->new_from_arrayref ($json->[1])->to_list);
       unshift @$result, PMBP::Module->new_from_jsonable ($json->[0]);
+    } else {
+      info 1, "Module dependency data file |$json_file_name| seems broken";
     }
   }
+  return undef unless @$result;
   return $result;
 } # load_deps
 
