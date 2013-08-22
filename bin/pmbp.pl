@@ -14,7 +14,7 @@ use File::Temp qw(tempdir);
 use File::Spec ();
 use Getopt::Long;
 ## Some environment does not have this module.
-eval q{ use Time::HiRes qw(time) } or warn $@;
+BEGIN { eval q{ use Time::HiRes qw(time) } or warn $@ };
 
 my $PerlCommand = 'perl';
 my $SpecifiedPerlVersion = $ENV{PMBP_PERL_VERSION};
