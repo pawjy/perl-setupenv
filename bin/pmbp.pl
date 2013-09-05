@@ -1276,7 +1276,7 @@ sub cpanm ($$) {
         push @required_cpanm, PMBP::Module->new_from_package ($1);
       } elsif ($log =~ /Checking if you have Module::Build [0-9.]+ ... No \([0-9.]+ < ([0-9.]+)\)/m) {
         push @required_cpanm, PMBP::Module->new_from_package ('Module::Build~' . $1);
-      } elsif ($log =~ m{^Module::CoreList \S+ \(loaded from .*\) doesn't seem to have entries for perl \S+. You're strongly recommended to upgrade Module::CoreList from CPAN.}m) {
+      } elsif ($log =~ m{Module::CoreList \S+ \(loaded from .*\) doesn't seem to have entries for perl \S+. You're strongly recommended to upgrade Module::CoreList from CPAN.}m) {
         push @required_force_cpanm, PMBP::Module->new_from_package ('Module::CoreList');
       } elsif ($log =~ /^Can\'t call method "load_all_extensions" on an undefined value at inc\/Module\/Install.pm /m) {
         $remove_inc = 1;
