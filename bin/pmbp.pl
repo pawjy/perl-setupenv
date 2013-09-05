@@ -1362,6 +1362,10 @@ sub cpanm ($$) {
         }
       } elsif ($log =~ /^!!! MakeInstaller failed !!!$/m) {
         $failed = 1;
+      } elsif ($log =~ m{/cpanm did not return a true value at }m) {
+        unlink $CPANMCommand;
+        install_cpanm;
+        $failed = 1;
       }
     }; # $scan_errors
     ## --- End of error message sniffer ---
