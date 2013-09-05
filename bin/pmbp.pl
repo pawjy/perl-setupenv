@@ -1214,6 +1214,7 @@ sub cpanm ($$) {
         ## Requires 3.18_02 or later
         push @required_install,
             PMBP::Module->new_from_package ('ExtUtils::ParseXS~3.21');
+        $failed = 1;
       } elsif ($log =~ /^skipping .+\/perl-/m) {
         if (@module_arg and $module_arg[0] eq 'Module::Metadata') {
           push @required_install, PMBP::Module->new_from_module_arg
