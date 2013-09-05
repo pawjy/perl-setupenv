@@ -14,7 +14,7 @@ use File::Temp qw(tempdir);
 use File::Spec ();
 use Getopt::Long;
 ## Some environment does not have this module.
-BEGIN { eval q{ use Time::HiRes qw(time) } or warn $@ };
+BEGIN { eval q{ use Time::HiRes qw(time); 1 } or warn $@ };
 
 my $PerlCommand = 'perl';
 my $SpecifiedPerlVersion = $ENV{PMBP_PERL_VERSION};
@@ -81,6 +81,9 @@ GetOptions (
   },
   '--install-modules-by-file-name=s' => sub {
     push @Command, {type => 'install-modules-by-list', file_name => $_[1]};
+  },
+  '--install-modules-by-dir-name=s' => sub {
+    push @Command, {type => 'install-modules-by-list', dir_name => $_[1]};
   },
   '--install-modules-by-list' => sub {
     push @Command, {type => 'install-modules-by-list'};
@@ -2843,6 +2846,13 @@ while (@Command) {
     my $module_index = PMBP::ModuleIndex->new_empty;
     if (defined $command->{file_name}) {
       read_pmb_install_list $command->{file_name} => $module_index;
+    } elsif (defined $command->{dir_name}) {
+      if (-f "$command->{dir_name}/config/perl/pmb-install.txt") {
+        read_pmb_install_list "$command->{dir_name}/config/perl/pmb-install.txt" => $module_index;
+      } else {
+        read_install_list $command->{dir_name} => $module_index, $perl_version,
+            recursive => 1;
+      }
     } else {
       read_install_list $RootDirName => $module_index, $perl_version,
           recursive => 1;
@@ -3799,6 +3809,14 @@ effort to install the dependency and then retries several times.  If
 the detected dependency is non-Perl software components, its behavior
 depends on whether the C<--execute-system-package-installer> option is
 specified or not.
+
+=item --install-modules-by-dir-name="path/to/dir"
+
+Install zero or more Perl modules for the specified directory.  If
+there is a file "config/perl/pmb-install.txt" under the directory, it
+is parsed as a "pmb install list" file and modules listed in the file
+are installed.  Otherwise, required modules are examined in the same
+ways as the C<--install-modules-by-list> option under the directory.
 
 =item --install-modules-by-file-name="path/to/list.txt"
 
