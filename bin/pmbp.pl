@@ -1210,6 +1210,10 @@ sub cpanm ($$) {
         push @required_install,
             map { PMBP::Module->new_from_package ($_) }
             qw{ExtUtils::MakeMaker ExtUtils::ParseXS};
+      } elsif ($log =~ /Can't locate object method "new" via package "ExtUtils::ParseXS" at /m) {
+        ## Requires 3.18_02 or later
+        push @required_install,
+            PMBP::Module->new_from_package ('ExtUtils::ParseXS~3.21');
       } elsif ($log =~ /^skipping .+\/perl-/m) {
         if (@module_arg and $module_arg[0] eq 'Module::Metadata') {
           push @required_install, PMBP::Module->new_from_module_arg
