@@ -203,6 +203,11 @@ directory.  At this time, you can run your application with profiler:
   $ ./perl -d:NYTProf bin/myapp.pl
   $ ./nytprofhtml
 
+=head2 Install an old version of CPAN module
+
+  $ perl local/bin/pmbp.pl \
+        --install-module ExtUtils::ParseXS~3.18=http://search.cpan.org/CPAN/authors/id/S/SM/SMUELLER/ExtUtils-ParseXS-3.18.tar.gz
+
 =head1 TROUBLESHOOTING
 
 =head2 Second invocation of pmbp --update takes as long time as the first time, nevertheless you said this should not happen :-<
