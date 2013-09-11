@@ -1129,7 +1129,8 @@ sub cpanm ($$) {
                                  "$cpanm_lib_dir_name/lib/perl5",
                                  $ENV{PERL5LIB}),
                 HOME => get_cpanm_dummy_home_dir_name ($perl_lib_dir_name),
-                PERL_CPANM_HOME => $CPANMHomeDirName};
+                PERL_CPANM_HOME => $CPANMHomeDirName,
+                MAKEFLAGS => ''};
     
     ## --- Error message sniffer ---
     if (@module_arg and $module_arg[0] eq 'GD' and
@@ -2393,7 +2394,8 @@ sub build_imagemagick ($$$;%) {
     print $file $make_pl;
   }
   my $envs = {PATH => get_env_path ($perl_version),
-              PERL5LIB => (join ':', (get_lib_dir_names ($perl_command, $perl_version)))};
+              PERL5LIB => (join ':', (get_lib_dir_names ($perl_command, $perl_version))),
+              MAKEFLAGS => ''};
   run_command
       [$perl_command, 'Makefile.PL',
        'INSTALL_BASE="' . $install_dir_name . '"'],
