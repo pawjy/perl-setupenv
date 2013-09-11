@@ -1922,7 +1922,7 @@ sub load_deps ($$) {
     my $json = load_json $json_file_name;
     if (defined $json and ref $json eq 'ARRAY') {
       push @module, (PMBP::ModuleIndex->new_from_arrayref ($json->[1])->to_list);
-      unshift @$result, PMBP::Module->new_from_jsonable ($json->[0]);
+      unshift @$result, PMBP::Module->new_from_jsonalizable ($json->[0]);
     } else {
       info 1, "Module dependency data file |$json_file_name| seems broken";
     }
@@ -3123,9 +3123,9 @@ sub new_from_carton_lock_entry ($$) {
   return $entry;
 } # new_from_carton_lock_entry
 
-sub new_from_jsonable ($$) {
+sub new_from_jsonalizable ($$) {
   return bless $_[1], $_[0];
-} # new_from_jsonable
+} # new_from_jsonalizable
 
 sub new_from_indexable ($$) {
   return bless {package => $PackageCompat->{$_[1]->[0] || ''} || $_[1]->[0],
@@ -3262,7 +3262,7 @@ sub new_empty ($) {
 } # new_empty
 
 sub new_from_arrayref ($$) {
-  return bless {list => [map { ref $_ eq 'HASH' ? PMBP::Module->new_from_jsonable ($_) : $_ } @{$_[1]}]}, $_[0];
+  return bless {list => [map { ref $_ eq 'HASH' ? PMBP::Module->new_from_jsonalizable ($_) : $_ } @{$_[1]}]}, $_[0];
 } # new_from_arrayref
 
 sub find_by_module ($$) {
