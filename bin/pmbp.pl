@@ -2300,7 +2300,7 @@ sub write_dep_graph ($$;%) {
     };
     my $done = {};
     for (@$dep_graph) {
-      for ($_->[0]->as_short, $_->[1]->as_short) {
+      for ($_->[0]->package, $_->[1]->package) {
         next if $done->{$_};
         printf $file qq{nodes["%s"] = graph.newNode ({label: "%s"});\n},
             $_, $_;
@@ -2309,7 +2309,7 @@ sub write_dep_graph ($$;%) {
     }
     for (@$dep_graph) {
       printf $file qq{graph.newEdge (nodes["%s"], nodes["%s"], {});\n},
-          $_->[0]->as_short, $_->[1]->as_short;
+          $_->[0]->package, $_->[1]->package;
     }
     print $file q{
       jQuery (function () {
@@ -2318,7 +2318,7 @@ sub write_dep_graph ($$;%) {
         });
       });
       </script>
-      <canvas id=canvas width=640 height=480></canvas>
+      <canvas id=canvas width=1920 height=1440></canvas>
     };
   } else {
     info_writing 0, "dep_graph file", $file_name;
