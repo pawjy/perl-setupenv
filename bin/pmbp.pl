@@ -172,6 +172,16 @@ GetOptions (
   (map {
     my $n = $_;
     ("--$n=s" => sub {
+      push @Command, {type => $n, file_name => $_[1]};
+    });
+  } qw(write-dep-graph)),
+  '--write-dep-graph-springy=s' => sub {
+    push @Command, {type => 'write-dep-graph',
+                    file_name => $_[1], format => 'springy'};
+  },
+  (map {
+    my $n = $_;
+    ("--$n=s" => sub {
       my $module = PMBP::Module->new_from_module_arg ($_[1]);
       push @Command, {type => $n, module => $module};
     });
@@ -1972,6 +1982,10 @@ sub select_module ($$$$;%) {
     }
   }
   $dest_module_index->merge_modules ($mods);
+  for (@$mods) {
+    next if $_->package eq $module->package;
+    push @{$args{dep_graph} or []}, [$module => $_];
+  }
 } # select_module
 
 sub read_module_index ($$) {
@@ -2066,6 +2080,9 @@ sub read_pmb_install_list ($$;%) {
   }
   profiler_stop 'file';
   $module_index->merge_modules ($modules);
+  if ($args{dep_graph_source}) {
+    push @{$args{dep_graph} or []}, [$args{dep_graph_source}, $_] for @$modules;
+  }
 } # read_pmb_install_list
 
 sub write_pmb_install_list ($$) {
@@ -2114,6 +2131,8 @@ sub read_install_list ($$$;%) {
 
   my $onadd = sub { my $source = shift; return sub {
     info 1, sprintf '%s requires %s', $source, $_[0]->as_short;
+    push @{$args{dep_graph} or []}, [$args{dep_graph_source} => $_[0]]
+        if $args{dep_graph_source};
   } }; # $onadd
 
   THIS: {
@@ -2173,11 +2192,22 @@ sub read_install_list ($$$;%) {
 
   ## Submodules
   return unless $args{recursive};
-  for my $dir_name (map { glob "$dir_name/$_" } qw(
+  for my $subdir_name (map { glob "$dir_name/$_" } qw(
     modules/* t_deps/modules/* local/submodules/*
   )) {
-    read_install_list $dir_name => $module_index, $perl_version,
-        recursive => $args{recursive} ? $args{recursive} - 1 : 0;
+    my $short_name = File::Spec->abs2rel ($subdir_name, $dir_name);
+    my $source;
+    if ($args{dep_graph_source}) {
+      if ($args{dep_graph_source}->package eq '.') {
+        $source = PMBP::Module->new_from_package ($short_name);
+      } else {
+        $source = PMBP::Module->new_from_package ($args{dep_graph_source}->package . '/' . $short_name);
+      }
+    }
+    read_install_list $subdir_name => $module_index, $perl_version,
+        recursive => $args{recursive} ? $args{recursive} - 1 : 0,
+        dep_graph => $args{dep_graph},
+        dep_graph_source => $source;
   }
 } # read_install_list
 
@@ -2251,6 +2281,51 @@ sub scan_dependency_from_directory ($) {
 
   return $modules;
 } # scan_dependency_from_directory
+
+sub write_dep_graph ($$;%) {
+  my ($dep_graph => $file_name, %args) = @_;
+  my $format = $args{format} || '';
+  if ($format eq 'springy') {
+    info_writing 0, "dep_graph file", $file_name;
+    open my $file, '>', $file_name or die "$0: $file_name: $!";
+    print $file q{
+      <!DOCTYPE html>
+      <title>Dependency</title>
+      <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.3.2/jquery.min.js"></script>
+      <script src="http://getspringy.com/springy.js"></script>
+      <script src="http://getspringy.com/springyui.js"></script>
+      <script>
+        var graph = new Springy.Graph;
+        var nodes = {};
+    };
+    my $done = {};
+    for (@$dep_graph) {
+      for ($_->[0]->as_short, $_->[1]->as_short) {
+        next if $done->{$_};
+        printf $file qq{nodes["%s"] = graph.newNode ({label: "%s"});\n},
+            $_, $_;
+        $done->{$_} = 1;
+      }
+    }
+    for (@$dep_graph) {
+      printf $file qq{graph.newEdge (nodes["%s"], nodes["%s"], {});\n},
+          $_->[0]->as_short, $_->[1]->as_short;
+    }
+    print $file q{
+      jQuery (function () {
+        window.springy = jQuery ('#canvas').springy ({
+          graph: graph
+        });
+      });
+      </script>
+      <canvas id=canvas width=640 height=480></canvas>
+    };
+  } else {
+    info_writing 0, "dep_graph file", $file_name;
+    open my $file, '>', $file_name or die "$0: $file_name: $!";
+    print $file join '', map { $_->[0]->as_short . "\t" . $_->[1]->as_short . "\n" } @$dep_graph;
+  }
+} # write_dep_graph
 
 ## ------ Perl module installation ------
 
@@ -2770,6 +2845,8 @@ my $perl_version =
     -f "$RootDirName/config/perl/version.txt" ? init_perl_version_by_file_name "$RootDirName/config/perl/version.txt" :
     init_perl_version undef;
 info 1, "Target Perl version: $perl_version";
+my $dep_graph = [];
+my $root_module = PMBP::Module->new_from_package ('.');
 
 while (@Command) {
   my $command = shift @Command;
@@ -2903,19 +2980,26 @@ while (@Command) {
   } elsif ($command->{type} eq 'select-module') {
     select_module $global_module_index =>
         $perl_version, $command->{module} => $selected_module_index,
-        module_index_file_name => $module_index_file_name;
+        module_index_file_name => $module_index_file_name,
+        dep_graph => $dep_graph;
     $global_module_index->merge_module_index ($selected_module_index);
+    push @$dep_graph, [$root_module, $command->{module}];
   } elsif ($command->{type} eq 'select-modules-by-list') {
     my $module_index = PMBP::ModuleIndex->new_empty;
     if (defined $command->{file_name}) {
-      read_pmb_install_list $command->{file_name} => $module_index;
+      read_pmb_install_list $command->{file_name} => $module_index,
+          dep_graph_source => $root_module,
+          dep_graph => $dep_graph;
     } else {
       read_install_list $RootDirName => $module_index, $perl_version,
-          recursive => 1;
+          recursive => 1,
+          dep_graph_source => $root_module,
+          dep_graph => $dep_graph;
     }
     select_module $global_module_index =>
         $perl_version, $_ => $selected_module_index,
-        module_index_file_name => $module_index_file_name
+        module_index_file_name => $module_index_file_name,
+        dep_graph => $dep_graph
         for ($module_index->to_list);
     $global_module_index->merge_module_index ($selected_module_index);
   } elsif ($command->{type} eq 'read-module-index') {
@@ -2985,6 +3069,9 @@ while (@Command) {
       $command->{url} = abs_path $command->{url};
     }
     unshift @CPANMirror, $command->{url};
+  } elsif ($command->{type} eq 'write-dep-graph') {
+    write_dep_graph $dep_graph => $command->{file_name},
+        format => $command->{format};
   } elsif ($command->{type} eq 'print-pmtar-dir-name') {
     print pmtar_dir_name;
   } elsif ($command->{type} eq 'print-pmpp-dir-name') {
@@ -4010,6 +4097,24 @@ C<--pmtar-dir-name> option.
 Print the effective "pmpp" directory as full path name.  If the "pmpp"
 directory is not exist, this command creates one.  See also
 C<--pmpp-dir-name> option.
+
+=item --write-dep-graph="path/to/file.txt"
+
+Write a file which contains the newline-separated list of the edges of
+the module dependency graph.  Each line is a tab-separated list of
+source and destination nodes.  Nodes are represented as its label.
+
+This command should be invoked after relevant modules are selected,
+e.g.:
+
+  $ perl local/bin/pmbp.pl --update --select-module Additional::Module \
+        --write-dep-graph=mygraph.txt
+
+=item --write-dep-graph-springy="path/to/file.html"
+
+Similar to the C<--write-dep-graph> command, this command generates
+the dependency graph, but as an HTML file which renders the graph
+using springy.js <http://getspringy.com/>.
 
 =back
 
