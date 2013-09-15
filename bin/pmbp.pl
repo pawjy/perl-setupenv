@@ -1318,11 +1318,15 @@ sub cpanm ($$) {
         $failed = 1;
       } elsif ($log =~ m{ld: cannot find -lmysqlclient}m) {
         push @required_system,
-            {name => 'mysql-devel', redhat_name => 'MySQL-devel',
+            {name => 'mysql-server-devel',
+             redhat_name => 'MySQL-devel',
              debian_name => 'libmysqld-dev'};
         $failed = 1;
       } elsif ($log =~ m{Can't exec "mysql_config": No such file or directory}m) {
-        push @required_system, {name => 'mysql-client'};
+        push @required_system,
+            {name => 'mysql-client-devel',
+             redhat_name => 'MySQL-devel',
+             debian_name => 'libmysqlclient-dev'};
         $failed = 1;
       } elsif ($log =~ /^version.c:.+?: error: db.h: No such file or directory/m and
                $log =~ /^-> FAIL Installing DB_File failed/m) {
