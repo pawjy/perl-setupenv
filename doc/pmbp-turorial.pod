@@ -9,10 +9,9 @@ script installs or resolves dependency of the application.
 
 =head1 GETTING STARTED
 
-First, download the C<pmbp.pl> script as:
+First, download the C<pmbp.pl> script by:
 
-  $ mkdir -p local/bin
-  $ wget -O local/bin/pmbp.pl https://github.com/wakaba/perl-setupenv/raw/master/bin/pmbp.pl
+  $ curl http://wakaba.github.io/packages/pmbp | sh
 
 Assuming your appication's Perl scripts and modules are put into
 directories C<bin>, C<lib>, C<script>, and/or C<t>, the following
