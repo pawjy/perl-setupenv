@@ -3444,6 +3444,19 @@ required version of Perl and required Perl modules, in the C<local/>
 directory under the application's directory (i.e. without breaking
 your system and home directory).
 
+=head1 INSTALL
+
+Though the pmbp.pl can be placed in your favorite directory, it is
+recommended to put in the "local/bin/" directory under your
+application's directory, given that "local/" is not
+version-controlled.
+
+If you have the "curl" command, the following command line saves the
+latest pmbp.pl script as "local/bin/pmbp.pl" under the current
+directory:
+
+  $ curl http://wakaba.github.io/packages/pmbp | sh
+
 =head1 OPTIONS
 
 There are two kinds of options for the script: normal options and
