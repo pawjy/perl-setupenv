@@ -174,7 +174,7 @@ GetOptions (
     ("--$n=s" => sub {
       push @Command, {type => $n, file_name => $_[1]};
     });
-  } qw(write-dep-graph)),
+  } qw(write-dep-graph read-pmbp-exclusions-txt)),
   '--write-dep-graph-springy=s' => sub {
     push @Command, {type => 'write-dep-graph',
                     file_name => $_[1], format => 'springy'};
@@ -2132,9 +2132,34 @@ sub read_carton_lock ($$;%) {
 
 ## ------ Perl application dependency detection ------
 
+sub read_pmbp_exclusions_txt ($$) {
+  my ($file_name => $defs) = @_;
+  if (-d $file_name) {
+    $file_name = "$file_name/config/perl/pmbp-exclusions.txt";
+  }
+  return unless -f $file_name;
+  my $base_dir_name = $file_name;
+  $base_dir_name =~ s{[^/]+\z}{};
+  info 2, "Loading |$file_name|...";
+  open my $file, '<', $file_name or die "$0: $file_name: $!";
+  while (<$file>) {
+    if (/^-\s*"([^"]+)"\s*(.+)$/) {
+      my $mod_name = abs_path "$base_dir_name/$1";
+      $defs->{components}->{$mod_name}->{$_} = $file_name for split /\s+/, $2;
+    } elsif (/^-\s*([0-9A-Za-z:]+)$/) {
+      $defs->{modules}->{$1} = $file_name;
+    } elsif (/^\s*$/) {
+      #
+    } else {
+      info_die "$file_name: Broken line: $_";
+    }
+  }
+} # read_pmbp_exclusions_txt
+
 sub read_install_list ($$$;%);
 sub read_install_list ($$$;%) {
   my ($dir_name => $module_index, $perl_version, %args) = @_;
+  $dir_name = abs_path $dir_name;
 
   my $onadd = sub { my $source = shift; return sub {
     info 1, sprintf '%s requires %s', $source, $_[0]->as_short;
@@ -2146,6 +2171,18 @@ sub read_install_list ($$$;%) {
     ## pmb install list format
     my @file = map { (glob "$_/config/perl/modules*.txt") } $dir_name;
     if (@file) {
+      my $excluded = $args{exclusions}->{components}->{$dir_name};
+      if ($excluded) {
+        my $regexp = '/config/perl/modules\\.(' . (join '|', map { quotemeta $_ } grep { $excluded->{$_} } keys %$excluded) . ')\\.txt';
+        @file = grep {
+          if (/$regexp/) {
+            info 4, "$_ is excluded by $excluded->{$1}";
+            0;
+          } else {
+            1;
+          }
+        } @file;
+      }
       for my $file_name (@file) {
         read_pmb_install_list $file_name => $module_index,
             onadd => $onadd->($file_name);
@@ -2214,7 +2251,8 @@ sub read_install_list ($$$;%) {
     read_install_list $subdir_name => $module_index, $perl_version,
         recursive => $args{recursive} ? $args{recursive} - 1 : 0,
         dep_graph => $args{dep_graph},
-        dep_graph_source => $source;
+        dep_graph_source => $source,
+        exclusions => $args{exclusion};
   }
 } # read_install_list
 
@@ -2853,6 +2891,7 @@ my $perl_version =
     init_perl_version undef;
 info 1, "Target Perl version: $perl_version";
 my $dep_graph = [];
+my $exclusions = {};
 my $root_module = PMBP::Module->new_from_package ('.');
 
 while (@Command) {
@@ -2865,7 +2904,9 @@ while (@Command) {
          file_name => $module_list_file_name},
         {type => 'set-module-index'},
         {type => 'init-pmtar-git'},
+        {type => 'read-pmbp-exclusions-txt'},
         {type => 'select-modules-by-list'},
+        {type => 'unselect-excluded-modules'},
         {type => 'write-module-index',
          file_name => $module_list_file_name},
         {type => 'write-pmb-install-list',
@@ -2889,6 +2930,7 @@ while (@Command) {
         {type => 'set-module-index',
          file_name => $module_list_file_name},
         {type => 'install-by-pmpp'},
+        {type => 'read-pmbp-exclusions-txt'},
         {type => 'install-modules-by-list',
          file_name => -f $pmb_install_file_name
                           ? $pmb_install_file_name : undef},
@@ -2946,12 +2988,13 @@ while (@Command) {
         read_pmb_install_list "$command->{dir_name}/config/perl/pmb-install.txt" => $module_index;
       } else {
         read_install_list $command->{dir_name} => $module_index, $perl_version,
-            recursive => 1;
+            recursive => 1, exclusions => $exclusions;
       }
     } else {
       read_install_list $RootDirName => $module_index, $perl_version,
-          recursive => 1;
+          recursive => 1, exclusions => $exclusions;
     }
+    $module_index->filter_modules_by_exclusions ($exclusions);
     for ($module_index->to_list) {
       info 0, "Installing @{[$_->as_short]}...";
       install_module $PerlCommand, $perl_version, $_,
@@ -2971,7 +3014,7 @@ while (@Command) {
       read_pmb_install_list $command->{file_name} => $module_index;
     } else {
       read_install_list $RootDirName => $module_index, $perl_version,
-          recursive => 1;
+          recursive => 1, exclusions => $exclusions;
     }
     for ($module_index->to_list) {
       info 0, "Installing @{[$_->as_short]} to pmpp...";
@@ -3001,7 +3044,8 @@ while (@Command) {
       read_install_list $RootDirName => $module_index, $perl_version,
           recursive => 1,
           dep_graph_source => $root_module,
-          dep_graph => $dep_graph;
+          dep_graph => $dep_graph,
+          exclusions => $exclusions;
     }
     select_module $global_module_index =>
         $perl_version, $_ => $selected_module_index,
@@ -3013,6 +3057,11 @@ while (@Command) {
     read_module_index $command->{file_name} => $global_module_index;
   } elsif ($command->{type} eq 'read-carton-lock') {
     read_carton_lock $command->{file_name} => $global_module_index;
+  } elsif ($command->{type} eq 'read-pmbp-exclusions-txt') {
+    my $fn = defined $command->{file_name} ? $command->{file_name} : $RootDirName;
+    read_pmbp_exclusions_txt $fn => $exclusions;
+  } elsif ($command->{type} eq 'unselect-excluded-modules') {
+    $selected_module_index->filter_modules_by_exclusions ($exclusions);
   } elsif ($command->{type} eq 'write-module-index') {
     write_module_index $global_module_index => $command->{file_name};
   } elsif ($command->{type} eq 'write-pmb-install-list') {
@@ -3375,6 +3424,22 @@ sub find_by_module ($$) {
 sub add_modules ($$) {
   push @{$_[0]->{list}}, @{$_[1]};
 } # add_modules
+
+sub filter_modules ($$) {
+  @{$_[0]->{list}} = grep &{$_[1]}, @{$_[0]->{list}};
+} # filter_modules
+
+sub filter_modules_by_exclusions ($$) {
+  my $exclusions = $_[1] or return;
+  $_[0]->filter_modules (sub {
+    if (defined $_->package and $exclusions->{modules}->{$_->package}) {
+      main::info 4, "@{[$_->package]} is excluded by $exclusions->{modules}->{$_->package}";
+      0;
+    } else {
+      1;
+    }
+  });
+} # filter_modules_by_exclusions
 
 sub merge_modules {
   my ($i1, $i2) = @_;
@@ -4034,6 +4099,41 @@ See also C<--set-module-index> command.
 
 Read the index of Perl modules, in the "carton.lock" format generated
 by L<Carton>.
+
+=item --read-pmbp-exclusions-txt="path/to/pmbp-exclusions.txt"
+
+Read the "pmbp exclusions text" file, which contains the list of "pmb
+install list" components and list of Perl modules that should be
+ignored.
+
+The "pmbp exclusions text" format has the line-based syntax with two
+kinds of statements: component exclusion and module exclusion.
+
+The component exclusion is:
+
+  - "modules/mysubmodule" hoge fuga foo
+
+... where I<modules/mysubmodule> is one of submodules of the
+application and I<hoge fuga foo> is a space-separated list of
+component names.  (Note that the line begins with a C<-> character.)
+This line will prevent these files from loaded:
+
+  modules/mysubmodules/config/perl/modules.hoge.txt
+  modules/mysubmodules/config/perl/modules.fuga.txt
+  modules/mysubmodules/config/perl/modules.foo.txt
+
+The module exclusion is:
+
+  - MyModule::Name
+
+... where I<MyModule::Name> is the name of a Perl module package.  The
+modules specified in this format is removed from the list of installed
+modules, if any.
+
+In most cases you don't want to specify this command directly, but
+commands C<--update> and C<--install> implicitly load the exclusions
+list, if there is C<config/perl/pmbp-exclusions.txt> in the
+application's root directory.
 
 =item --write-module-index="path/to/packages.txt"
 
