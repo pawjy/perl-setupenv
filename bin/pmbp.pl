@@ -2256,7 +2256,7 @@ sub read_install_list ($$$;%) {
         recursive => $args{recursive} ? $args{recursive} - 1 : 0,
         dep_graph => $args{dep_graph},
         dep_graph_source => $source,
-        exclusions => $args{exclusion};
+        exclusions => $args{exclusions};
   }
 } # read_install_list
 
