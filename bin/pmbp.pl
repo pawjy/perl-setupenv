@@ -2140,12 +2140,16 @@ sub read_pmbp_exclusions_txt ($$) {
   return unless -f $file_name;
   my $base_dir_name = $file_name;
   $base_dir_name =~ s{[^/]+\z}{};
+  $base_dir_name =~ s{/\z}{};
   info 2, "Loading |$file_name|...";
   open my $file, '<', $file_name or die "$0: $file_name: $!";
   while (<$file>) {
     if (/^-\s*"([^"]+)"\s*(.+)$/) {
       my $mod_name = abs_path "$base_dir_name/$1";
-      $defs->{components}->{$mod_name}->{$_} = $file_name for split /\s+/, $2;
+      my $components = [split /\s+/, $2];
+      if (defined $mod_name) {
+        $defs->{components}->{$mod_name}->{$_} = $file_name for @$components;
+      }
     } elsif (/^-\s*([0-9A-Za-z:]+)$/) {
       $defs->{modules}->{$1} = $file_name;
     } elsif (/^\s*$/) {
@@ -4111,12 +4115,13 @@ kinds of statements: component exclusion and module exclusion.
 
 The component exclusion is:
 
-  - "modules/mysubmodule" hoge fuga foo
+  - "../../modules/mysubmodule" hoge fuga foo
 
-... where I<modules/mysubmodule> is one of submodules of the
-application and I<hoge fuga foo> is a space-separated list of
-component names.  (Note that the line begins with a C<-> character.)
-This line will prevent these files from loaded:
+... where I<modules/mysubmodule> is path to one of submodules of the
+application, relative to the exclusions file, and I<hoge fuga foo> is
+a space-separated list of component names.  (Note that the line begins
+with a C<-> character.)  This line will prevent these files from
+loaded:
 
   modules/mysubmodules/config/perl/modules.hoge.txt
   modules/mysubmodules/config/perl/modules.fuga.txt
