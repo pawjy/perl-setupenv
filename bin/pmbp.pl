@@ -20,6 +20,7 @@ my $PerlCommand = 'perl';
 my $SpecifiedPerlVersion = $ENV{PMBP_PERL_VERSION};
 my $WgetCommand = 'wget';
 my @WgetOption = ($ENV{PMBP_IGNORE_TLS_ERRORS} ? '--no-check-certificate' : ());
+my $GitCommand = 'git';
 my $SudoCommand = 'sudo';
 my $AptGetCommand = 'apt-get';
 my $YumCommand = 'yum';
@@ -54,6 +55,7 @@ my @Argument = @ARGV;
 GetOptions (
   '--perl-command=s' => \$PerlCommand,
   '--wget-command=s' => \$WgetCommand,
+  '--git-command=s' => \$GitCommand,
   '--sudo-command=s' => \$SudoCommand,
   '--apt-get-command=s' => \$AptGetCommand,
   '--yum-command=s' => \$YumCommand,
@@ -662,6 +664,24 @@ sub load_json_after_garbage ($) {
 }
 
 ## ------ Git repositories ------
+
+{
+  my $HasGit;
+  sub git () {
+    my $git_command = $GitCommand;
+    $git_command = 'git' unless defined $git_command;
+    $HasGit = which $git_command unless defined $HasGit;
+    if (not $HasGit) {
+      if ($git_command eq 'git') {
+        install_system_packages [{name => 'git'}]
+            or info_die "Can't run |$git_command|";
+      } else {
+        info_die "Can't run |$git_command|";
+      }
+    }
+    return $git_command;
+  } # git
+}
 
 sub read_gitignore ($) {
   my $file_name = shift;
@@ -1682,13 +1702,13 @@ sub deps_json_dir_name () {
 
 sub init_pmtar_git () {
   return if -f (pmtar_dir_name . "/.git/config");
-  run_command ['git', 'init'],
+  run_command [git, 'init'],
       chdir => pmtar_dir_name;
 } # init_pmtar_git
 
 sub init_pmpp_git () {
   return if -f (pmpp_dir_name . "/.git/config");
-  run_command ['git', 'init'],
+  run_command [git, 'init'],
       chdir => pmpp_dir_name;
 } # init_pmpp_git
 
@@ -1696,20 +1716,17 @@ sub git_pull_current_or_master ($) {
   my $git_dir_name = shift;
   return 0 unless -f "$git_dir_name/.git/config";
   my $branch = '';
-  run_command
-      ['git', 'branch'],
+  run_command [git, 'branch'],
       chdir => $git_dir_name,
       discard_stderr => 1,
       onoutput => sub { $branch .= $_[0]; 5 };
   if ($branch =~ /^\* \(no branch\)$/m) {
     run_command
-        ['git', 'checkout', 'master'],
+        [git, 'checkout', 'master'],
         chdir => $git_dir_name
             or return 0;
   }
-  return run_command
-      ['git', 'pull'],
-      chdir => $git_dir_name;
+  return run_command [git, 'pull'], chdir => $git_dir_name;
 } # git_pull_current_or_master
 
 sub pmtar_git_pull () {
@@ -3698,6 +3715,11 @@ specified, the C<yum> command in the default search path is used.
 
 Specify the path to the C<brew> command (homebrew).  If this option is
 not specified, the C<brew> command in the default search path is used.
+
+=item --git-command="path/to/git"
+
+Specify the path to the C<git> command.  If this option is not
+specified, the C<git> command in the default search path is used.
 
 =item --mecab-charset="utf-8/euc-jp/sjis"
 
