@@ -4128,34 +4128,9 @@ by L<Carton>.
 
 =item --read-pmbp-exclusions-txt="path/to/pmbp-exclusions.txt"
 
-Read the "pmbp exclusions text" file, which contains the list of "pmb
-install list" components and list of Perl modules that should be
-ignored.
-
-The "pmbp exclusions text" format has the line-based syntax with two
-kinds of statements: component exclusion and module exclusion.
-
-The component exclusion is:
-
-  - "../../modules/mysubmodule" hoge fuga foo
-
-... where I<modules/mysubmodule> is path to one of submodules of the
-application, relative to the exclusions file, and I<hoge fuga foo> is
-a space-separated list of component names.  (Note that the line begins
-with a C<-> character.)  This line will prevent these files from
-loaded:
-
-  modules/mysubmodules/config/perl/modules.hoge.txt
-  modules/mysubmodules/config/perl/modules.fuga.txt
-  modules/mysubmodules/config/perl/modules.foo.txt
-
-The module exclusion is:
-
-  - MyModule::Name
-
-... where I<MyModule::Name> is the name of a Perl module package.  The
-modules specified in this format is removed from the list of installed
-modules, if any.
+Read the "pmbp exclusions text" (pmbp-exclusions.txt) file, which
+contains the list of "pmb install list" components and list of Perl
+modules that should be ignored.
 
 In most cases you don't want to specify this command directly, but
 commands C<--update> and C<--install> implicitly load the exclusions
@@ -4394,6 +4369,36 @@ used by the C<--install> command to omit the dependency scanning
 process.  Although this file is redundant with various sources of
 dependencies, it is expected to be part of the application repository
 (i.e. added to the Git repository of the application).
+
+=head2 config/perl/pmbp-exclusions.txt
+
+The "pmbp exclusions text" format has the line-based syntax with two
+kinds of statements: component exclusion and module exclusion.
+
+The component exclusion is:
+
+  - "../../modules/mysubmodule" hoge fuga foo
+
+... (with no leading spaces) where I<modules/mysubmodule> is path to
+one of submodules of the application, relative to the exclusions file,
+and I<hoge fuga foo> is a space-separated list of component names.
+(Note that the line begins with a C<-> character.)  This line will
+prevent these files from loaded:
+
+  modules/mysubmodules/config/perl/modules.hoge.txt
+  modules/mysubmodules/config/perl/modules.fuga.txt
+  modules/mysubmodules/config/perl/modules.foo.txt
+
+The module exclusion is:
+
+  - MyModule::Name
+
+... (with no leading spaces) where I<MyModule::Name> is the name of a
+Perl module package.  The modules specified in this format is removed
+from the list of installed modules, if any.
+
+This file is read by the C<--update> command.  See also the
+C<--read-pmbp-exclusions-txt> command.
 
 =head2 config/perl/libs.txt
 
