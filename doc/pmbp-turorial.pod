@@ -207,6 +207,43 @@ directory.  At this time, you can run your application with profiler:
   $ perl local/bin/pmbp.pl \
         --install-module ExtUtils::ParseXS~3.18=http://search.cpan.org/CPAN/authors/id/S/SM/SMUELLER/ExtUtils-ParseXS-3.18.tar.gz
 
+=head2 Inspect complex module dependency
+
+The detailed log file contains which module requires a module so that
+it is to be installed.  Therefore, the following command would
+generate such a log file for the application:
+
+  $ perl local/bin/pmbp.pl --update --preserve-info-file
+
+Don't forget the C<--preserve-info-file> option.  Unless this option,
+the detialed log file is deleted at the end of the pmbp script if the
+process has been succeeded.
+
+Then, read the log file by your favorite pager or editor and find the
+module in question.
+
+If your application or submodule does not directly require the module
+in question, but it is referenced indirectly by some CPAN module, it
+will not appear in the log file.  Instead, you can try the dependency
+graph generation command:
+
+  $ perl local/bin/pmbp.pl --update --write-dep-graph output.txt
+
+The C<--write-dep-graph> command generates a tab-separated text file
+whose line represents "from" and "to" nodes of the dependency graph.
+In other word, the module in the first column requires the module in
+the second column.  The root application is represented by ".".  For
+example:
+
+  .	Data::Dumper
+  .	modules/dongry
+  modules/dongry	Carp
+  Data::Dumper	Test::More~0.98
+
+This dependency graph represents that the application requires
+modules/dongry (a submodule) and Data::Dumper, which require Carp and
+Test::More, respectively.
+
 =head1 TROUBLESHOOTING
 
 =head2 Second invocation of pmbp --update takes as long time as the first time, nevertheless you said this should not happen :-<
