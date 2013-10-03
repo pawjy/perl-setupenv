@@ -165,6 +165,13 @@ GetOptions (
   '--print=s' => sub {
     push @Command, {type => 'print', string => $_[1]};
   },
+  '--install-perl-app=s' => sub {
+    if ($_[1] =~ s/^([0-9A-Za-z_-]+)=//) {
+      push @Command, {type => 'install-perl-app', name => $1, url => $_[1]};
+    } else {
+      push @Command, {type => 'install-perl-app', url => $_[1]};
+    }
+  },
   (map {
     my $n = $_;
     ("--$n=s" => sub {
@@ -2885,6 +2892,49 @@ sub install_mecab () {
       };
 } # install_mecab
 
+## ------ Perl application ------
+
+sub install_perl_app ($;%) {
+  my ($url, %args) = @_;
+
+  my $gh_user;
+  my $gh_name;
+  if ($url =~ m{^git\@github.com:([^./]+)/([^./]+)}) {
+    $gh_user = $1;
+    $gh_name = $2;
+  } elsif ($url =~ m{^git://github.com/([^./]+)/([^./]+)}) {
+    $gh_user = $1;
+    $gh_name = $2;
+  } elsif ($url =~ m{^https://github.com/([^./]+)/([^./]+)}) {
+    $gh_user = $1;
+    $gh_name = $2;
+  }
+  if (defined $gh_user) {
+    $url = qq<git://github.com/$gh_user/$gh_name.git>;
+  }
+
+  my $name = $args{name};
+  if (not defined $name) {
+    if ($url =~ m{([0-9A-Za-z_-]+)(?:\.git)?$}) {
+      $name = $1;
+    } else {
+      $name = 'application';
+    }
+  }
+
+  my $dir_name = qq{$RootDirName/local/$name};
+  unless (-d $dir_name and -d "$dir_name/.git") {
+    run_command [git, 'clone', $url, $dir_name]
+        or info_die "|git clone| failed";
+  }
+
+  info 0, "Installing <$url> into $dir_name...";
+
+  run_command [git, 'pull'], chdir => $dir_name;
+  run_command ['make', 'deps'], chdir => $dir_name
+      or info_die "|make deps| failed";
+} # install_perl_app
+
 ## ------ Cleanup ------
 
 sub destroy () {
@@ -3182,6 +3232,10 @@ while (@Command) {
     install_apache_httpd $command->{value};
   } elsif ($command->{type} eq 'install-mecab') {
     install_mecab;
+
+  } elsif ($command->{type} eq 'install-perl-app') {
+    install_perl_app $command->{url},
+        name => $command->{name};
 
   } else {
     info_die "Command |$command->{type}| is not defined";
@@ -4255,14 +4309,9 @@ Prepend the specified CPAN mirror URL to the list of mirrors.
 
 =back
 
-=head2 Other commands
+=head2 Installing relevant applications
 
 =over 4
-
-=item --print="string"
-
-Print the string.  Any string can be specified as the argument.  This
-command might be useful to combine multiple C<--print-*> commands.
 
 =item --install-apache="VERSION"
 
@@ -4280,6 +4329,38 @@ does nothing.
 
 Install MeCab into C<local/mecab-VERSION-CHARSET>.  If MeCab is
 already installed, this command does nothing.
+
+=item --install-perl-app="[name=]git://url/of/repo.git"
+
+Install a Perl application.  The command argument must be a Git
+repository URL, optionally preceded by a short name with the sparator
+C<=>.  The name is used as part of the directory in which the
+application is contained.  If it is omitted, the last path segment of
+the URL, ignoring C<.git> suffix, is used.  For example:
+
+  --install-perl-app=git://github.com/wakaba/cinnamon.git
+
+... will install the application in the local/cinnamon directory and
+
+  --install-perl-app=deploy=git://github.com/wakaba/cinnamon.git
+
+... will install the application in the local/deploy directory.
+
+The application must contain a C<Makefile> such that executing C<make
+deps> at the application's root directory runs any required
+preparation steps, including C<git submodule update --init>,
+installation of required CPAN modules, and so on.
+
+=back
+
+=head2 Other commands
+
+=over 4
+
+=item --print="string"
+
+Print the string.  Any string can be specified as the argument.  This
+command might be useful to combine multiple C<--print-*> commands.
 
 =item --add-to-gitignore="path"
 
