@@ -14,7 +14,7 @@ perl $pmbp --root-dir-name="$tempdir" \
 
 (grep Pod::Usage "$packstxt" > /dev/null && echo "ok 1") || echo "not ok 1"
 (grep Pod::Usage "$pmbtxt" > /dev/null && echo "ok 2") || echo "not ok 2"
-(grep Pod-Parser "$packstxt" > /dev/null && echo "ok 3") || echo "not ok 3"
+(grep Pod-Usage "$packstxt" > /dev/null && echo "ok 3") || echo "not ok 3"
 
 perl $pmbp --root-dir-name "$tempdir" \
   --read-module-index "$packstxt" --set-module-index "$packstxt" \
