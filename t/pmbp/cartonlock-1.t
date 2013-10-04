@@ -26,12 +26,12 @@ perl $pmbp --root-dir-name="$tempdir" \
 
 (
 PERL5LIB="`cat $tempdir/libs.txt`" perl -MAnyEvent \
-    -e 'die unless $AnyEvent::VERSION == "7.0"' && \
+    -e 'die $AnyEvent::VERSION unless $AnyEvent::VERSION >= "7.0"' && \
     echo "ok 1"
 ) || echo "not ok 1"
 (
 PERL5LIB="`cat $tempdir/libs.txt`" perl -MLWP::UserAgent \
-    -e 'die unless $LWP::UserAgent::VERSION == "6.04"' && \
+    -e 'die $LWP::UserAgent::VERSION unless $LWP::UserAgent::VERSION >= "6.04"' && \
     echo "ok 2"
 ) || echo "not ok 2"
 
