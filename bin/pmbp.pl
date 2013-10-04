@@ -616,11 +616,12 @@ sub load_json_after_garbage ($) {
   open my $file, '<', $_[0] or info_die "$0: $_[0]: $!";
   local $/ = undef;
   my $data = <$file>;
-  $data =~ s{^.*\n\[}{[}s;
+  $data =~ s{^(.*)\n\[}{[}s;
+  my $garbage = $1;
   my $json = decode_json ($data);
   close $file;
   profiler_stop 'file';
-  return $json;
+  return ($garbage, $json);
 } # load_json_after_garbage
 
 ## ------ System environment ------
@@ -1591,8 +1592,17 @@ sub cpanm ($$) {
       $result->{output_text} = [grep { length } split /\x0D?\x0A/, <$file>]->[-1];
     } elsif ($args->{scandeps} and -f $json_temp_file->filename) {
       ## Parse JSON data, ignoring any progress before it...
-      $result->{output_json} = load_json_after_garbage $json_temp_file->filename;
-      info_die "cpanm --scandeps failed" unless @{$result->{output_json}};
+      my $garbage;
+      ($garbage, $result->{output_json}) = load_json_after_garbage $json_temp_file->filename;
+
+      my $failed = not @{$result->{output_json}};
+      if (defined $garbage and
+          ($garbage =~ /! (?:Installing|Configuring) (\S+) failed\. See (.+?) for details\./m or
+           $garbage =~ /! Configure failed for (\S+). See (.+?) for details\.$/m)) {
+        copy_log_file $2 => $1;
+        $failed = 1;
+      }
+      info_die "cpanm --scandeps failed" if $failed;
     }
 
     if (@module_arg and $module_arg[0] eq 'CPAN' and
