@@ -29,7 +29,7 @@ my $DownloadRetryCount = 2;
 my $PerlbrewInstallerURL = q<http://install.perlbrew.pl/>;
 my $PerlbrewParallelCount = $ENV{PMBP_PARALLEL_COUNT} || ($ENV{TRAVIS} ? 4 : 1);
 my $CPANURLPrefix = q<http://search.cpan.org/CPAN/>;
-$CPANURLPrefix = q<http://cpan.mirrors.travis-ci.org/> if $ENV{TRAVIS};
+#$CPANURLPrefix = q<http://cpan.mirrors.travis-ci.org/> if $ENV{TRAVIS};
 my $CPANModuleIndexURL = $CPANURLPrefix . q<modules/02packages.details.txt.gz>;
 my $CPANMURL = q<http://cpanmin.us/>;
 my $PMBPURL = q<https://github.com/wakaba/perl-setupenv/raw/master/bin/pmbp.pl>;
@@ -45,7 +45,7 @@ my @CPANMirror = qw(
   http://cpan.metacpan.org/
   http://backpan.perl.org/
 );
-unshift @CPANMirror, qw(http://cpan.mirrors.travis-ci.org/) if $ENV{TRAVIS};
+#unshift @CPANMirror, qw(http://cpan.mirrors.travis-ci.org/) if $ENV{TRAVIS};
 my $Verbose = $ENV{PMBP_VERBOSE} || 0;
 my $PreserveInfoFile = 0;
 my $DumpInfoFileBeforeDie = $ENV{PMBP_DUMP_BEFORE_DIE} || $ENV{TRAVIS} || 0;
