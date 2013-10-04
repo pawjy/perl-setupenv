@@ -43,7 +43,7 @@ test-stopproxy:
 
 test-main:
 ifeq "$(TARGET)" ""
-	http_proxy=http://localhost:16613 $(PROVE) --verbose t/pmbp/*.t t/pmbp-perl/*.t t/pmbp-apache/*.t
+	http_proxy=http://localhost:16613 $(PROVE) --verbose t/*/*.t
 endif
 ifeq "$(TARGET)" "normal"
 	http_proxy=http://localhost:16613 $(PROVE) -j1 --verbose t/pmbp/*.t
@@ -51,6 +51,15 @@ endif
 ifeq "$(TARGET)" "perl"
 	http_proxy=http://localhost:16613 $(PROVE) --verbose t/pmbp-perl/*.t
 endif
+ifeq "$(TARGET)" "imagemagick"
+	http_proxy=http://localhost:16613 $(PROVE) --verbose t/pmbp-imagemagick/*.t
+endif
 ifeq "$(TARGET)" "apache"
 	http_proxy=http://localhost:16613 $(PROVE) --verbose t/pmbp-apache/*.t
+endif
+ifeq "$(TARGET)" "modperl"
+	http_proxy=http://localhost:16613 $(PROVE) --verbose t/pmbp-modperl/*.t
+endif
+ifeq "$(TARGET)" "mecab"
+	http_proxy=http://localhost:16613 $(PROVE) --verbose t/pmbp-mecab/*.t
 endif

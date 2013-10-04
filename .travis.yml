@@ -1,10 +1,13 @@
 perl:
   - "5.16"
-#  - "5.10"
+#  - "5.8"
 env:
   - TARGET=normal
   - TARGET=perl
+  - TARGET=imagemagick
   - TARGET=apache
+  - TARGET=modperl
+  - TARGET=mecab
 before_install: git submodule update --init
 install: "make test-deps"
 script: "make test"
@@ -13,5 +16,5 @@ notifications:
     - wakaba@suikawiki.org
   irc:
     channels:
-      - "suika.suikawiki.org#mechanize"
+      - "irc.suikawiki.org#mechanize"
     use_notice: true
