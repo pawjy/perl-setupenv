@@ -151,12 +151,34 @@ GetOptions (
     push @Command, {type => 'add-to-gitignore', value => $_[1]};
   },
   '--create-perl-command-shortcut=s' => sub {
-    push @Command, {type => 'write-libs-txt'},
-                   {type => 'create-perl-command-shortcut', command => $_[1]};
+    if ($_[1] =~ /=/) {
+      # ../myapp=bin/myapp.pl
+      my ($file_name, $command) = split /=/, $_[1], 2;
+      push @Command,
+          {type => 'write-libs-txt'},
+          {type => 'create-perl-command-shortcut',
+           file_name => $file_name,
+           command => $command};
+    } elsif ($_[1] =~ m{/([^/]+)$}) {
+      # local/bin/hoge (== local/bin/hoge=hoge)
+      push @Command,
+          {type => 'write-libs-txt'},
+          {type => 'create-perl-command-shortcut',
+           file_name => $_[1],
+           command => $1};
+    } else {
+      # perldoc (== perldoc=perldoc)
+      push @Command,
+          {type => 'write-libs-txt'},
+          {type => 'create-perl-command-shortcut',
+           file_name => $_[1],
+           command => $_[1]};
+    }
   },
   '--create-exec-command=s' => sub {
-    push @Command, {type => 'write-libs-txt'},
-                   {type => 'create-exec-command', command => $_[1]};
+    push @Command,
+        {type => 'write-libs-txt'},
+        {type => 'create-perl-command-shortcut', file_name => $_[1]};
   },
   '--print-scanned-dependency=s' => sub {
     push @Command, {type => 'print-scanned-dependency',
@@ -412,6 +434,20 @@ sub update_pmbp_pl () {
 
 sub make_path ($) { mkpath $_[0] }
 sub remove_tree ($) { rmtree $_[0] }
+
+sub resolve_path ($$) {
+  my $path = ($_[0] =~ m{^/}) ? $_[0] : "$_[1]/$_[0]";
+  info_die "Base |$_[1]| is not an absolute path" unless $path =~ m{^/};
+  $path .= '/';
+  $path =~ s{//+}{/};
+  $path =~ s{/\.(?=/)}{}g;
+  while ($path =~ m{/\.\./}) {
+    $path =~ s{/[^/]+/\.\.(?=/)}{}g;
+    $path =~ s{^/\.\./}{/};
+  }
+  $path =~ s{/+$}{};
+  return $path;
+} # resolve_path
 
 sub mkdir_for_file ($) {
   my $file_name = $_[0];
@@ -1827,21 +1863,21 @@ sub get_libs_txt_file_name ($) {
   return "$RootDirName/local/config/perl/libs-$perl_version-$Config{archname}.txt";
 } # get_libs_txt_file_name
 
-sub create_perl_command_shortcut ($$;$) {
-  my ($perl_version, $file_name, $command) = @_;
-  $file_name = $file_name =~ m{/} ? $file_name : "$RootDirName/$file_name";
+sub create_perl_command_shortcut ($$$) {
+  my ($perl_version, $command => $file_name) = @_;
+  $file_name = resolve_path $file_name, $RootDirName;
+  $command = resolve_path $command, $RootDirName
+      if defined $command and $command =~ m{/};
   mkdir_for_file $file_name;
-  $command ||= '';
-  $command = $1 if $command =~ m{/([^/]*)$};
   info_writing 1, "command shortcut", $file_name;
   my $perl_path = get_perlbrew_perl_bin_dir_name $perl_version;
   my $pm_path = get_pm_dir_name ($perl_version) . "/bin";
   open my $file, '>', $file_name or info_die "$0: $file_name: $!";
-  print $file sprintf qq{\#!/bin/sh\nPMBP_ORIG_PATH="`perl -e '%s'`" PATH="%s" PERL5LIB="`cat %s 2> /dev/null`" exec %s "\$\@"\n},
+  printf $file qq{\#!/bin/sh\nPMBP_ORIG_PATH="`perl -e '%s'`" PATH="%s" PERL5LIB="`cat %s 2> /dev/null`" exec %s"\$\@"\n},
       _quote_dq 'print $ENV{PMBP_ORIG_PATH} || $ENV{PATH}',
       _quote_dq "$pm_path:$perl_path:" . '$PATH',
       _quote_dq get_libs_txt_file_name ($perl_version),
-      $command;
+      defined $command ? $command . ' ' : '';
   close $file;
   chmod 0755, $file_name or info_die "$0: $file_name: $!";
 } # create_perl_command_shortcut
@@ -3163,9 +3199,8 @@ while (@Command) {
     remove_tree $link_name;
     symlink $real_name => $link_name or info_die "$0: $link_name: $!";
   } elsif ($command->{type} eq 'create-perl-command-shortcut') {
-    create_perl_command_shortcut $perl_version, $command->{command}, $command->{command};
-  } elsif ($command->{type} eq 'create-exec-command') {
-    create_perl_command_shortcut $perl_version, $command->{command};
+    create_perl_command_shortcut $perl_version,
+        $command->{command} => $command->{file_name};
   } elsif ($command->{type} eq 'create-pmbp-makefile') {
     save_url $MakefileURL => $command->{value};
   } elsif ($command->{type} eq 'write-makefile-pl') {
@@ -4018,6 +4053,19 @@ Therefore,
 
 ... would run C<perl> and C<prove> installed by the pmbp script with
 any Perl modules installed by the pmbp script.
+
+If the command file name you'd like to create differs from the actual
+command, they can be specified by using C<=> separator.  For example:
+
+  $ perl path/to/pmbp.pl --install \
+        --create-perl-command-shortcut myapp=bin/start-myapp.pl
+  $ ./myapp
+
+... would run the C<bin/start-myapp.pl> script (Note that the script
+requires the C<x> permission).
+
+If there is already a file with the specified command file name, the
+file is overridden by the newly created shortcut.
 
 =item --create-exec-command="command-name"
 

@@ -13,6 +13,8 @@ perl $pmbp --root-dir-name "$tempdir" \
     --install \
     --create-perl-command-shortcut "$tempdir/fuga/hogehoge" && echo "ok 1"
 
+cat $tempdir/fuga/hogehoge
+
 # 2
 $tempdir/fuga/hogehoge
 
