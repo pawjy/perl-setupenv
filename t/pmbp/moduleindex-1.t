@@ -24,10 +24,10 @@ perl $pmbp --root-dir-name="$tempdir" \
 (grep CGI::Carp "$packstxt" > /dev/null && echo "ok 5") || echo "not ok 5"
 (grep Try::Tiny "$packstxt" > /dev/null && echo "ok 6") || echo "not ok 6"
 
-perl $pmbp --root-dir-name="$tempdir" \
+(perl $pmbp --root-dir-name="$tempdir" \
     --read-module-index="$packstxt" \
     --scandeps Module::Not::Found::A \
-    --write-module-index="$packstxt" && echo "not ok 7" || echo "ok 7"
+    --write-module-index="$packstxt" && echo "not ok 7") || echo "ok 7"
 
 (grep CGI::Carp "$packstxt" > /dev/null && echo "ok 8") || echo "not ok 8"
 (grep Try::Tiny "$packstxt" > /dev/null && echo "ok 9") || echo "not ok 9"

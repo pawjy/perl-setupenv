@@ -1589,6 +1589,7 @@ sub cpanm ($$) {
     } elsif ($args->{scandeps} and -f $json_temp_file->filename) {
       ## Parse JSON data, ignoring any progress before it...
       $result->{output_json} = load_json_after_garbage $json_temp_file->filename;
+      info_die "cpanm --scandeps failed" unless @{$result->{output_json}};
     }
 
     if (@module_arg and $module_arg[0] eq 'CPAN' and
