@@ -28,10 +28,12 @@ my $BrewCommand = 'brew';
 my $DownloadRetryCount = 2;
 my $PerlbrewInstallerURL = q<http://install.perlbrew.pl/>;
 my $PerlbrewParallelCount = $ENV{PMBP_PARALLEL_COUNT} || ($ENV{TRAVIS} ? 4 : 1);
-my $CPANModuleIndexURL = q<http://search.cpan.org/CPAN/modules/02packages.details.txt.gz>;
+my $CPANURLPrefix = q<http://search.cpan.org/CPAN/>;
+$CPANURLPrefix = q<http://cpan.mirrors.travis-ci.org/> if $ENV{TRAVIS};
+my $CPANModuleIndexURL = $CPANURLPrefix . q<modules/02packages.details.txt.gz>;
 my $CPANMURL = q<http://cpanmin.us/>;
 my $PMBPURL = q<https://github.com/wakaba/perl-setupenv/raw/master/bin/pmbp.pl>;
-my $MakefileURL = q<https://github.com/wakaba/perl-setupenv/raw/master/Makefile.pmbp.example>;
+my $MakefileURL = q<https://raw.github.com/wakaba/perl-setupenv/master/Makefile.pmbp.example>;
 my $ImageMagickURL = q<http://www.imagemagick.org/download/ImageMagick.tar.gz>;
 my $RootDirName = '.';
 my $FallbackPMTarDirName = $ENV{PMBP_FALLBACK_PMTAR_DIR_NAME};
@@ -43,6 +45,7 @@ my @CPANMirror = qw(
   http://cpan.metacpan.org/
   http://backpan.perl.org/
 );
+unshift @CPANMirror, qw(http://cpan.mirrors.travis-ci.org/) if $ENV{TRAVIS};
 my $Verbose = $ENV{PMBP_VERBOSE} || 0;
 my $PreserveInfoFile = 0;
 my $DumpInfoFileBeforeDie = $ENV{PMBP_DUMP_BEFORE_DIE} || $ENV{TRAVIS} || 0;
@@ -1292,7 +1295,7 @@ sub cpanm ($$) {
       } elsif ($log =~ /^skipping .+\/perl-/m) {
         if (@module_arg and $module_arg[0] eq 'Module::Metadata') {
           push @required_install, PMBP::Module->new_from_module_arg
-              ('Module::Metadata=http://search.cpan.org/CPAN/authors/id/A/AP/APEIRON/Module-Metadata-1.000011.tar.gz');
+              ('Module::Metadata='.$CPANURLPrefix.'authors/id/A/AP/APEIRON/Module-Metadata-1.000011.tar.gz');
           $failed = 1;
         }
       } elsif ($level == 1 and
@@ -1366,7 +1369,7 @@ sub cpanm ($$) {
         ## process?).  (Therefore the line below is incomplete, but I
         ## can no longer reproduce the problem.)
         push @required_install, PMBP::Module->new_from_module_arg
-            ('Net::SSLeay~1.36=http://search.cpan.org/CPAN/authors/id/F/FL/FLORA/Net-SSLeay-1.36.tar.gz');
+            ('Net::SSLeay~1.36='.$CPANURLPrefix.'authors/id/F/FL/FLORA/Net-SSLeay-1.36.tar.gz');
       } elsif ($log =~ /fatal error: openssl\/err.h: No such file or directory/m) {
         push @required_system,
             {name => 'openssl-devel', debian_name => 'libssl-dev'};
@@ -1633,10 +1636,9 @@ sub supplemental_module_index () {
       [stat ($file_name . '.gz')]->[9] + 24 * 60 * 60 > time;
   my $index =  PMBP::ModuleIndex->new_from_arrayref ([
     ## Stupid workaround for cpanm's broken version comparison
-    PMBP::Module->new_from_module_arg ('ExtUtils::MakeMaker~6.6302=http://search.cpan.org/CPAN/authors/id/M/MS/MSCHWERN/ExtUtils-MakeMaker-6.63_02.tar.gz'),
-
-    PMBP::Module->new_from_module_arg ('IDNA::Punycode~0.03=http://search.cpan.org/CPAN/authors/id/R/RO/ROBURBAN/IDNA-Punycode-0.03.tar.gz'),
-    PMBP::Module->new_from_module_arg ('WWW::Contact~0.47=http://search.cpan.org/CPAN/authors/id/F/FA/FAYLAND/WWW-Contact-0.47.tar.gz'),
+    PMBP::Module->new_from_module_arg ('ExtUtils::MakeMaker~6.6302='.$CPANURLPrefix.'authors/id/M/MS/MSCHWERN/ExtUtils-MakeMaker-6.63_02.tar.gz'),
+    PMBP::Module->new_from_module_arg ('IDNA::Punycode~0.03='.$CPANURLPrefix.'authors/id/R/RO/ROBURBAN/IDNA-Punycode-0.03.tar.gz'),
+    PMBP::Module->new_from_module_arg ('WWW::Contact~0.47='.$CPANURLPrefix.'authors/id/F/FA/FAYLAND/WWW-Contact-0.47.tar.gz'),
   ]);
   write_module_index ($index => $file_name);
   run_command ['gzip', '-f', $file_name];
