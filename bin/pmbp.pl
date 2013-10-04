@@ -2549,7 +2549,7 @@ sub build_imagemagick ($$$;%) {
   info_die "Can't expand $tar_file_name" unless $dir_name;
   run_command
       ['sh', 'configure',
-       '--without-perl',
+       '--with-perl',
        '--prefix=' . $install_dir_name,
        '--without-lcms2'],
       chdir => $dir_name
