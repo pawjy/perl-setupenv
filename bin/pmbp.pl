@@ -1481,12 +1481,33 @@ sub cpanm ($$) {
           $scan_errors->(1, $_);
           return $info_level;
         };
-    info 2, "cpanm done";
+    info 2, "cpanm done (exit status @{[$cpanm_error >> 8]})";
     if (not $cpanm_ok and not $failed and (($cpanm_error >> 8) == 1) and
         $args->{scandeps} and -f $json_temp_file->filename) {
       ## cpanm --scandeps exits with return value 1...
       $cpanm_ok = 1;
     }
+
+    if (defined $json_temp_file and -f $json_temp_file->filename) {
+      info_log_file 3, $json_temp_file->filename => 'cpanm STDOUT';
+    }
+    if ($args->{info} and -f $json_temp_file->filename) {
+      ## Example output:
+      ## ==> Found dependencies: ExtUtils::MakeMaker, ExtUtils::Install
+      ## BINGOS/ExtUtils-MakeMaker-6.72.tar.gz
+      ## YVES/ExtUtils-Install-1.54.tar.gz
+      ## FAYLAND/WWW-Contact-0.47.tar.gz
+      open my $file, '<', $json_temp_file->filename or info_die "$0: $!";
+      local $/ = undef;
+      $result->{output_text} = [grep { length } split /\x0D?\x0A/, <$file>]->[-1];
+    } elsif ($args->{scandeps} and -f $json_temp_file->filename) {
+      ## Parse JSON data, ignoring any progress before it...
+      my $garbage;
+      ($garbage, $result->{output_json}) = load_json_after_garbage $json_temp_file->filename;
+      $failed = 1 unless @{$result->{output_json}};
+      $scan_errors->(1, $garbage);
+    }
+
     ($cpanm_ok and not $failed) or do {
       unless ($CPANMDepth > 100 or $redo++ > 10) {
         my $redo;
@@ -1578,32 +1599,6 @@ sub cpanm ($$) {
         info_die "cpanm($CPANMDepth): Processing @{[join ' ', map { ref $_ ? $_->as_short : $_ } @$modules]} failed (@{[$? >> 8]})\n";
       }
     }; # close or do
-    if (defined $json_temp_file and -f $json_temp_file->filename) {
-      info_log_file 3, $json_temp_file->filename => 'cpanm STDOUT';
-    }
-    if ($args->{info} and -f $json_temp_file->filename) {
-      ## Example output:
-      ## ==> Found dependencies: ExtUtils::MakeMaker, ExtUtils::Install
-      ## BINGOS/ExtUtils-MakeMaker-6.72.tar.gz
-      ## YVES/ExtUtils-Install-1.54.tar.gz
-      ## FAYLAND/WWW-Contact-0.47.tar.gz
-      open my $file, '<', $json_temp_file->filename or info_die "$0: $!";
-      local $/ = undef;
-      $result->{output_text} = [grep { length } split /\x0D?\x0A/, <$file>]->[-1];
-    } elsif ($args->{scandeps} and -f $json_temp_file->filename) {
-      ## Parse JSON data, ignoring any progress before it...
-      my $garbage;
-      ($garbage, $result->{output_json}) = load_json_after_garbage $json_temp_file->filename;
-
-      my $failed = not @{$result->{output_json}};
-      if (defined $garbage and
-          ($garbage =~ /! (?:Installing|Configuring) (\S+) failed\. See (.+?) for details\./m or
-           $garbage =~ /! Configure failed for (\S+). See (.+?) for details\.$/m)) {
-        copy_log_file $2 => $1;
-        $failed = 1;
-      }
-      info_die "cpanm --scandeps failed" if $failed;
-    }
 
     if (@module_arg and $module_arg[0] eq 'CPAN' and
         not $args->{info} and not $args->{scandeps}) {
