@@ -2309,7 +2309,7 @@ sub read_install_list ($$$;%) {
   ## Submodules
   return unless $args{recursive};
   for my $subdir_name (map { glob "$dir_name/$_" } qw(
-    modules/* t_deps/modules/* local/submodules/*
+    modules/* bin/modules/* t_deps/modules/* local/submodules/*
   )) {
     my $short_name = File::Spec->abs2rel ($subdir_name, $dir_name);
     my $source;
@@ -2360,7 +2360,7 @@ sub scan_dependency_from_directory ($) {
   my $modules = {};
 
   my @include_dir_name = qw(bin lib script t t_deps);
-  my @exclude_pattern = map { "^$_" } qw(modules t_deps/modules t_deps/projects);
+  my @exclude_pattern = map { "^$_" } qw(modules bin/modules t_deps/modules t_deps/projects);
   for (split /\n/, qx{cd \Q$dir_name\E && find @{[join ' ', grep quotemeta, @include_dir_name]} 2> /dev/null @{[join ' ', map { "| grep -v $_" } grep quotemeta, @exclude_pattern]} | grep "\\.\\(pm\\|pl\\|t\\)\$" | xargs grep "\\(use\\|require\\|extends\\) " --no-filename}) {
     s/\#.*$//;
     if (/\b(?:(?:use|require)\s*(?:base|parent)|extends)\s*(.+)/) {
@@ -2375,7 +2375,7 @@ sub scan_dependency_from_directory ($) {
     }
   }
 
-  @include_dir_name = map { glob "$dir_name/$_" } qw(lib t/lib modules/*/lib t_deps/modules/*/lib);
+  @include_dir_name = map { glob "$dir_name/$_" } qw(lib t/lib modules/*/lib bin/modules/*/lib t_deps/modules/*/lib);
   for (split /\n/, qx{cd \Q$dir_name\E && find @{[join ' ', grep quotemeta, @include_dir_name]} 2> /dev/null | grep "\\.\\(pm\\|pl\\)\$" | xargs grep "package " --no-filename}) {
     s/\#.*//;
     if (/package\s*([0-9A-Za-z_:]+)/) {
