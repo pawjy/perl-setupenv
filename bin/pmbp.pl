@@ -658,7 +658,7 @@ sub load_json_after_garbage ($) {
         info 0, '';
         info 0, '  $ ' . $env . join ' ', @$cmd;
         info 0, '';
-        if ($_->{name} eq 'libperl-devel') {
+        if (grep { $_->{name} eq 'libperl-devel' } @$packages) {
           info 0, '(Instead of installing libperl-devel, you can use --install-perl command)';
         }
       } else {
@@ -673,7 +673,7 @@ sub load_json_after_garbage ($) {
       info 0, '';
       info 0, "  " . join ' ', map { $_->{name} } @$packages;
       info 0, '';
-      if ($_->{name} eq 'libperl-devel') {
+      if (grep { $_->{name} eq 'libperl-devel' } @$packages) {
         info 0, '(Instead of installing libperl-devel, you can use --install-perl command)';
       }
     }
@@ -1433,7 +1433,7 @@ sub cpanm ($$) {
               {name => 'glib2-devel', debian_name => 'libglib2.0-dev'};
         } elsif ($name eq 'pangocairo') {
           push @required_system,
-              {name => 'pango-devel', debian_name => 'libpango-dev'};
+              {name => 'pango-devel', debian_name => 'libpango1.0-dev'};
         } elsif ($name =~ /^cairo-/) {
           # cairo-png cairo-ps cairo-pdf cairo-svg
           push @required_system,
