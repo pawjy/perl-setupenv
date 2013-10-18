@@ -1173,7 +1173,9 @@ sub cpanm ($$) {
         not ($args->{scandeps} or $args->{info});
 
     my @module_arg = map {
-      {'GD::Image' => 'GD'}->{$_} || $_;
+      $_ eq 'Email::Handle'
+          ? ('Class::Accessor::Fast', 'Email::Handle')
+          : {'GD::Image' => 'GD'}->{$_} || $_;
     } map {
       ref $_ ? $_->as_cpanm_arg (pmtar_dir_name ()) : $_;
     } @$modules;
@@ -1642,8 +1644,12 @@ sub supplemental_module_index () {
   my $index =  PMBP::ModuleIndex->new_from_arrayref ([
     ## Stupid workaround for cpanm's broken version comparison
     PMBP::Module->new_from_module_arg ('ExtUtils::MakeMaker~6.6302='.$CPANURLPrefix.'authors/id/M/MS/MSCHWERN/ExtUtils-MakeMaker-6.63_02.tar.gz'),
+
     PMBP::Module->new_from_module_arg ('IDNA::Punycode~0.03='.$CPANURLPrefix.'authors/id/R/RO/ROBURBAN/IDNA-Punycode-0.03.tar.gz'),
     PMBP::Module->new_from_module_arg ('WWW::Contact~0.47='.$CPANURLPrefix.'authors/id/F/FA/FAYLAND/WWW-Contact-0.47.tar.gz'),
+
+    ## Obsolete
+    PMBP::Module->new_from_module_arg ('Email::Handle~0.01=http://backpan.perl.org/authors/id/N/NA/NAOYA/Email-Handle-0.01.tar.gz'),
   ]);
   write_module_index ($index => $file_name);
   run_command ['gzip', '-f', $file_name];
