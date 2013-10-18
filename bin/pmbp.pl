@@ -2575,20 +2575,24 @@ sub build_imagemagick ($$$;%) {
       chdir => $container_dir_name;
   my $dir_name = glob "$container_dir_name/ImageMagick-*";
   info_die "Can't expand $tar_file_name" unless $dir_name;
+  my $envs = {LANG => 'C'};
   run_command
       ['sh', 'configure',
        '--with-perl',
        '--prefix=' . $install_dir_name,
        '--without-lcms2'],
-      chdir => $dir_name
+      chdir => $dir_name,
+      envs => $envs,
           or info_die "ImageMagick ./configure failed";
   run_command
       ['make'],
-      chdir => $dir_name
+      chdir => $dir_name,
+      envs => $envs,
           or info_die "ImageMagick make failed";
   run_command
       ['make', 'install'],
-      chdir => $dir_name
+      chdir => $dir_name,
+      envs => $envs,
           or info_die "ImageMagick make install failed";
   my $perl_make_file_name = "$dir_name/PerlMagick/Makefile.PL";
   for my $name (qw{ExtUtils::MakeMaker ExtUtils::ParseXS}) {
@@ -2608,9 +2612,10 @@ sub build_imagemagick ($$$;%) {
         or die "$0: $perl_make_file_name: $!";
     print $file $make_pl;
   }
-  my $envs = {PATH => get_env_path ($perl_version),
+  $envs = {PATH => get_env_path ($perl_version),
               PERL5LIB => (join ':', (get_lib_dir_names ($perl_command, $perl_version))),
-              MAKEFLAGS => ''};
+              MAKEFLAGS => '',
+           LANG => 'C'};
   run_command
       [$perl_command, 'Makefile.PL',
        'INSTALL_BASE="' . $install_dir_name . '"'],
