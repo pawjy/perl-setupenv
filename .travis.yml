@@ -8,6 +8,7 @@ env:
   - TARGET=apache
   - TARGET=modperl
   - TARGET=mecab
+  - TARGET=rrdtool
 before_install: git submodule update --init
 install: "make test-deps"
 script: "make test"

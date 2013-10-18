@@ -63,3 +63,6 @@ endif
 ifeq "$(TARGET)" "mecab"
 	http_proxy=http://localhost:16613 $(PROVE) --verbose t/pmbp-mecab/*.t
 endif
+ifeq "$(TARGET)" "rrdtool"
+	http_proxy=http://localhost:16613 $(PROVE) --verbose t/pmbp-rrdtool/*.t
+endif

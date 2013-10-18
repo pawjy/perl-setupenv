@@ -1662,6 +1662,8 @@ sub supplemental_module_index () {
 
     PMBP::Module->new_from_module_arg ('IDNA::Punycode~0.03='.$CPANURLPrefix.'authors/id/R/RO/ROBURBAN/IDNA-Punycode-0.03.tar.gz'),
     PMBP::Module->new_from_module_arg ('WWW::Contact~0.47='.$CPANURLPrefix.'authors/id/F/FA/FAYLAND/WWW-Contact-0.47.tar.gz'),
+    PMBP::Module->new_from_module_arg ('RRDs='.$CPANURLPrefix.'authors/id/G/GF/GFUJI/Alien-RRDtool-0.05.tar.gz'),
+    PMBP::Module->new_from_module_arg ('RRDp='.$CPANURLPrefix.'authors/id/G/GF/GFUJI/Alien-RRDtool-0.05.tar.gz'),
 
     ## Obsolete
     PMBP::Module->new_from_module_arg ('Email::Handle~0.01=http://backpan.perl.org/authors/id/N/NA/NAOYA/Email-Handle-0.01.tar.gz'),
