@@ -1426,6 +1426,21 @@ sub cpanm ($$) {
         push @required_system,
             {name => 'proj-devel', debian_name => 'libproj-dev'};
         $failed = 1;
+      } elsif ($log =~ /^\* I could not find a working copy of (.+)\./m) {
+        my $name = $1;
+        if ($name eq 'glib-2.0') {
+          push @required_system,
+              {name => 'glib2-devel', debian_name => 'libglib2.0-dev'};
+        } elsif ($name eq 'pangocairo') {
+          push @required_system,
+              {name => 'pango-devel', debian_name => 'libpango-dev'};
+        } elsif ($name =~ /^cairo-/) {
+          # cairo-png cairo-ps cairo-pdf cairo-svg
+          push @required_system,
+              {name => 'cairo-devel', debian_name => 'libcairo-dev'};
+        } else {
+          push @required_system, {name => $name};
+        }
       } elsif ($log =~ /^! Couldn\'t find module or a distribution (\S+) \(/m) {
         my $mod = {
           'Date::Parse' => 'Date::Parse',
