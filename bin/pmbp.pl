@@ -1426,7 +1426,7 @@ sub cpanm ($$) {
         push @required_system,
             {name => 'proj-devel', debian_name => 'libproj-dev'};
         $failed = 1;
-      } elsif ($log =~ /^\* I could not find a working copy of (.+)\./m) {
+      } elsif ($log =~ /^\* I could not find a working copy of (\S+)\./m) {
         my $name = $1;
         if ($name eq 'glib-2.0') {
           push @required_system,
