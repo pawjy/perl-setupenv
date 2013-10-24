@@ -1468,6 +1468,9 @@ sub cpanm ($$) {
         unlink $CPANMCommand;
         install_cpanm;
         $failed = 1;
+      } elsif ($log =~ m{^Perl v([0-9.]+) required--this is only v([0-9.]+), stopped at }m) {
+        info 0, "Perl $1 or later is requested (current: $2)";
+        $failed = 1;
       }
     }; # $scan_errors
     ## --- End of error message sniffer ---
