@@ -1910,6 +1910,14 @@ sub get_libs_txt_file_name ($) {
   return "$RootDirName/local/config/perl/libs-$perl_version-$Config{archname}.txt";
 } # get_libs_txt_file_name
 
+sub write_libs_txt ($$$) {
+  my ($perl_command, $perl_version => $file_name) = @_;
+  mkdir_for_file $file_name;
+  open my $file, '>', $file_name or info_die "$0: $file_name: $!";
+  info_writing 0, "lib paths", $file_name;
+  print $file join ':', (get_lib_dir_names ($perl_command, $perl_version));
+} # write_libs_txt
+
 sub create_perl_command_shortcut ($$$) {
   my ($perl_version, $command => $file_name) = @_;
   $file_name = resolve_path $file_name, $RootDirName;
@@ -3231,10 +3239,7 @@ while (@Command) {
     my $file_name = $command->{file_name};
     $file_name = get_libs_txt_file_name ($perl_version)
         unless defined $file_name;
-    mkdir_for_file $file_name;
-    open my $file, '>', $file_name or info_die "$0: $file_name: $!";
-    info_writing 0, "lib paths", $file_name;
-    print $file join ':', (get_lib_dir_names ($PerlCommand, $perl_version));
+    write_libs_txt $PerlCommand, $perl_version => $file_name;
   } elsif ($command->{type} eq 'create-libs-txt-symlink') {
     my $real_name = get_libs_txt_file_name ($perl_version);
     my $link_name = "$RootDirName/config/perl/libs.txt";
