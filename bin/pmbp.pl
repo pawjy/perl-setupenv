@@ -616,12 +616,15 @@ sub load_json_after_garbage ($) {
   open my $file, '<', $_[0] or info_die "$0: $_[0]: $!";
   local $/ = undef;
   my $data = <$file>;
-  $data =~ s{^(.*)\n\[}{[}s;
-  my $garbage = $1;
-  my $json = decode_json ($data);
   close $file;
   profiler_stop 'file';
-  return ($garbage, $json);
+  if ($data =~ s{^(.*)\n\[}{[}s) {
+    my $garbage = $1;
+    my $json = decode_json ($data);
+    return ($garbage, $json);
+  } else {
+    return ($data, undef);
+  }
 } # load_json_after_garbage
 
 ## ------ System environment ------
