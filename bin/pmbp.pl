@@ -541,7 +541,11 @@ sub run_command ($;%) {
   }
   profiler_stop ($args{profiler_name} || 'command');
   if ($stderr_file and -f $stderr_file->filename) {
-    info_log_file 3, $stderr_file->filename => 'stderr';
+    my $log = info_log_file 3, $stderr_file->filename => 'stderr';
+    if ($args{onstderr}) {
+      local $_ = $log;
+      $args{onstderr}->();
+    }
   }
   return $return;
 } # run_command
@@ -1505,6 +1509,10 @@ sub cpanm ($$) {
           }
           $scan_errors->(1, $_);
           return $info_level;
+        },
+        onstderr => sub {
+          $scan_errors->(1, $_);
+          return 1;
         };
     info 2, "cpanm done (exit status @{[$cpanm_error >> 8]})";
     if (not $cpanm_ok and not $failed and (($cpanm_error >> 8) == 1) and
