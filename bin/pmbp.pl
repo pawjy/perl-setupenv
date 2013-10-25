@@ -1526,7 +1526,7 @@ sub cpanm ($$) {
       ## Parse JSON data, ignoring any progress before it...
       my $garbage;
       ($garbage, $result->{output_json}) = load_json_after_garbage $json_temp_file->filename;
-      $failed = 1 unless @{$result->{output_json}};
+      $failed = 1 unless @{$result->{output_json} or []};
       $scan_errors->(1, $garbage);
     }
 
