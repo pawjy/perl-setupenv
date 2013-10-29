@@ -1759,7 +1759,7 @@ sub save_by_pathname ($$) {
             discard_stderr => 1,
             onoutput => sub { $PMTarDirName = $_[0]; 4 }
             or info_die "Can't get pmtar directory name";
-        chomp $PMTarDirName;
+        $PMTarDirName =~ s/[\x0D\x0A]+\z//;
       }
       $pmtar_dir_created = 1;
     }
@@ -1779,7 +1779,7 @@ sub save_by_pathname ($$) {
           discard_stderr => 1,
           onoutput => sub { $PMPPDirName = $_[0]; 4 }
           or info_die "Can't get pmpp directory name";
-      chomp $PMPPDirName;
+      $PMPPDirName =~ s/[\x0D\x0A]+\z//;
       $pmpp_dir_created = 1;
     }
     return $PMPPDirName;
