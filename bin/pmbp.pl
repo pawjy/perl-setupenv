@@ -1433,8 +1433,6 @@ sub cpanm ($$) {
         push @required_system,
             {name => 'proj-devel', debian_name => 'libproj-dev'};
         $failed = 1;
-      } elsif ($log =~ /error: ssh(?:buf|_api)\.h: No such file or directory/m) {
-        push @required_system, {name => 'libopenssh-devel'};
       } elsif ($log =~ /^\* I could not find a working copy of (\S+)\./m) {
         my $name = $1;
         if ($name eq 'glib-2.0') {
