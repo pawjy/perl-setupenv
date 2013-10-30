@@ -1181,9 +1181,12 @@ sub cpanm ($$) {
         not ($args->{scandeps} or $args->{info});
 
     my @module_arg = map {
+      ## Implicit dependencies
       $_ eq 'Email::Handle'
-          ? ('Class::Accessor::Fast', 'Email::Handle')
-          : {'GD::Image' => 'GD'}->{$_} || $_;
+          ? ('Class::Accessor::Fast', $_) :
+      $_ eq 'RRDTool::OO'
+          ? ('Alien::RRDtool', $_) :
+      {'GD::Image' => 'GD'}->{$_} || $_;
     } map {
       ref $_ ? $_->as_cpanm_arg (pmtar_dir_name ()) : $_;
     } @$modules;
