@@ -1,8 +1,9 @@
 perl:
-  - "5.16"
+  - "5.18"
 #  - "5.8"
 env:
   - TARGET=normal
+  - TARGET=scan
   - TARGET=perl
   - TARGET=imagemagick
   - TARGET=apache
