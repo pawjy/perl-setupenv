@@ -28,6 +28,7 @@ my $BrewCommand = 'brew';
 my $DownloadRetryCount = 2;
 my $PerlbrewInstallerURL = q<https://raw.github.com/gugod/App-perlbrew/develop/perlbrew-install>; # q<http://install.perlbrew.pl/>;
 my $PerlbrewParallelCount = $ENV{PMBP_PARALLEL_COUNT} || ($ENV{TRAVIS} ? 4 : 1);
+my $SavePerlbrewLog = not $ENV{TRAVIS};
 my $CPANURLPrefix = q<http://search.cpan.org/CPAN/>;
 #$CPANURLPrefix = q<http://cpan.mirrors.travis-ci.org/> if $ENV{TRAVIS};
 my $CPANModuleIndexURL = $CPANURLPrefix . q<modules/02packages.details.txt.gz>;
@@ -898,10 +899,13 @@ sub install_perl ($) {
                   }
                 };
     
-    copy_log_file $log_file_name => "perl-$perl_version"
-        if defined $log_file_name;
     my $perl_path = "$RootDirName/local/perlbrew/perls/perl-$perl_version/bin/perl";
-    unless (-f $perl_path) {
+    if (-f $perl_path) {
+      copy_log_file $log_file_name => "perl-$perl_version"
+          if defined $log_file_name and $SavePerlbrewLog;
+    } else {
+      copy_log_file $log_file_name => "perl-$perl_version"
+          if defined $log_file_name;
       if ($redo and $i < 10) {
         info 0, "perlbrew($i): Failed to install perl-$perl_version; retrying...";
         redo PERLBREW;
