@@ -1144,7 +1144,7 @@ sub cpanm ($$) {
     }
     my $package = $modules->[0]->package;
     if (defined $package and $package eq 'Image::Magick') {
-      build_imagemagick
+      return build_imagemagick
           ($perl_command, $perl_version, $perl_lib_dir_name,
            module_index_file_name => $args->{module_index_file_name});
     }
@@ -2597,10 +2597,23 @@ sub build_imagemagick ($$$;%) {
       chdir => $container_dir_name;
   my $dir_name = glob "$container_dir_name/ImageMagick-*";
   info_die "Can't expand $tar_file_name" unless $dir_name;
-  my $envs = {LANG => 'C'};
+  my $envs = {PATH => get_env_path ($perl_version),
+              PERL5LIB => (join ':',
+                             ("$install_dir_name/lib/perl5",
+                              get_lib_dir_names ($perl_command, $perl_version))),
+              MAKEFLAGS => '',
+              LANG => 'C'};
+  for my $name (qw{ExtUtils::MakeMaker ExtUtils::ParseXS}) {
+    my $module = PMBP::Module->new_from_package ($name);
+    cpanm {perl_version => $perl_version,
+           perl_lib_dir_name => $install_dir_name,
+           module_index_file_name => $args{module_index_file_name}},
+          [$module];
+  }
   run_command
       ['sh', 'configure',
        '--with-perl',
+       '--with-perl-options=INSTALL_BASE="' . $install_dir_name . '" CCFLAGS="-I.."',
        '--prefix=' . $install_dir_name,
        '--without-lcms2'],
       chdir => $dir_name,
@@ -2616,45 +2629,8 @@ sub build_imagemagick ($$$;%) {
       chdir => $dir_name,
       envs => $envs,
           or info_die "ImageMagick make install failed";
-  my $perl_make_file_name = "$dir_name/PerlMagick/Makefile.PL";
-  for my $name (qw{ExtUtils::MakeMaker ExtUtils::ParseXS}) {
-    my $module = PMBP::Module->new_from_package ($name);
-    cpanm {perl_version => $perl_version,
-           perl_lib_dir_name => $install_dir_name,
-           module_index_file_name => $args{module_index_file_name}},
-          [$module];
-  }
-  {
-    open my $file, '<', $perl_make_file_name
-        or die "$0: $perl_make_file_name: $!";
-    local $/ = undef;
-    my $make_pl = <$file>;
-    $make_pl =~ s{-L../magick/.libs\b}{-L$install_dir_name/lib}g;
-    open $file, '>', $perl_make_file_name
-        or die "$0: $perl_make_file_name: $!";
-    print $file $make_pl;
-  }
-  $envs = {PATH => get_env_path ($perl_version),
-              PERL5LIB => (join ':', (get_lib_dir_names ($perl_command, $perl_version))),
-              MAKEFLAGS => '',
-           LANG => 'C'};
-  run_command
-      [$perl_command, 'Makefile.PL',
-       'INSTALL_BASE="' . $install_dir_name . '"'],
-      envs => $envs,
-      chdir => "$dir_name/PerlMagick"
-          or info_die "PerlMagick Makefile.PL failed";
-  run_command
-      ['make'],
-      envs => $envs,
-      chdir => "$dir_name/PerlMagick"
-          or info_die "PerlMagick make failed";
-  run_command
-      ['make', 'install'],
-      envs => $envs,
-      chdir => "$dir_name/PerlMagick"
-          or info_die "PerlMagick make install failed";
   remove_tree $container_dir_name;
+  return 1;
 } # build_imagemagick
 
 ## ------ Apache ------
