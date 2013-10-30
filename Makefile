@@ -48,6 +48,9 @@ endif
 ifeq "$(TARGET)" "normal"
 	http_proxy=http://localhost:16613 $(PROVE) -j1 --verbose t/pmbp/*.t
 endif
+ifeq "$(TARGET)" "scan"
+	http_proxy=http://localhost:16613 $(PROVE) -j1 --verbose t/pmbp-scan/*.t
+endif
 ifeq "$(TARGET)" "perl"
 	http_proxy=http://localhost:16613 $(PROVE) --verbose t/pmbp-perl/*.t
 endif
