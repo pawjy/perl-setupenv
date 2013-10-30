@@ -8,12 +8,12 @@ pmbtxt=$tempdir/install.txt
 
 perl $pmbp --root-dir-name="$tempdir" \
     --read-module-index="$packstxt" \
-    --select-module Text::ParseWords \
+    --select-module Algorithm::Loops \
     --write-module-index="$packstxt" \
     --write-pmb-install-list "$pmbtxt"
 
-(grep Text::ParseWords "$packstxt" > /dev/null && echo "ok 1") || echo "not ok 1"
-(grep Text::ParseWords "$pmbtxt" > /dev/null && echo "ok 2") || echo "not ok 2"
-(grep Text-ParseWords-.\\+\\.\\\(zip\\\|tar\\\) "$packstxt" > /dev/null && echo "ok 3") || echo "not ok 3"
+(grep Algorithm::Loops "$packstxt" > /dev/null && echo "ok 1") || echo "not ok 1"
+(grep Algorithm::Loops "$pmbtxt" > /dev/null && echo "ok 2") || echo "not ok 2"
+(grep Algorithm-Loops-.\\+\\.\\\(zip\\\|tar\\\) "$packstxt" > /dev/null && echo "ok 3") || echo "not ok 3"
 
 rm -fr $tempdir
