@@ -2336,6 +2336,25 @@ sub read_install_list ($$$;%) {
     
     ## CPAN package configuration scripts
     if (-f "$dir_name/Build.PL" or -f "$dir_name/Makefile.PL") {
+      if (-f "$dir_name/Build.PL" and not -f "$dir_name/META.yml") {
+        ## Broken by <https://github.com/miyagawa/cpanminus/commit/54f1111211f3fe2f0a35ca41a8664c16ce8305b6>
+        info 0, "Generating META.yml...";
+        my $envs = {PATH => get_env_path ($perl_version),
+                    PERL5LIB => (join ':', (get_lib_dir_names ($PerlCommand, $perl_version))),
+                    LANG => 'C',
+                    MAKEFLAGS => ''};
+        run_command
+            [$PerlCommand, 'Build.PL'],
+            envs => $envs,
+            chdir => $dir_name
+                or info_die "Build.PL failed";
+        run_command
+            [$PerlCommand, 'Build', 'distmeta'],
+            envs => $envs,
+            chdir => $dir_name
+                or info_die "Build distmeta failed";
+        info_die "Build distmeta failed" unless -f "$dir_name/META.yml";
+      }
       my $temp_dir_name = tempdir('PMBP-XX'.'XX'.'XX', TMPDIR => 1, CLEANUP => 1);
       my $result = cpanm {perl_version => $perl_version,
                           perl_lib_dir_name => $temp_dir_name,

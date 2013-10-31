@@ -12,5 +12,7 @@ my $build = Module::Build->new(
 
     name        => 'Test1',
     module_name => 'Test1',
+    dist_version => 4,
+    dist_abstract => 'test1',
 );
 $build->create_build_script();
