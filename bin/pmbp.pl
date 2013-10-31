@@ -3430,6 +3430,7 @@ sub new_from_carton_lock_entry ($$) {
     'Mail' => 'Mail::Address',
     'Gearman' => 'Gearman::Client',
     'Template::Toolkit' => 'Template',
+    'Scalar-Util-Instance' => 'Scalar::Util::Instance',
   }->{$entry->{package}} || $entry->{package};
   return $entry;
 } # new_from_carton_lock_entry
