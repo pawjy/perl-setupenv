@@ -8,7 +8,7 @@ perl $pmbp --root-dir-name="$tempdir" \
     --install-module=Image::Magick \
     --create-perl-command-shortcut perl
 libs=`perl $pmbp --root-dir-name="$tempdir" --print-libs`
-PERL5LIB="$libs" ./perl -MImage::Magick \
+PERL5LIB="$libs" "$tempdir/perl" -MImage::Magick \
   -e '$Image::Magick::VERSION or die "No VERSION"' && \
   echo "ok 1" && \
   rm -fr $tempdir
