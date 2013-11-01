@@ -2641,7 +2641,7 @@ sub build_imagemagick ($$$;%) {
   }
   my $libperl_so_dir_name;
   run_command
-      ['perl', '-e', 'print $Config{archlib}'],
+      ['perl', '-MConfig', '-e', 'print $Config{archlib}'],
       chdir => $dir_name,
       envs => $envs,
       onoutput => sub { $libperl_so_dir_name = "$_[0]/CORE"; 4 }
