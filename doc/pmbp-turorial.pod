@@ -47,20 +47,24 @@ modules should be updated.
 Now that required Perl modules are installed into the C<local>
 directory, you can use the installed module by:
 
-  $ PERL5LIB="`cat config/perl/libs.txt`" perl bin/myapp.pl
+  $ PERL5LIB="`cat config/perl/libs.txt`" perl bin/myapp.pl args
 
 The file C<config/perl/libs.txt> is created by C<--install>,
 containing paths to the Perl module within the C<local> directory.
-Alternatively, once you invoke the following command:
+Alternatively, you can use the "shortcut" script:
+
+  $ local/bin/perl bin/myapp.pl args
+
+If you feel it's still too long, invoke the following command:
 
   $ perl local/bin/pmbp.pl --create-perl-command-shortcut perl
 
-... you can start your application by:
+... so that you can start your application by:
 
-  $ ./perl bin/myapp.pl
+  $ ./perl bin/myapp.pl args
 
-The C<perl> shell script sets environment variables appropriately then
-invoke the real C<perl> command.
+The C<perl> shell script sets environment variables appropriately and
+then invoke the real C<perl> command.
 
 =head1 BASIC USAGE
 
