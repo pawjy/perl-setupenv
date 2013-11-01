@@ -2639,10 +2639,20 @@ sub build_imagemagick ($$$;%) {
            module_index_file_name => $args{module_index_file_name}},
           [$module];
   }
+  my $libperl_so_dir_name;
+  run_command
+      ['perl', '-e', 'print $Config{archlib}'],
+      chdir => $dir_name,
+      envs => $envs,
+      onoutput => sub { $libperl_so_dir_name = "$_[0]/CORE"; 4 }
+          or info_die "Can't find |libperl.so| directory";
+  unless (-f "$libperl_so_dir_name/libperl.so") {
+    info 0, "You don't have |libperl.so|";
+  }
   run_command
       ['sh', 'configure',
        '--with-perl',
-       '--with-perl-options=INSTALL_BASE="' . $install_dir_name . '" CCFLAGS="-I.."',
+       '--with-perl-options=INSTALL_BASE="' . $install_dir_name . '" CCFLAGS="-I.. -L'.$libperl_so_dir_name.'"',
        '--prefix=' . $install_dir_name,
        '--without-lcms2'],
       chdir => $dir_name,
