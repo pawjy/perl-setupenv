@@ -2655,7 +2655,7 @@ sub build_imagemagick ($$$;%) {
   run_command
       ['sh', 'configure',
        '--with-perl',
-       '--with-perl-options=INSTALL_BASE="' . $install_dir_name . '" CCFLAGS="-I.." LIBS="-L'.$libperl_so_dir_name.'"',
+       '--with-perl-options=INSTALL_BASE="' . $install_dir_name . '" CCFLAGS="-I.." LDDLFLAGS="-L'.$libperl_so_dir_name.'"',
        '--prefix=' . $install_dir_name,
        '--without-lcms2'],
       chdir => $dir_name,
