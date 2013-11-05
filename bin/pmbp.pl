@@ -1466,7 +1466,8 @@ sub cpanm ($$) {
       } elsif ($log =~ /^Could not find Python.h in include path. make will not work at Makefile.PL/m) {
         push @required_system,
             {name => 'python-devel', debian_name => 'python-dev'};
-      } elsif ($log =~ /\bsh: 1: cc: not found$/m) {
+      } elsif ($log =~ /\bsh: 1: cc: not found$/m or
+               $log =~ /^configure: error: no acceptable C compiler found/m) {
         push @required_system, {name => 'gcc'};
       } elsif ($log =~ /^We have to reconfigure CPAN.pm due to following uninitialized parameters:/m) {
         kill 15, $cpanm_pid;
