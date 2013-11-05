@@ -1477,6 +1477,8 @@ sub cpanm ($$) {
         if ($ENV{PERL5LIB} or $ENV{PERL5OPT}) {
           $diag{env} = 1;
         }
+      } elsif ($log =~ /^! Can't configure the distribution\. You probably need to have 'make'\./m) {
+        push @required_system, {name => 'make'};
       } elsif ($log =~ /^!!! MakeInstaller failed !!!$/m) {
         $failed = 1;
       } elsif ($log =~ m{/cpanm did not return a true value at }m) {
