@@ -12,19 +12,23 @@ cpanm.
   doc/pmbp-tutorial.pod
   Makefile.pmbp.example
 
-* Makefile.setupenv
+Install the pmbp.pl into ./local/bin:
+
+  $ curl http://wakaba.github.io/packages/pmbp | sh
+
+* Makefile.setupenv (deprecated)
 
   Makefile.setupenv
   Makefile.example
   doc/makefile-setupenv.txt
 
-* pmb
+* pmb (deprecated)
 
 Integrated with Makefile.setupenv.
 
   doc/pmb.txt
 
-* pmbundler
+* pmbundler (deprecated)
 
 Integrated with Makefile.setupenv.
 
@@ -34,7 +38,7 @@ Integrated with Makefile.setupenv.
 
 Unless otherwise stated, following terms are applied:
 
-Copyright 2012 Wakaba <wakaba@suikawiki.org>.
+Copyright 2012-2013 Wakaba <wakaba@suikawiki.org>.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
