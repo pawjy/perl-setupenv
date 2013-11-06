@@ -8,6 +8,6 @@ perl $pmbp --root-dir-name="$tempdir" \
     --create-perl-command-shortcut perl
 libs=`perl $pmbp --root-dir-name="$tempdir" --print-libs`
 PERL5LIB="$libs" "$tempdir/perl" -MImage::Magick \
-  -e '$Image::Magick::VERSION or die "No VERSION"' && \
+  -e '' && \
   echo "ok 1" && \
   rm -fr $tempdir
