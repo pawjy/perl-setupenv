@@ -2667,12 +2667,12 @@ sub build_imagemagick ($$$;%) {
       envs => $envs,
           or info_die "ImageMagick ./configure failed";
   run_command
-      ['make', 'INST_DYNAMIC_FIX="-L'.$libperl_so_dir_name.'"'],
+      ['make', 'INST_DYNAMIC_FIX=-L'.$libperl_so_dir_name],
       chdir => $dir_name,
       envs => $envs,
           or info_die "ImageMagick make failed";
   run_command
-      ['make', 'install', 'INST_DYNAMIC_FIX="-L'.$libperl_so_dir_name.'"'],
+      ['make', 'install', 'INST_DYNAMIC_FIX=-L'.$libperl_so_dir_name],
       chdir => $dir_name,
       envs => $envs,
           or info_die "ImageMagick make install failed";
