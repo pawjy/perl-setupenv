@@ -1406,6 +1406,11 @@ sub cpanm ($$) {
              redhat_name => 'MySQL-devel',
              debian_name => 'libmysqld-dev'};
         $failed = 1;
+      } elsif ($log =~ m{ld: cannot find -lperl}m) {
+        push @required_system,
+            {name => 'perl-devel',
+             redhat_name => 'perl-libs',
+             debian_name => 'libperl-dev'};
       } elsif ($log =~ m{Can't exec "mysql_config": No such file or directory}m) {
         push @required_system,
             {name => 'mysql-client-devel',
