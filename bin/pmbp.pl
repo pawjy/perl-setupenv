@@ -2655,19 +2655,19 @@ sub build_imagemagick ($$$;%) {
   run_command
       ['sh', 'configure',
        '--with-perl',
-       '--with-perl-options=INSTALL_BASE="' . $install_dir_name . '" CCFLAGS="-I.." LDDLFLAGS="-L'.$libperl_so_dir_name.'"',
+       '--with-perl-options=INSTALL_BASE="' . $install_dir_name . '" CCFLAGS="-I.."',
        '--prefix=' . $install_dir_name,
        '--without-lcms2'],
       chdir => $dir_name,
       envs => $envs,
           or info_die "ImageMagick ./configure failed";
   run_command
-      ['make'],
+      ['make', 'INST_DYNAMIC_FIX="-L'.$libperl_so_dir_name.'"'],
       chdir => $dir_name,
       envs => $envs,
           or info_die "ImageMagick make failed";
   run_command
-      ['make', 'install'],
+      ['make', 'install', 'INST_DYNAMIC_FIX="-L'.$libperl_so_dir_name.'"'],
       chdir => $dir_name,
       envs => $envs,
           or info_die "ImageMagick make install failed";
