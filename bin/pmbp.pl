@@ -2172,7 +2172,7 @@ sub write_module_index ($$) {
         $module->pathname;
   }
 
-  info_writing 0, "package list", $file_name;
+  info_writing 1, "package list", $file_name;
   mkdir_for_file $file_name;
   open my $details, '>', $file_name or info_die "$0: $file_name: $!";
   print $details "File: 02packages.details.txt\n";
@@ -3051,8 +3051,8 @@ sub install_mecab () {
 
 ## ------ Perl application ------
 
-sub install_perl_app ($;%) {
-  my ($url, %args) = @_;
+sub install_perl_app ($$$;%) {
+  my ($perl_command, $perl_version, $url, %args) = @_;
 
   my $gh_user;
   my $gh_name;
@@ -3088,8 +3088,39 @@ sub install_perl_app ($;%) {
   info 0, "Installing <$url> into $dir_name...";
 
   run_command [git, 'pull'], chdir => $dir_name;
-  run_command ['make', 'deps'], chdir => $dir_name
-      or info_die "|make deps| failed";
+
+  run_command ['make', '-q', 'deps'], chdir => $dir_name,
+      '$?' => \my $deps;
+  if ($deps == 0 or $deps == 1) {
+    # $ make deps
+    run_command ['make', 'deps'], chdir => $dir_name
+        or info_die "|$name|'s |make deps| failed";
+  } elsif (-f "$dir_name/cpanfile") {
+    # $ carton install
+    my $carton_command = "$dir_name/carton";
+    unless (-x $carton_command) {
+      info 0, 'Installing carton...';
+      install_module $perl_command, $perl_version,
+          PMBP::Module->new_from_package ('Carton'),
+          module_index_file_name => $args{module_index_file_name};
+
+      write_libs_txt $perl_command, $perl_version
+          => get_libs_txt_file_name ($perl_version);
+
+      create_perl_command_shortcut $perl_version,
+          'carton' => $carton_command;
+    }
+
+    info 0, 'Carton install...';
+    run_command [$carton_command, 'install'], chdir => $dir_name,
+        envs => {PERL5LIB => ''},
+        onoutput => sub {
+          return $_[0] =~ /^! / ? 0 : 1;
+        },
+        or info_die "|$name|'s |carton install| failed";
+  } else {
+    info_die "|$name| is not installable";
+  }
 } # install_perl_app
 
 ## ------ Cleanup ------
@@ -3393,8 +3424,9 @@ while (@Command) {
     install_mecab;
 
   } elsif ($command->{type} eq 'install-perl-app') {
-    install_perl_app $command->{url},
-        name => $command->{name};
+    install_perl_app $PerlCommand, $perl_version, $command->{url},
+        name => $command->{name},
+        module_index_file_name => $module_index_file_name;
 
   } else {
     info_die "Command |$command->{type}| is not defined";
@@ -4525,10 +4557,25 @@ the URL, ignoring C<.git> suffix, is used.  For example:
 
 ... will install the application in the local/deploy directory.
 
-The application must contain a C<Makefile> such that executing C<make
-deps> at the application's root directory runs any required
+The application must be either one of following forms:
+
+=over 4
+
+=item
+
+It contains the C<Makefile> at the root directory of the application
+such that executing C<make deps> at the directory runs any required
 preparation steps, including C<git submodule update --init>,
-installation of required CPAN modules, and so on.
+installation of required CPAN modules, compiling of XS modules, and so
+on.
+
+=item
+
+It contains the C<cpanfile> at the root directory of the application
+such that executing C<carton install> at the directory installs any
+required CPAN module.
+
+=back
 
 =back
 
