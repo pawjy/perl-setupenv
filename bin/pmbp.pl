@@ -2657,25 +2657,62 @@ sub build_imagemagick ($$$;%) {
   unless (-f "$libperl_so_dir_name/libperl.so") {
     info 0, "You don't have |libperl.so|";
   }
-  run_command
-      ['sh', 'configure',
-       '--with-perl',
-       '--with-perl-options=INSTALL_BASE="' . $install_dir_name . '" CCFLAGS="-I.."',
-       '--prefix=' . $install_dir_name,
-       '--without-lcms2'],
-      chdir => $dir_name,
-      envs => $envs,
-          or info_die "ImageMagick ./configure failed";
-  run_command
-      ['make', 'INST_DYNAMIC_FIX=-L'.$libperl_so_dir_name],
-      chdir => $dir_name,
-      envs => $envs,
-          or info_die "ImageMagick make failed";
-  run_command
-      ['make', 'install', 'INST_DYNAMIC_FIX=-L'.$libperl_so_dir_name],
-      chdir => $dir_name,
-      envs => $envs,
-          or info_die "ImageMagick make install failed";
+  my $retry_count = 0;
+  A: {
+    my $retry;
+    my @required_system;
+    my $onoutput = sub {
+      my $log = $_[0];
+      if ($log =~ m{ld: cannot find -lperl}m) {
+        push @required_system,
+            {name => 'perl-devel',
+             redhat_name => 'perl-libs',
+             debian_name => 'libperl-dev'};
+        $retry = 1;
+      }
+      return 1;
+    };
+    my $install = sub {
+      return 0 unless $retry;
+      return 0 if $retry_count++ > 5;
+      return 0 unless install_system_packages \@required_system;
+      return 1;
+    };
+    run_command
+        ['sh', 'configure',
+         '--with-perl',
+         '--with-perl-options=INSTALL_BASE="' . $install_dir_name . '" CCFLAGS="-I.."',
+         '--prefix=' . $install_dir_name,
+         '--without-lcms2'],
+        onoutput => $onoutput,
+        prefix => "configure($retry_count)",
+        chdir => $dir_name,
+        envs => $envs,
+            or do {
+              redo A if $install->();
+              info_die "ImageMagick ./configure failed";
+            };
+    run_command
+        ['make', 'INST_DYNAMIC_FIX=-L'.$libperl_so_dir_name],
+        onoutput => $onoutput,
+        prefix => "make($retry_count)",
+        chdir => $dir_name,
+        envs => $envs,
+            or do {
+              redo A if $install->();
+              info_die "ImageMagick make failed";
+            };
+    run_command
+        ['make', 'install', 'INST_DYNAMIC_FIX=-L'.$libperl_so_dir_name],
+        onoutput => $onoutput,
+        prefix => "make install($retry_count)",
+        chdir => $dir_name,
+        envs => $envs,
+            or do {
+              redo A if $install->();
+              info_die "ImageMagick make install failed";
+            };
+  } # A
   remove_tree $container_dir_name;
   return 1;
 } # build_imagemagick
