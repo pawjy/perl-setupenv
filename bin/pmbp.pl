@@ -2669,6 +2669,9 @@ sub build_imagemagick ($$$;%) {
              redhat_name => 'perl-libs',
              debian_name => 'libperl-dev'};
         $retry = 1;
+      } elsif ($log =~ /\bsh: 1: cc: not found$/m or
+               $log =~ /^configure: error: no acceptable C compiler found/m) {
+        push @required_system, {name => 'gcc'};
       }
       return 1;
     };
