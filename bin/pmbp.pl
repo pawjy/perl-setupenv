@@ -3109,7 +3109,7 @@ sub install_perl_app ($$$;%) {
 
   my $dir_name = qq{$RootDirName/local/$name};
   unless (-d $dir_name and -d "$dir_name/.git") {
-    run_command [git, 'clone', $url, $dir_name]
+    run_command [git, 'clone', $url, $dir_name, (defined $sha ? () : ('--depth', 1))]
         or info_die "|git clone| failed";
   }
 
