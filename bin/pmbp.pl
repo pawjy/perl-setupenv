@@ -155,6 +155,7 @@ GetOptions (
     push @Command, {type => 'add-to-gitignore', value => $_[1]};
   },
   '--create-perl-command-shortcut=s' => sub {
+    ## See also: |create_perl_command_shortcut_by_file|
     if ($_[1] =~ /=/) {
       # ../myapp=bin/myapp.pl
       my ($file_name, $command) = split /=/, $_[1], 2;
@@ -1953,6 +1954,27 @@ sub create_perl_command_shortcut ($$$) {
   chmod 0755, $file_name or info_die "$0: $file_name: $!";
 } # create_perl_command_shortcut
 
+sub create_perl_command_shortcut_by_file ($$) {
+  my ($perl_version, $file_name) = @_;
+  info_die "|$file_name| not found" unless -f $file_name;
+  open my $file, '<', $file_name or info_die "$file_name: $!";
+  while (<$file>) {
+    ## See also: |--create-perl-command-shortcut| command
+    if (/^#/) {
+      #
+    } elsif (/=/) {
+      # ../myapp=bin/myapp.pl
+      my ($file_name, $command) = split /=/, $_, 2;
+      create_perl_command_shortcut $perl_version, $command => $file_name;
+    } elsif (m{/([^/]+)$}) {
+      # local/bin/hoge (== local/bin/hoge=hoge)
+      create_perl_command_shortcut $perl_version, $1 => $_;
+    } elsif (/^(.+)$/) {
+      create_perl_command_shortcut $perl_version, $1 => $1;
+    }
+  }
+} # create_perl_command_shortcut_by_file
+
 ## ------ Perl module dependency detection ------
 
 sub scandeps ($$$;%) {
@@ -3222,6 +3244,7 @@ while (@Command) {
          file_name => 'local/bin/prove', command => 'prove'},
         {type => 'create-perl-command-shortcut',
          file_name => 'local/bin/perldoc', command => 'perldoc'},
+        {type => 'create-perl-command-shortcut-by-list'},
         {type => 'update-gitignore'};
 
     unless ($ENV{PMBP_NO_PERL_INSTALL}) {
@@ -3376,6 +3399,11 @@ while (@Command) {
   } elsif ($command->{type} eq 'create-perl-command-shortcut') {
     create_perl_command_shortcut $perl_version,
         $command->{command} => $command->{file_name};
+  } elsif ($command->{type} eq 'create-perl-command-shortcut-by-list') {
+    my $file_name = "$RootDirName/config/perl/pmbp-shortcuts.txt";
+    if (-f $file_name) {
+      create_perl_command_shortcut_by_file $perl_version, $file_name;
+    }
   } elsif ($command->{type} eq 'create-pmbp-makefile') {
     save_url $MakefileURL => $command->{value};
   } elsif ($command->{type} eq 'write-makefile-pl') {
@@ -4088,10 +4116,11 @@ C<local/bin/perldoc>, which are corresponding to C<perl>, C<prove>,
 and C<perldoc> respectively, but sets environment variable such as
 C<PERL5LIB> appropriately (see also the
 C<--create-perl-command-shortcut> command).  You might also want to
-invoke additional C<--create-perl-command-shortcut> commands after the
-C<--install> for convinience of execution of your application's boot
-scripts and/or Perl-based commands provided by Perl modules, such as
-C<plackup> and C<nytprofhtml>.
+edit C<config/perl/pmbp-shortcuts.txt> a priori or invoke additional
+C<--create-perl-command-shortcut> commands after the C<--install> for
+convinience of execution of your application's boot scripts and/or
+Perl-based commands provided by Perl modules, such as C<plackup> and
+C<nytprofhtml>.
 
 The C<--install> command can be invoked whenever you want, to reflect
 latest state of your application.  Only differences from previous
@@ -4249,6 +4278,19 @@ requires the C<x> permission).
 
 If there is already a file with the specified command file name, the
 file is overridden by the newly created shortcut.
+
+Instead of manually invoking the C<--create-perl-command-shortcut>
+command, if there is C<config/perl/pmbp-shortcuts.txt>, its lines are
+interpreted as arguments to the C<--create-perl-command-shortcut>
+command invocations in the process of the C<--install> command.  Lines
+begin with the C<#> character are considered as comment lines.  For
+example:
+
+  # config/perl/pmbp-shortcuts.txt
+  perl
+  local/bin/hoge=bin/hoge.pl
+
+... will generate two shortcuts: C<perl> and C<local/bin/hoge>.
 
 =item --create-exec-command="command-name"
 
@@ -4737,6 +4779,13 @@ from the list of installed modules, if any.
 
 This file is read by the C<--update> command.  See also the
 C<--read-pmbp-exclusions-txt> command.
+
+=head2 config/perl/pmbp-shortcuts.txt
+
+If there is the C<config/perl/pmbp-shortcuts.txt> file, the
+C<--install> command uses the content of the file to create
+"shortcuts" for Perl-based commands.  See the
+C<--create-perl-command-shortcut> command.
 
 =head2 config/perl/libs.txt
 
