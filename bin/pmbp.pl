@@ -2295,6 +2295,7 @@ sub read_install_list ($$$;%);
 sub read_install_list ($$$;%) {
   my ($dir_name => $module_index, $perl_version, %args) = @_;
   $dir_name = abs_path $dir_name;
+  info 2, "Examining |$dir_name| ...";
 
   my $onadd = sub { my $source = shift; return sub {
     info 1, sprintf '%s requires %s', $source, $_[0]->as_short;
@@ -3054,6 +3055,11 @@ sub install_mecab () {
 sub install_perl_app ($$$;%) {
   my ($perl_command, $perl_version, $url, %args) = @_;
 
+  my $sha;
+  if ($url =~ s/\#(.*)$//s) {
+    $sha = $1 if length $1;
+  }
+
   my $gh_user;
   my $gh_name;
   if ($url =~ m{^git\@github.com:([^./]+)/([^./]+)}) {
@@ -3085,16 +3091,21 @@ sub install_perl_app ($$$;%) {
         or info_die "|git clone| failed";
   }
 
-  info 0, "Installing <$url> into $dir_name...";
+  info 0, "Installing <$url> into |$dir_name|...";
 
-  run_command [git, 'pull'], chdir => $dir_name;
+  run_command [git, 'pull'], chdir => $dir_name
+      or info_die "|$name|: |git pull| failed";
+  if (defined $sha) {
+    run_command [git, 'checkout', $sha], chdir => $dir_name
+        or info_die "|$name|: |git checkout $sha| failed";
+  }
 
   run_command ['make', '-q', 'deps'], chdir => $dir_name,
       '$?' => \my $deps;
   if ($deps == 0 or $deps == 1) {
     # $ make deps
     run_command ['make', 'deps'], chdir => $dir_name
-        or info_die "|$name|'s |make deps| failed";
+        or info_die "|$name|: |make deps| failed";
   } elsif (-f "$dir_name/cpanfile") {
     # $ carton install
     my $carton_command = "$dir_name/carton";
@@ -3117,7 +3128,16 @@ sub install_perl_app ($$$;%) {
         onoutput => sub {
           return $_[0] =~ /^! / ? 0 : 1;
         },
-        or info_die "|$name|'s |carton install| failed";
+        or info_die "|$name|: |carton install| failed";
+  } elsif (-f "$dir_name/Makefile.PL") {
+    run_command [git, 'submodule', 'update', '--init'],
+        chdir => $dir_name
+        or info_die "|$name|: |git submodule update --init| failed";
+    ## Invoke pmbp.pl recursively
+    run_command [$^X, abs_path ($0), '--install',
+                 '--dump-info-file-before-die'],
+        chdir => $dir_name
+        or info_die "|$name|: --install failed";
   } else {
     info_die "|$name| is not installable";
   }
@@ -4571,9 +4591,17 @@ on.
 
 =item
 
-It contains the C<cpanfile> at the root directory of the application
-such that executing C<carton install> at the directory installs any
-required CPAN module.
+Otherwise, it contains the C<cpanfile> at the root directory of the
+application such that executing C<carton install> at the directory
+installs any required CPAN module and the application is ready to
+execute.
+
+=item
+
+Otherwise, it contains the C<Makefile.PL> script at the root directory
+of the application such that executing C<git submodule update --init;
+perl Makefile.PL; make> at the directory installs any required CPAN
+module and the application is ready to execute.
 
 =back
 
@@ -4782,6 +4810,8 @@ Wakaba <wakaba@suikawiki.org>.
 =head1 LICENSE
 
 Copyright 2012-2013 Wakaba <wakaba@suikawiki.org>.
+
+Copyright 2012-2013 Hatena <http://www.hatena.ne.jp/company/>.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
