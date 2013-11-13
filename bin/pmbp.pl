@@ -3415,7 +3415,7 @@ while (@Command) {
       use inc::Module::Install;
       name "Dummy";
       open my $file, "<", "config/perl/pmb-install.txt"
-          or info_die "$0: config/perl/pmb-install.txt: $!";
+          or die "$0: config/perl/pmb-install.txt: $!";
       while (<$file>) {
         if (/^([0-9A-Za-z_:]+)/) {
           requires $1;
