@@ -1960,6 +1960,7 @@ sub create_perl_command_shortcut_by_file ($$) {
   open my $file, '<', $file_name or info_die "$file_name: $!";
   while (<$file>) {
     ## See also: |--create-perl-command-shortcut| command
+    tr/\x0D\x0A//d;
     if (/^#/) {
       #
     } elsif (/=/) {
