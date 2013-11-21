@@ -1971,7 +1971,7 @@ sub create_perl_command_shortcut_by_file ($$) {
     } elsif (m{/([^/]+)$}) {
       # local/bin/hoge (== local/bin/hoge=hoge)
       create_perl_command_shortcut $perl_version, $1 => $_;
-      add_to_gitignore ['/'.$1] => "$RootDirName/.gitignore";
+      add_to_gitignore ['/'.$_] => "$RootDirName/.gitignore";
     } elsif (/^(.+)$/) {
       create_perl_command_shortcut $perl_version, $1 => $1;
       add_to_gitignore ['/'.$1] => "$RootDirName/.gitignore";
