@@ -233,6 +233,7 @@ GetOptions (
     install-perl print-latest-perl-version print-selected-perl-version
     print-perl-archname print-libs
     print-pmtar-dir-name print-pmpp-dir-name print-perl-path
+    print-submodule-components
     install-mecab
   )),
 ) or do {
@@ -2437,6 +2438,58 @@ sub read_install_list ($$$;%) {
   }
 } # read_install_list
 
+sub find_install_list ($;%);
+sub find_install_list ($;%) {
+  my ($dir_name, %args) = @_;
+  my @result;
+  $dir_name = abs_path $dir_name;
+
+  my @file = map { (glob "$_/config/perl/modules*.txt") } $dir_name;
+  if (@file) {
+    my $excluded = $args{exclusions}->{components}->{$dir_name};
+    if ($excluded) {
+      my $regexp = '/config/perl/modules\\.(' . (join '|', map { quotemeta $_ } grep { $excluded->{$_} } keys %$excluded) . ')\\.txt';
+      for my $file_name (@file) {
+        push @result, {dir_name => $dir_name,
+                       file_name => $file_name,
+                       excluded => scalar $file_name =~ /$regexp/};
+      }
+    } else {
+      push @result, {dir_name => $dir_name, file_name => $_}
+          for @file;
+    }
+  } else {
+    push @result, {dir_name => $dir_name};
+  }
+
+  ## Submodules
+  return \@result unless $args{recursive};
+  for my $subdir_name (map { glob "$dir_name/$_" } qw(
+    modules/* bin/modules/* t_deps/modules/* local/submodules/*
+                                                    )) {
+    push @result, @{find_install_list $subdir_name, exclusions => $args{exclusions}};
+  }
+  return \@result;
+} # find_install_list
+
+sub print_install_list_list ($) {
+  my $list = $_[0];
+  my $last_dir_name = '';
+  for my $item (sort {
+      $a->{dir_name} cmp $b->{dir_name} || $a->{file_name} cmp $b->{file_name};
+    } @$list) {
+    print +File::Spec->abs2rel ($item->{dir_name}, $RootDirName), "\n"
+        if $item->{dir_name} ne $last_dir_name;
+    $last_dir_name = $item->{dir_name};
+    my $shorten = File::Spec->abs2rel ($item->{file_name}, $item->{dir_name});
+    next if $shorten eq 'config/perl/modules.txt';
+    $shorten = $1 if $shorten =~ m{\Aconfig/perl/modules\.([^./]+)\.txt\z};
+    print '  ', $shorten;
+    print "\t(excluded)" if $item->{excluded};
+    print "\n";
+  }
+} # print_install_list_list
+
 sub get_dependency_from_cpanfile ($$;%) {
   my ($file_name => $module_index, %args) = @_;
 
@@ -3454,6 +3507,10 @@ while (@Command) {
   } elsif ($command->{type} eq 'print-scanned-dependency') {
     my $mod_names = scan_dependency_from_directory $command->{dir_name};
     print map { $_ . "\n" } sort { $a cmp $b } keys %$mod_names;
+  } elsif ($command->{type} eq 'print-submodule-components') {
+    my $list = find_install_list $RootDirName,
+        recursive => 1, exclusions => $exclusions;
+    print_install_list_list $list;
   } elsif ($command->{type} eq 'print-perl-core-version') {
     install_pmbp_module PMBP::Module->new_from_package ('Module::CoreList');
     require Module::CoreList;
@@ -4477,6 +4534,41 @@ specified file.
 
 Write the "list of the selected modules" into the specified file, in
 the "pmb install list" format.
+
+=item --print-submodule-components
+
+Print the list of recognized submodules of the application and the
+application's and submodules' dependency components.
+
+For example, consider an application which has "modules/A" and
+"modules/B".  The "modules/B" contains "config/perl/modules.core.txt"
+and "config/perl/modules.tests.txt".  Then, running the command:
+
+  $ perl pmbp.pl --read-pmbp-exclusions-txt config/perl/pmbp-exclusions.txt \
+        --print-submodule-components
+
+... will show:
+
+  modules/A
+  modules/B
+    core
+    tests
+
+If the application does not use "tests" component of the "modules/B"
+(since it is only required by the "modules/B" to run tests of their
+own), you can create the C<config/perl/pmbp-exclusions.txt>
+containing:
+
+  - "../../modules/B" tests
+
+At this point, the first command will print:
+
+  modules/A
+  modules/B
+    core
+    tests    (excluded)
+
+... and the C<--update> command will skip the "tests" component.
 
 =item --write-install-module-index="path/to/packages.txt"
 
