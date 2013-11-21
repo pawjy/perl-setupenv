@@ -1967,11 +1967,14 @@ sub create_perl_command_shortcut_by_file ($$) {
       # ../myapp=bin/myapp.pl
       my ($file_name, $command) = split /=/, $_, 2;
       create_perl_command_shortcut $perl_version, $command => $file_name;
+      add_to_gitignore ['/'.$file_name] => "$RootDirName/.gitignore";
     } elsif (m{/([^/]+)$}) {
       # local/bin/hoge (== local/bin/hoge=hoge)
       create_perl_command_shortcut $perl_version, $1 => $_;
+      add_to_gitignore ['/'.$1] => "$RootDirName/.gitignore";
     } elsif (/^(.+)$/) {
       create_perl_command_shortcut $perl_version, $1 => $1;
+      add_to_gitignore ['/'.$1] => "$RootDirName/.gitignore";
     }
   }
 } # create_perl_command_shortcut_by_file
@@ -4787,6 +4790,10 @@ If there is the C<config/perl/pmbp-shortcuts.txt> file, the
 C<--install> command uses the content of the file to create
 "shortcuts" for Perl-based commands.  See the
 C<--create-perl-command-shortcut> command.
+
+The file and the C<--create-perl-command-shortcut> command have a
+minor difference: shortcuts created by the file are implicitly added
+to the C<.gitignore> file.
 
 =head2 config/perl/libs.txt
 
