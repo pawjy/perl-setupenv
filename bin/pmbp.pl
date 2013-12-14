@@ -159,6 +159,10 @@ GetOptions (
     if ($_[1] =~ /=/) {
       # ../myapp=bin/myapp.pl
       my ($file_name, $command) = split /=/, $_[1], 2;
+      if ($command =~ s/^(\S+)\s+(?=\S)//) {
+        # ../myapp=perl bin/myapp.pl
+        $command = [$1, $command];
+      }
       push @Command,
           {type => 'write-libs-txt'},
           {type => 'create-perl-command-shortcut',
@@ -1937,8 +1941,11 @@ sub write_libs_txt ($$$) {
 sub create_perl_command_shortcut ($$$) {
   my ($perl_version, $command => $file_name) = @_;
   $file_name = resolve_path $file_name, $RootDirName;
+  my $arg;
+  ($command, $arg) = @$command if defined $command and ref $command eq 'ARRAY';
   $command = resolve_path $command, $RootDirName
       if defined $command and $command =~ m{/};
+  $arg = resolve_path $arg, $RootDirName if defined $arg;
   mkdir_for_file $file_name;
   info_writing 1, "command shortcut", $file_name;
   my $perl_path = get_perlbrew_perl_bin_dir_name $perl_version;
@@ -1950,7 +1957,8 @@ sub create_perl_command_shortcut ($$$) {
       _quote_dq "$pm_path:$perl_path:" . '$PATH',
       _quote_dq get_libs_txt_file_name ($perl_version),
       _quote_dq $lib_path . ':$LD_LIBRARY_PATH',
-      defined $command ? $command . ' ' : '';
+      (defined $command ? '"' . $command . '" ' : '') .
+      (defined $arg ? '"' . $arg . '" ' : '');
   close $file;
   chmod 0755, $file_name or info_die "$0: $file_name: $!";
 } # create_perl_command_shortcut
@@ -1967,6 +1975,10 @@ sub create_perl_command_shortcut_by_file ($$) {
     } elsif (/=/) {
       # ../myapp=bin/myapp.pl
       my ($file_name, $command) = split /=/, $_, 2;
+      if ($command =~ s/^(\S+)\s+(?=\S)//) {
+        # ../myapp=perl bin/myapp.pl
+        $command = [$1, $command];
+      }
       create_perl_command_shortcut $perl_version, $command => $file_name;
       add_to_gitignore ['/'.$file_name] => "$RootDirName/.gitignore";
     } elsif (m{/([^/]+)$}) {
@@ -4331,11 +4343,22 @@ If the command file name you'd like to create differs from the actual
 command, they can be specified by using C<=> separator.  For example:
 
   $ perl path/to/pmbp.pl --install \
-        --create-perl-command-shortcut myapp=bin/start-myapp.pl
+        --create-perl-command-shortcut myapp=bin/start-myapp.sh
   $ ./myapp
 
-... would run the C<bin/start-myapp.pl> script (Note that the script
-requires the C<x> permission).
+... would run the C<bin/start-myapp.sh> script (Note that the script
+requires the C<x> permission).  As a special case, you can specify
+"perl " followed by a Perl script name as the actual command (in this
+case, the Perl script don't have to be have the C<x> permission).  For
+example:
+
+  $ perl path/to/pmbp.pl --install \
+        --create-perl-command-shortcut myapp=perl bin/start-myapp.pl
+  $ ./myapp
+
+... would run the C<bin/start-myapp.pl> script using the perl command
+chosen by the pmbp.pl script (rather than the perl selected by the
+C<PATH> environment variable or shebang in the script).
 
 If there is already a file with the specified command file name, the
 file is overridden by the newly created shortcut.
