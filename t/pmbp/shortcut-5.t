@@ -6,7 +6,7 @@ tempdir=`perl -MFile::Temp=tempdir -e 'print tempdir'`/testapp
 
 mkdir -p "$tempdir/bin"
 
-echo "warn \"ok 2\n\"" > "$tempdir/bin/hogehoge"
+echo "print \"ok 2\n\"" > "$tempdir/bin/hogehoge"
 chmod u+x "$tempdir/bin/hogehoge"
 
 perl $pmbp --root-dir-name "$tempdir" \
