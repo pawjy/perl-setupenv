@@ -78,8 +78,8 @@ GetOptions (
   '--execute-system-package-installer' => \$ExecuteSystemPackageInstaller,
   '--mecab-charset' => \$MeCabCharset,
 
-  '--help' => sub { $HelpLevel = 1 },
-  '--version' => sub { $HelpLevel = {-verbose => 99, -sections => [qw(NAME AUTHOR LICENSE)]} },
+  '--help' => sub { $HelpLevel = {-exitstatus => 0, -verbose => 1} },
+  '--version' => sub { $HelpLevel = {-exitstatus => 0, -verbose => 99, -sections => [qw(NAME AUTHOR LICENSE)]} },
 
   '--install-module=s' => sub {
     my $module = PMBP::Module->new_from_module_arg ($_[1]);
@@ -239,6 +239,7 @@ GetOptions (
     print-pmtar-dir-name print-pmpp-dir-name print-perl-path
     print-submodule-components
     install-mecab
+    help-tutorial
   )),
 ) or do {
   $HelpLevel = 2;
@@ -440,6 +441,15 @@ sub update_pmbp_pl () {
       or info_die "$0: $pmbp_pl_file_name: $!";
 } # update_pmbp_pl
 
+sub save_pmbp_tutorial () {
+  save_url (q<https://raw.github.com/wakaba/perl-setupenv/master/doc/pmbp-turorial.pod> => $RootDirName.'/local/pmbp/doc/pmbp-tutorial.pod',
+      max_age => 3*24*60*60);
+} # save_pmbp_tutorial
+
+sub exec_show_pmbp_tutorial () {
+  exec 'perldoc', $RootDirName.'/local/pmbp/doc/pmbp-tutorial.pod';
+} # exec_show_pmbp_tutorial
+
 ## ------ Files and directories ------
 
 sub make_path ($) { mkpath $_[0] }
@@ -561,6 +571,12 @@ sub run_command ($;%) {
 
 sub _save_url {
   my ($url => $file_name, %args) = @_;
+
+  if (defined $args{max_age}) {
+    return 1 if -f $file_name and
+        [stat $file_name]->[9] + $args{max_age} > time;
+  }
+
   mkdir_for_file $file_name;
   info 1, "Downloading <$url>...";
   for (0..$DownloadRetryCount) {
@@ -792,9 +808,8 @@ sub update_gitignore () {
     return $LatestPerlVersion if $LatestPerlVersion;
 
     my $file_name = qq<$PMBPDirName/latest-perl.json>;
-    save_url q<http://api.metacpan.org/release/perl> => $file_name
-        if not -f $file_name or
-            [stat $file_name]->[9] + 24 * 60 * 60 < time;
+    save_url q<http://api.metacpan.org/release/perl> => $file_name,
+        max_age => 24*60*60;
     my $json = load_json $file_name;
     if (ref $json eq 'HASH' and $json->{name} and
         $json->{name} =~ /^perl-([0-9A-Za-z._-]+)$/) {
@@ -3549,6 +3564,10 @@ while (@Command) {
         name => $command->{name},
         module_index_file_name => $module_index_file_name;
 
+  } elsif ($command->{type} eq 'help-tutorial') {
+    save_pmbp_tutorial;
+    exec_show_pmbp_tutorial;
+
   } else {
     info_die "Command |$command->{type}| is not defined";
   }
@@ -3887,6 +3906,7 @@ __END__
 
   $ perl bin/pmbp.pl OPTIONS... COMMANDS...
   $ perl bin/pmbp.pl --help
+  $ perl bin/pmbp.pl --help-tutorial
   $ perl bin/pmbp.pl --version
 
 =head1 DESCRIPTION
@@ -4146,11 +4166,20 @@ script exits after the descriptions are printed.
 
 Show usage of various options supported by the script.
 
+=item --help-tutorial
+
+Show tutorial documentation using the C<perldoc> command.
+
 =item --version
 
 Show name, author, and license of the script.
 
 =back
+
+Strictly speaking, C<--help-tutorial> is technically a command rather
+than a normal option.  Any other command before the C<--help-tutorial>
+command is invoked before showing the tutorial.  Any command after the
+C<--help-tutorial> command is ignored.
 
 =head2 Higher-level commands
 
@@ -4972,6 +5001,8 @@ depreacated.
 
 See also tutorial and additional descriptions located at
 <https://github.com/wakaba/perl-setupenv/blob/master/doc/pmbp-tutorial.pod>.
+It can also be shown by invoking the pmbp script with option
+C<--help-tutorial>.
 
 See the tutorial for how to install mod_perl.
 
@@ -4981,7 +5012,7 @@ Wakaba <wakaba@suikawiki.org>.
 
 =head1 LICENSE
 
-Copyright 2012-2013 Wakaba <wakaba@suikawiki.org>.
+Copyright 2012-2014 Wakaba <wakaba@suikawiki.org>.
 
 Copyright 2012-2013 Hatena <http://www.hatena.ne.jp/company/>.
 
