@@ -1427,6 +1427,9 @@ sub cpanm ($$) {
              redhat_name => 'MySQL-devel',
              debian_name => 'libmysqld-dev'};
         $failed = 1;
+      } elsif ($log =~ /^The value of POSTGRES_INCLUDE points to a non-existent directory/m) {
+        push @required_system, {name => 'postgresql-devel',
+                                debian_name => 'libpq-dev'};
       } elsif ($log =~ m{ld: cannot find -lperl}m) {
         push @required_system,
             {name => 'perl-devel',
