@@ -1417,6 +1417,9 @@ sub cpanm ($$) {
             {name => 'gmp-devel', debian_name => 'libgmp-dev',
              homebrew_name => 'gmp'};
         $failed = 1;
+      } elsif ($log =~ m{^Can't link/include 'v8'}m) {
+        push @required_system, {name => 'v8-devel', debian_name => 'libv8-dev',
+                                homebrew_name => 'v8'};
       } elsif ($log =~ /^Could not find gdlib-config in the search path. Please install libgd /m) {
         push @required_system,
             {name => 'gd-devel', debian_name => 'libgd2-xpm-dev'};
