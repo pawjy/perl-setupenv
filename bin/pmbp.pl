@@ -1427,6 +1427,9 @@ sub cpanm ($$) {
         $remove_inc = 1;
       } elsif ($log =~ /^(\S+) version \S+ required--this is only version \S+/m) {
         push @required_install, PMBP::Module->new_from_package ($1);
+      } elsif ($log =~ m{^One can rerun Makefile.PL after fetching GP/PARI archive}m and
+               not (@module_arg and $module_arg[0] eq 'Math::Pari')) {
+        push @required_install, PMBP::Module->new_from_package ('Math::Pari');
       } elsif ($log =~ /^cc: Internal error: Killed \(program cc1\)/m and
                @module_arg and $module_arg[0] eq 'Net::SSLeay') {
         ## In some environment latest version of Net::SSLeay fails to
