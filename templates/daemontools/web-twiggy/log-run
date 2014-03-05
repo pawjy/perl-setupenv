@@ -1,0 +1,4 @@
+#!/bin/sh
+exec setuidgid @@USER@@ multilog @@LOGDIR@@/@@INSTANCENAME@@-@@SERVICETYPE@@ \
+    -* +Web:\ * "+* - - [* +0000] \"*" @@LOGDIR@@/@@INSTANCENAME@@-@@SERVICETYPE@@/access \
+    +* -Web:\ * "-* - - [* +0000] \"*" @@LOGDIR@@/@@INSTANCENAME@@-@@SERVICETYPE@@/error
