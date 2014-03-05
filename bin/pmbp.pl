@@ -1303,6 +1303,35 @@ sub cpanm ($$) {
       $envs->{SHELL} = "$MakeInstaller.textmecab";
       $envs->{LD_LIBRARY_PATH} = mecab_lib_dir_name ();
       push @option, '--look';
+    } elsif (@module_arg and $module_arg[0] eq 'Math::Pari' and
+             not $args->{info} and not $args->{scandeps}) {
+      my $file_name = pmtar_dir_name () . '/pari.tar.gz';
+      my $PariSourceURL = q<ftp://megrez.math.u-bordeaux.fr/pub/pari/unix/OLD/pari-2.1.7.tgz>;
+      #q<ftp://megrez.math.u-bordeaux.fr/pub/pari/unix/pari.tgz> ## Can't compile with this newer version...
+      save_url $PariSourceURL => $file_name
+          if not -f $file_name or [stat $file_name]->[9] + 24 * 60 * 60 < time;
+
+      my $pari_version;
+      run_command
+          ['sh', '-c', 'tar -tz < ' . $file_name],
+          onoutput => sub {
+            if ($_[0] =~ /^pari-([0-9.]+)/) {
+              $pari_version = $1;
+            }
+            return 20;
+          };
+      info_die "Can't get pari version from |$file_name|"
+          unless defined $pari_version;
+
+      make_path "$PMBPDirName/tmp";
+      my $temp_file_name = "$PMBPDirName/tmp/pari-$pari_version.tar.gz";
+      run_command ['ln', '-s', $file_name => $temp_file_name];
+      info_die "Can't create symlink |$temp_file_name|"
+          unless -f $temp_file_name;
+
+      install_makeinstaller 'mathpari', qq{pari_tgz="$temp_file_name"};
+      $envs->{SHELL} = "$MakeInstaller.mathpari";
+      push @option, '--look';
     }
 
     my $failed;
