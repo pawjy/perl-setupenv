@@ -909,9 +909,7 @@ sub install_perl ($) {
                 onoutput => sub {
                   if ($_[0] =~ m{^  tail -f (.+?/perlbrew/build.perl-.+?\.log)}) {
                     $log_file_name = $1;
-                    $log_file_name =~ s{^~/}{$ENV{HOME}/} if defined $ENV{HOME};
-                    $log_file_name = (glob $log_file_name) || $log_file_name
-                        if $log_file_name =~ m{^~};
+                    $log_file_name =~ s{^~}{$ENV{HOME}} if defined $ENV{HOME};
                     return 0;
                   } elsif ($_[0] =~ /^It is possible that the compressed file\(s\) have become corrupted/) {
                     remove_tree "$RootDirName/local/perlbrew/dists";
