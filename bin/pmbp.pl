@@ -1306,7 +1306,7 @@ sub cpanm ($$) {
     } elsif (@module_arg and $module_arg[0] eq 'Math::Pari' and
              not $args->{info} and not $args->{scandeps}) {
       my $file_name = pmtar_dir_name () . '/pari.tar.gz';
-      my $PariSourceURL = q<ftp://megrez.math.u-bordeaux.fr/pub/pari/unix/OLD/pari-2.1.7.tgz>;
+      my $PariSourceURL = q<ftp://megrez.math.u-bordeaux.fr/pub/pari/unix/OLD/2.1/pari-2.1.7.tgz>;
       #q<ftp://megrez.math.u-bordeaux.fr/pub/pari/unix/pari.tgz> ## Can't compile with this newer version...
       save_url $PariSourceURL => $file_name
           if not -f $file_name or [stat $file_name]->[9] + 24 * 60 * 60 < time;
