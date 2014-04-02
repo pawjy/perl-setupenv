@@ -14,7 +14,7 @@ perl $pmbp --root-dir-name="$tempdir" \
 
 (grep DBI~ "$pmbitxt" > /dev/null || (echo "not ok 1" && false)) && echo "ok 1"
 (grep Test::mysqld~ "$pmbitxt" > /dev/null || (echo "not ok 2" && false)) && echo "ok 2"
-(grep Test::Requires~ "$pmbitxt" > /dev/null || (echo "not ok 3" && false)) && echo "ok 3"
+(grep Test::Deep~ "$pmbitxt" > /dev/null || (echo "not ok 3" && false)) && echo "ok 3"
 
 perl $pmbp --root-dir-name="$tempdir" \
     --read-module-index "$tempdir/index.txt" \
@@ -27,7 +27,7 @@ perl $pmbp --root-dir-name="$tempdir" \
 (grep K/KW/KWILLIAMS/Path-Class "$pmbitxt" > /dev/null || (echo "ok 5" && false)) && echo "not ok 5"
 (grep DBI~ "$pmbitxt" > /dev/null || (echo "not ok 6" && false)) && echo "ok 6"
 (grep Test::mysqld~ "$pmbitxt" > /dev/null || (echo "not ok 7" && false)) && echo "ok 7"
-(grep Test::Requires~ "$pmbitxt" > /dev/null || (echo "not ok 8" && false)) && echo "ok 8"
+(grep Test::Deep~ "$pmbitxt" > /dev/null || (echo "not ok 8" && false)) && echo "ok 8"
 
 perl $pmbp --root-dir-name="$tempdir" \
     --read-module-index "$tempdir/index.txt" \
