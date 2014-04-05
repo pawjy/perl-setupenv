@@ -10,6 +10,7 @@ env:
   - TARGET=modperl
   - TARGET=mecab
   - TARGET=rrdtool
+  - TARGET=svn
 before_install: git submodule update --init
 install: "make test-deps"
 script: "make test"

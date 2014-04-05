@@ -69,3 +69,6 @@ endif
 ifeq "$(TARGET)" "rrdtool"
 	http_proxy=http://localhost:16613 $(PROVE) --verbose t/pmbp-rrdtool/*.t
 endif
+ifeq "$(TARGET)" "svn"
+	http_proxy=http://localhost:16613 $(PROVE) --verbose t/pmbp-svn/*.t
+endif
