@@ -3113,6 +3113,7 @@ sub install_apache1 () {
 
   run_command ['bash', 'configure',
                "--prefix=$dest_dir_name",
+               '--target=httpd',
                '--enable-module=so', 
                '--enable-rule=SHARED_CORE',
                '--enable-module=rewrite',
