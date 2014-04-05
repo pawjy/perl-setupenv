@@ -238,7 +238,7 @@ GetOptions (
     print-perl-archname print-libs
     print-pmtar-dir-name print-pmpp-dir-name print-perl-path
     print-submodule-components
-    install-mecab
+    install-mecab install-svn
     help-tutorial
   )),
 ) or do {
@@ -573,7 +573,7 @@ sub _save_url {
   my ($url => $file_name, %args) = @_;
 
   if (defined $args{max_age}) {
-    return 1 if -f $file_name and
+    return 1 if -f $file_name and -s $file_name and
         [stat $file_name]->[9] + $args{max_age} > time;
   }
 
@@ -599,6 +599,8 @@ sub _save_url {
 } # _save_url
 
 sub save_url ($$;%) {
+  info_die "Not an absolute URL: <$_[0]>"
+      unless $_[0] =~ m{^(?:https?|ftp):}i;
   _save_url (@_) or info_die "Failed to download <$_[0]>\n";
 } # save_url
 
@@ -2935,6 +2937,32 @@ sub get_latest_apache_httpd_versions () {
   return $versions;
 } # get_latest_apache_httpd_versions
 
+sub get_latest_svn_versions () {
+  my $file_name = qq<$PMBPDirName/svn.html>;
+  save_url q<http://subversion.apache.org/download/> => $file_name
+      if not -f $file_name or
+         [stat $file_name]->[9] + 24 * 60 * 60 < time;
+
+  my $html;
+  {
+    open my $file, '<', $file_name or die "$0: $file_name: $!";
+    local $/ = undef;
+    $html = scalar <$file>;
+  }
+
+  my $versions = {subversion => '1.8.8',
+                  _mirror => 'http://www.apache.org/dist/'};
+
+  if ($html =~ /The best available version of Apache Subversion is:\s*([0-9.]+)/) {
+    $versions->{subversion} = $1;
+  }
+  if ($html =~ m{The currently selected mirror is <a\s*href=[^>]+>\s*<b>(http://[^<]+)</b>\s*</a>.}) {
+    $versions->{_mirror} = $1;
+  }
+  
+  return $versions;
+} # get_latest_svn_versions
+
 sub save_apache_package ($$$) {
   my ($mirror_url => $package_name, $version) = @_;
   my $file_name = pmtar_dir_name . "/packages/apache/$package_name-$version.tar.gz";
@@ -2944,13 +2972,16 @@ sub save_apache_package ($$$) {
                   "http://www.apache.org/dist/",
                   "http://archive.apache.org/dist/") {
     next unless defined $mirror;
-    last if -s $file_name;
+    if (-s $file_name) {
+      info 7, "|$file_name| found";
+      last;
+    }
     _save_url "$mirror$url_dir_name/$package_name-$version.tar.gz"
         => $file_name;
   }
   
   info_die "Can't download $package_name $version"
-      unless -f $file_name;
+      unless -s $file_name;
 } # save_apache_package
 
 sub install_apache_httpd ($) {
@@ -3099,6 +3130,69 @@ sub install_apache1 () {
   remove_tree $container_dir_name;
 } # install_apache1
 
+sub install_svn () {
+  my $dest_dir_name = "$RootDirName/local/apache/svn";
+
+  if (-x "$dest_dir_name/bin/svn") {
+    info 2, "svn is already installed";
+    return;
+  }
+
+  info 0, "Installing svn...";
+
+  my $svn_versions = get_latest_svn_versions;
+  my $svn_version = $svn_versions->{subversion};
+  my $apr_versions = get_latest_apr_versions;
+  info 0, "Apache Subversion $svn_version";
+  info 0, "  with APR $apr_versions->{apr}";
+  info 0, "  with APR-util $apr_versions->{'apr-util'}";
+  save_apache_package $svn_versions->{_mirror} => 'subversion', $svn_version;
+  save_apache_package $apr_versions->{_mirror}
+      => 'apr', $apr_versions->{apr};
+  save_apache_package $apr_versions->{_mirror}
+      => 'apr-util', $apr_versions->{'apr-util'};
+  my $svn_tarball = pmtar_dir_name . "/packages/apache/subversion-$svn_version.tar.gz";
+  my $apr_tarball = pmtar_dir_name . "/packages/apache/apr-$apr_versions->{apr}.tar.gz";
+  my $apu_tarball = pmtar_dir_name . "/packages/apache/apr-util-$apr_versions->{'apr-util'}.tar.gz";
+  my $sqlite_name = qq<sqlite-amalgamation-3071501>;
+  my $sqlite_zip = pmtar_dir_name . "/packages/$sqlite_name.zip";
+  save_url qq<http://www.sqlite.org/$sqlite_name.zip> => $sqlite_zip;
+
+  my $container_dir_name = "$PMBPDirName/tmp/" . int rand 100000;
+  make_path $container_dir_name;
+  run_command
+      ['unzip', $sqlite_zip],
+      chdir => $container_dir_name;
+  my $sqlite_dir_name = "$container_dir_name/$sqlite_name";
+  info_die "Can't extract sqlite source" unless -d $sqlite_dir_name;
+
+  install_tarball ($apr_tarball => 'apache' => $dest_dir_name,
+                   check => sub {
+                     return -x "$dest_dir_name/bin/apr-1-config";
+                   });
+  install_tarball ($apu_tarball => 'apache' => $dest_dir_name,
+                   configure_args => [
+                     '--with-apr=' . $dest_dir_name,
+                   ],
+                   check => sub {
+                     return -x "$dest_dir_name/bin/apu-1-config";
+                   });
+  install_tarball ($svn_tarball => 'apache' => $dest_dir_name,
+                   before_configure => sub {
+                     my $dir_name = $_[0];
+                     run_command
+                         ['mv', $sqlite_dir_name => qq<$dir_name/sqlite-amalgamation>]
+                             or info_die "Can't prepare sqlite-amalgamation";
+                   },
+                   configure_args => [
+                     '--with-apr=' . $dest_dir_name,
+                     '--with-apr-util=' . $dest_dir_name,
+                   ],
+                   check => sub {
+                     return -x "$dest_dir_name/bin/svn";
+                   });
+} # install_svn
+
 sub install_tarball ($$$;%) {
   my ($src_url => $package_category => $dest_dir_name, %args) = @_;
   my $name = $args{name};
@@ -3108,13 +3202,17 @@ sub install_tarball ($$$;%) {
   info_die "No package name specified" unless $name;
 
   if ($args{check} and $args{check}->()) {
-    info 2, "Package $1 already installed";
+    info 2, "Package $name already installed";
     return 1;
   }
 
-  info 0, "Installing $1...";
+  info 0, "Installing $name...";
   my $tar_file_name = pmtar_dir_name . "/packages/$package_category/$name.tar.gz";
-  save_url $src_url => $tar_file_name unless -f $tar_file_name;
+  if (-f $src_url) {
+    $tar_file_name = $src_url;
+  } else {
+    save_url $src_url => $tar_file_name unless -f $tar_file_name;
+  }
   
   my $container_dir_name = "$PMBPDirName/tmp/" . int rand 100000;
   make_path $container_dir_name;
@@ -3122,6 +3220,8 @@ sub install_tarball ($$$;%) {
       chdir => $container_dir_name
       or info_die "Can't expand $tar_file_name";
   my $src_dir_name = "$container_dir_name/$name";
+
+  $args{before_configure}->($src_dir_name) if $args{before_configure};
 
   run_command
       ['sh', 'configure',
@@ -3596,6 +3696,8 @@ while (@Command) {
     install_apache_httpd $command->{value};
   } elsif ($command->{type} eq 'install-mecab') {
     install_mecab;
+  } elsif ($command->{type} eq 'install-svn') {
+    install_svn;
 
   } elsif ($command->{type} eq 'install-perl-app') {
     install_perl_app $PerlCommand, $perl_version, $command->{url},
@@ -4787,6 +4889,11 @@ does nothing.
 =item --install-mecab
 
 Install MeCab into C<local/mecab-VERSION-CHARSET>.  If MeCab is
+already installed, this command does nothing.
+
+=item --install-svn
+
+Install Apache Subversion into C<local/apache/svn>.  If subversion is
 already installed, this command does nothing.
 
 =item --install-perl-app="[name=]git://url/of/repo.git"
