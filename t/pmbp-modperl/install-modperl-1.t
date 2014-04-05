@@ -131,6 +131,15 @@ AddModule mod_perl.c
 close $conf1_file;
 system 'cp', "$root_dir_name/local/apache/httpd-1.3/conf/httpd.conf" => "$root_dir_name/local/apache/httpd-1.3/conf/apache.conf";
 
+echo "ls $root_dir_name/local/apache -l";
+ls $root_dir_name/local/apache -l
+
+echo "ls $root_dir_name/local/apache/httpd-1.3 -l";
+ls $root_dir_name/local/apache/httpd-1.3 -l
+
+echo "ls $root_dir_name/local/apache/httpd-1.3/bin -l";
+ls $root_dir_name/local/apache/httpd-1.3/bin -l
+
 my $apachectl = "$root_dir_name/local/apache/httpd-1.3/bin/apachectl";
 
 {
