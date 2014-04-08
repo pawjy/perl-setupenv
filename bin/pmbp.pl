@@ -881,19 +881,36 @@ sub get_perlbrew_envs () {
 
 sub install_perlbrew () {
   return if -f "$RootDirName/local/perlbrew/bin/perlbrew" and
-            -f "$RootDirName/local/perlbrew/bin/patchperl.main";
+            -f "$RootDirName/local/perlbrew/bin/patchperl.main" and
+            -f "$RootDirName/local/perlbrew/pmbp-perlbrew-v2";
   save_url $PerlbrewInstallerURL
       => "$RootDirName/local/install.perlbrew";
 
   run_command
       ['sh', "$RootDirName/local/install.perlbrew"],
       envs => get_perlbrew_envs;
-  unless (-f "$RootDirName/local/perlbrew/bin/perlbrew") {
+  my $perlbrew_file_name = "$RootDirName/local/perlbrew/bin/perlbrew";
+  unless (-f $perlbrew_file_name) {
     info_die "Can't install perlbrew";
   }
 
-  # Core module in Perl 5.9.5+
-  # (IPC::Cmd modified to remove dependency)
+  {
+    my $script = do {
+      open my $file, '<', $perlbrew_file_name
+        or info_die "$perlbrew_file_name: $!";
+      local $/ = undef;
+      <$file>;
+    };
+    my $cpan_top = get_cpan_top_url;
+    $script =~ s{"http://www.cpan.org/src/5.0/"}{"$cpan_top\src/5.0/"}g;
+    $script =~ s{"http://www.cpan.org/src/README.html"}{"$cpan_top\src/README.html"}g;
+    open my $file, '>', $perlbrew_file_name
+        or info_die "$perlbrew_file_name: $!";
+    print $file $script;
+  }
+
+  ## Core module in Perl 5.9.5+
+  ## (IPC::Cmd modified to remove dependency)
   save_url q<https://raw.github.com/wakaba/perl-setupenv/master/lib/perl58perlbrewdeps.pm>
       => "$RootDirName/local/perlbrew/lib/perl5/IPC/Cmd.pm";
 
@@ -909,6 +926,9 @@ sub install_perlbrew () {
   close $f;
   run_command ['chmod', 'ugo+x', "$RootDirName/local/perlbrew/bin/patchperl"]
       or info_die "Can't move $RootDirName/local/perlbrew/bin/patchperl";
+
+  open my $file, '>', "$RootDirName/local/perlbrew/pmbp-perlbrew-v2"
+      or info_die "$RootDirName/local/perlbrew/pmbp-perlbrew-v2: $!";
 } # install_perlbrew
 
 sub install_perl ($) {
