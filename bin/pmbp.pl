@@ -29,13 +29,6 @@ my $DownloadRetryCount = 2;
 my $PerlbrewInstallerURL = q<https://raw.github.com/gugod/App-perlbrew/develop/perlbrew-install>; # q<http://install.perlbrew.pl/>;
 my $PerlbrewParallelCount = $ENV{PMBP_PARALLEL_COUNT} || ($ENV{TRAVIS} ? 4 : 1);
 my $SavePerlbrewLog = not $ENV{TRAVIS};
-my $CPANURLPrefix = q<http://search.cpan.org/CPAN/>;
-#$CPANURLPrefix = q<http://cpan.mirrors.travis-ci.org/> if $ENV{TRAVIS};
-my $CPANModuleIndexURLs = [
-  q<http://www.cpan.org/modules/02packages.details.txt.gz>, #$CPANURLPrefix . q<modules/02packages.details.txt.gz>,
-  q<http://ftp.nara.wide.ad.jp/pub/CPAN/modules/02packages.details.txt.gz>,
-  q<http://www.cpan.org/modules/02packages.details.txt.gz>,
-];
 my $CPANMURL = q<https://raw.github.com/miyagawa/cpanminus/master/cpanm>; # q<http://cpanmin.us/>;
 my $PMBPURL = q<https://github.com/wakaba/perl-setupenv/raw/master/bin/pmbp.pl>;
 my $MakefileURL = q<https://raw.github.com/wakaba/perl-setupenv/master/Makefile.pmbp.example>;
@@ -607,13 +600,14 @@ sub save_url ($$;%) {
     info_die "URL list is empty" unless @{$_[0]};
     my $urls = shift;
     for (@$urls) {
-      _save_url ($_, @_) and return;
+      _save_url ($_, @_) and return $_;
     }
     info_die "Failed to download |@$urls|";
   } else {
     info_die "Not an absolute URL: <$_[0]>"
         unless $_[0] =~ m{^(?:https?|ftp):}i;
     _save_url (@_) or info_die "Failed to download <$_[0]>";
+    return $_[0];
   }
 } # save_url
 
@@ -864,8 +858,24 @@ sub init_perl_version_by_file_name ($) {
   return init_perl_version $version;
 } # init_perl_version_by_file_name
 
+{
+  my $CPANTopURL;
+  sub get_cpan_top_url () {
+    return $CPANTopURL ||= save_url [
+      q<http://search.cpan.org/CPAN/>,
+      q<http://www.cpan.org/>,
+      q<http://ftp.nara.wide.ad.jp/pub/CPAN/>,
+      q<http://ftp.jaist.ac.jp/pub/CPAN/>,
+      q<http://ftp.riken.jp/lang/CPAN/>,
+      q<http://ftp.yz.yamagata-u.ac.jp/pub/lang/cpan/>,
+      q<http://www.perl.com/CPAN/>,
+    ] => "$PMBPDirName/tmp/cpan-top";
+  } # get_cpan_top_url
+}
+
 sub get_perlbrew_envs () {
   return {PERLBREW_ROOT => (abs_path "$RootDirName/local/perlbrew"),
+          PERLBREW_CPAN_MIRROR => get_cpan_top_url,
           PERL5LIB => ''}
 } # get_perlbrew_envs
 
@@ -1236,7 +1246,7 @@ sub cpanm ($$) {
 
     push @option,
         '--mirror' => pmtar_dir_name (),
-        map { ('--mirror' => $_) } @CPANMirror;
+        map { ('--mirror' => $_) } @CPANMirror, get_cpan_top_url;
 
     if (defined $args->{module_index_file_name} and
         -f $args->{module_index_file_name}) {
@@ -1378,7 +1388,7 @@ sub cpanm ($$) {
       } elsif ($log =~ /^skipping .+\/perl-/m) {
         if (@module_arg and $module_arg[0] eq 'Module::Metadata') {
           push @required_install, PMBP::Module->new_from_module_arg
-              ('Module::Metadata='.$CPANURLPrefix.'authors/id/A/AP/APEIRON/Module-Metadata-1.000011.tar.gz');
+              ('Module::Metadata='.get_cpan_top_url.'/authors/id/A/AP/APEIRON/Module-Metadata-1.000011.tar.gz');
           $failed = 1;
         }
       } elsif ($level == 1 and
@@ -1455,7 +1465,7 @@ sub cpanm ($$) {
         ## process?).  (Therefore the line below is incomplete, but I
         ## can no longer reproduce the problem.)
         push @required_install, PMBP::Module->new_from_module_arg
-            ('Net::SSLeay~1.36='.$CPANURLPrefix.'authors/id/F/FL/FLORA/Net-SSLeay-1.36.tar.gz');
+            ('Net::SSLeay~1.36='.get_cpan_top_url.'/authors/id/F/FL/FLORA/Net-SSLeay-1.36.tar.gz');
       } elsif ($log =~ /fatal error: openssl\/err.h: No such file or directory/m) {
         push @required_system,
             {name => 'openssl-devel', debian_name => 'libssl-dev'};
@@ -1743,7 +1753,8 @@ sub get_default_mirror_file_name () {
   if (not -f $file_name or
       [stat $file_name]->[9] + 24 * 60 * 60 < time or # mtime
       [stat $file_name]->[7] < 1 * 1024 * 1024) {
-    save_url $CPANModuleIndexURLs => $file_name;
+    save_url get_cpan_top_url . q<modules/02packages.details.txt.gz>
+        => $file_name;
     utime time, time, $file_name;
     $updated = 1;
   }
@@ -1760,14 +1771,15 @@ sub supplemental_module_index () {
   my $file_name = "$dir_name/modules/02packages.details.txt";
   return $dir_name if -f ($file_name . '.gz') and
       [stat ($file_name . '.gz')]->[9] + 24 * 60 * 60 > time;
+  my $cpan_top_url = get_cpan_top_url;
   my $index =  PMBP::ModuleIndex->new_from_arrayref ([
     ## Stupid workaround for cpanm's broken version comparison
-    PMBP::Module->new_from_module_arg ('ExtUtils::MakeMaker~6.6302='.$CPANURLPrefix.'authors/id/M/MS/MSCHWERN/ExtUtils-MakeMaker-6.63_02.tar.gz'),
+    PMBP::Module->new_from_module_arg ('ExtUtils::MakeMaker~6.6302='.get_cpan_top_url.'/authors/id/M/MS/MSCHWERN/ExtUtils-MakeMaker-6.63_02.tar.gz'),
 
-    PMBP::Module->new_from_module_arg ('IDNA::Punycode~0.03='.$CPANURLPrefix.'authors/id/R/RO/ROBURBAN/IDNA-Punycode-0.03.tar.gz'),
-    PMBP::Module->new_from_module_arg ('WWW::Contact~0.47='.$CPANURLPrefix.'authors/id/F/FA/FAYLAND/WWW-Contact-0.47.tar.gz'),
-    PMBP::Module->new_from_module_arg ('RRDs='.$CPANURLPrefix.'authors/id/G/GF/GFUJI/Alien-RRDtool-0.05.tar.gz'),
-    PMBP::Module->new_from_module_arg ('RRDp='.$CPANURLPrefix.'authors/id/G/GF/GFUJI/Alien-RRDtool-0.05.tar.gz'),
+    PMBP::Module->new_from_module_arg ('IDNA::Punycode~0.03='.get_cpan_top_url.'/authors/id/R/RO/ROBURBAN/IDNA-Punycode-0.03.tar.gz'),
+    PMBP::Module->new_from_module_arg ('WWW::Contact~0.47='.get_cpan_top_url.'/authors/id/F/FA/FAYLAND/WWW-Contact-0.47.tar.gz'),
+    PMBP::Module->new_from_module_arg ('RRDs='.get_cpan_top_url.'/authors/id/G/GF/GFUJI/Alien-RRDtool-0.05.tar.gz'),
+    PMBP::Module->new_from_module_arg ('RRDp='.get_cpan_top_url.'/authors/id/G/GF/GFUJI/Alien-RRDtool-0.05.tar.gz'),
 
     ## Obsolete
     PMBP::Module->new_from_module_arg ('Email::Handle~0.01=http://backpan.perl.org/authors/id/N/NA/NAOYA/Email-Handle-0.01.tar.gz'),
