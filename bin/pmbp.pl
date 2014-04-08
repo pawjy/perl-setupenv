@@ -230,7 +230,7 @@ GetOptions (
     });
   } qw(
     update install
-    update-pmbp-pl print-pmbp-pl-etag
+    update-pmbp-pl print-pmbp-pl-etag print-cpan-top-url
     install-perl print-latest-perl-version print-selected-perl-version
     print-perl-archname print-libs
     print-pmtar-dir-name print-pmpp-dir-name print-perl-path
@@ -902,8 +902,8 @@ sub install_perlbrew () {
       <$file>;
     };
     my $cpan_top = get_cpan_top_url;
-    $script =~ s{"http://www.cpan.org/src/5.0/"}{"$cpan_top\src/5.0/"}g;
-    $script =~ s{"http://www.cpan.org/src/README.html"}{"$cpan_top\src/README.html"}g;
+    $script =~ s{"http://www.cpan.org/src/5.0/"}{"${cpan_top}src/5.0/"}g;
+    $script =~ s{"http://www.cpan.org/src/README.html"}{"${cpan_top}src/README.html"}g;
     open my $file, '>', $perlbrew_file_name
         or info_die "$perlbrew_file_name: $!";
     print $file $script;
@@ -3531,6 +3531,8 @@ while (@Command) {
   } elsif ($command->{type} eq 'add-to-gitignore') {
     add_to_gitignore [$command->{value}] => "$RootDirName/.gitignore";
 
+  } elsif ($command->{type} eq 'print-cpan-top-url') {
+    print get_cpan_top_url;
   } elsif ($command->{type} eq 'print-latest-perl-version') {
     print get_latest_perl_version;
   } elsif ($command->{type} eq 'print-selected-perl-version') {
@@ -4913,6 +4915,11 @@ directory, used as input to the C<cpanm> command.
 =item --prepend-mirror=URL
 
 Prepend the specified CPAN mirror URL to the list of mirrors.
+
+=item --print-cpan-top-url
+
+Print the URL of the CPAN Web site used to install Perl and CPAN
+modules.
 
 =back
 
