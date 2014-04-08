@@ -48,6 +48,9 @@ endif
 ifeq "$(TARGET)" "normal"
 	http_proxy=http://localhost:16613 $(PROVE) -j1 --verbose t/pmbp/*.t
 endif
+ifeq "$(TARGET)" "install-1"
+	http_proxy=http://localhost:16613 $(PROVE) -j1 --verbose t/pmbp-install-1/*.t
+endif
 ifeq "$(TARGET)" "update"
 	http_proxy=http://localhost:16613 $(PROVE) -j1 --verbose t/pmbp-update/*.t
 endif
