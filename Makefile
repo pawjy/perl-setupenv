@@ -48,6 +48,12 @@ endif
 ifeq "$(TARGET)" "normal"
 	http_proxy=http://localhost:16613 $(PROVE) -j1 --verbose t/pmbp/*.t
 endif
+ifeq "$(TARGET)" "update"
+	http_proxy=http://localhost:16613 $(PROVE) -j1 --verbose t/pmbp-update/*.t
+endif
+ifeq "$(TARGET)" "env"
+	http_proxy=http://localhost:16613 $(PROVE) -j1 --verbose t/pmbp-env/*.t
+endif
 ifeq "$(TARGET)" "scan"
 	http_proxy=http://localhost:16613 $(PROVE) -j1 --verbose t/pmbp-scan/*.t
 endif
