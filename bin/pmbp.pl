@@ -31,7 +31,11 @@ my $PerlbrewParallelCount = $ENV{PMBP_PARALLEL_COUNT} || ($ENV{TRAVIS} ? 4 : 1);
 my $SavePerlbrewLog = not $ENV{TRAVIS};
 my $CPANURLPrefix = q<http://search.cpan.org/CPAN/>;
 #$CPANURLPrefix = q<http://cpan.mirrors.travis-ci.org/> if $ENV{TRAVIS};
-my $CPANModuleIndexURL = q<http://www.cpan.org/modules/02packages.details.txt.gz>; #$CPANURLPrefix . q<modules/02packages.details.txt.gz>;
+my $CPANModuleIndexURLs = [
+  q<http://www.cpan.org/modules/02packages.details.txt.gz>, #$CPANURLPrefix . q<modules/02packages.details.txt.gz>,
+  q<http://ftp.nara.wide.ad.jp/pub/CPAN/modules/02packages.details.txt.gz>,
+  q<http://www.cpan.org/modules/02packages.details.txt.gz>,
+];
 my $CPANMURL = q<https://raw.github.com/miyagawa/cpanminus/master/cpanm>; # q<http://cpanmin.us/>;
 my $PMBPURL = q<https://github.com/wakaba/perl-setupenv/raw/master/bin/pmbp.pl>;
 my $MakefileURL = q<https://raw.github.com/wakaba/perl-setupenv/master/Makefile.pmbp.example>;
@@ -599,9 +603,18 @@ sub _save_url {
 } # _save_url
 
 sub save_url ($$;%) {
-  info_die "Not an absolute URL: <$_[0]>"
-      unless $_[0] =~ m{^(?:https?|ftp):}i;
-  _save_url (@_) or info_die "Failed to download <$_[0]>\n";
+  if (ref $_[0] eq 'ARRAY') {
+    info_die "URL list is empty" unless @{$_[0]};
+    my $urls = shift;
+    for (@$urls) {
+      _save_url ($_, @_) and return;
+    }
+    info_die "Failed to download |@$urls|";
+  } else {
+    info_die "Not an absolute URL: <$_[0]>"
+        if $_[0] =~ m{^(?:https?|ftp):}i;
+    _save_url (@_) or info_die "Failed to download <$_[0]>";
+  }
 } # save_url
 
 ## ------ JSON ------
@@ -1730,7 +1743,7 @@ sub get_default_mirror_file_name () {
   if (not -f $file_name or
       [stat $file_name]->[9] + 24 * 60 * 60 < time or # mtime
       [stat $file_name]->[7] < 1 * 1024 * 1024) {
-    save_url $CPANModuleIndexURL => $file_name;
+    save_url $CPANModuleIndexURLs => $file_name;
     utime time, time, $file_name;
     $updated = 1;
   }
