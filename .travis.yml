@@ -5,18 +5,18 @@ env:
   global:
     secure: "E5EXHWCb2SWEVPtbVsJpgGZMv01180RCpA1y1flrCZtwPOktHQ+D8uYZlS2elsHXqjbBOOm3Vp8CpGOVoOxSYnS0Q888plHd2hMICjeNM6Kd0tuWEr5p0v4eWs1XQeoQDVPEoU1PPZpctQ3s8eUJEkqpMNtESqKd47s0tY4vk1E="
   matrix:
-    - TARGET=normal
-    - TARGET=install-1
-    - TARGET=update
-    - TARGET=env
-    - TARGET=scan
-    - TARGET=perl
     - TARGET=imagemagick
-    - TARGET=apache
+    - TARGET=scan
     - TARGET=modperl
-    - TARGET=mecab
-    - TARGET=rrdtool
     - TARGET=svn
+    - TARGET=perl
+    - TARGET=apache
+    - TARGET=rrdtool
+    - TARGET=mecab
+    - TARGET=env
+    - TARGET=update
+    - TARGET=install-1
+    - TARGET=normal
 before_install: git submodule update --init
 install: "make test-deps"
 script: "make test"
