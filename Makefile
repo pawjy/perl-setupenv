@@ -54,6 +54,9 @@ endif
 ifeq "$(TARGET)" "update"
 	http_proxy=http://localhost:16613 $(PROVE) -j1 --verbose t/pmbp-update/*.t
 endif
+ifeq "$(TARGET)" "lists"
+	http_proxy=http://localhost:16613 $(PROVE) -j1 --verbose t/pmbp-lists/*.t
+endif
 ifeq "$(TARGET)" "env"
 	http_proxy=http://localhost:16613 $(PROVE) -j1 --verbose t/pmbp-env/*.t
 endif
