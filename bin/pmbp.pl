@@ -612,7 +612,7 @@ sub save_url ($$;%) {
     info_die "Failed to download |@$urls|";
   } else {
     info_die "Not an absolute URL: <$_[0]>"
-        if $_[0] =~ m{^(?:https?|ftp):}i;
+        unless $_[0] =~ m{^(?:https?|ftp):}i;
     _save_url (@_) or info_die "Failed to download <$_[0]>";
   }
 } # save_url
