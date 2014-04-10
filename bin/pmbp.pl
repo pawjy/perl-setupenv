@@ -3233,7 +3233,6 @@ sub install_svn () {
                    configure_args => [
                      '--with-apr=' . $dest_dir_name,
                      '--with-apr-util=' . $dest_dir_name,
-                     '--with-serf',
                    ],
                    check => sub {
                      return -x "$dest_dir_name/bin/svn";
