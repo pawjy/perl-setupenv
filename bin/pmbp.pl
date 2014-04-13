@@ -1539,6 +1539,10 @@ sub cpanm ($$) {
         push @required_system,
             {name => 'libidn-devel', debian_name => 'libidn11-dev'};
         $failed = 1;
+      } elsif ($log =~ /fatal error: libkakasi.h: No such file or directory/m) {
+        push @required_system,
+            {name => 'kakasi-devel', debian_name => 'libkakasi2-dev'};
+        $failed = 1;
       } elsif ($log =~ /^Can\'t proceed without mecab-config./m) {
         $required_misc{mecab} = 1;
         $failed = 1;
