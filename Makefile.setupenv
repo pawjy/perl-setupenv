@@ -157,7 +157,8 @@ $(CARTON_SUPPORT_BIN_PATH)/carton: $(CARTON_SUPPORT_BIN_PATH)/cpanm \
 #	    Module::Install::Repository
 	#$(GIT) clone git://github.com/masaki/carton.git $(CARTON_SUPPORT_BIN_PATH)/../carton || (cd $(CARTON_SUPPORT_BIN_PATH)/../carton && $(GIT) pull)
 	#$(CARTON_ENV) $(CPANM_) --reinstall $(CARTON_SUPPORT_BIN_PATH)/../carton
-	$(CARTON_ENV) $(CPANM_) --reinstall Carton
+	#$(CARTON_ENV) $(CPANM_) --reinstall Carton
+	$(CARTON_ENV) $(CPANM_) --reinstall MIYAGAWA/carton-v0.9.4.tar.gz
 	#ln -s $(CARTON_SUPPORT_BIN_PATH)/../carton/bin/carton $@
 	touch -c $@
 
