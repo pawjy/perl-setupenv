@@ -1335,19 +1335,26 @@ sub cpanm ($$) {
     #  install_apache1 ();
     #  # XXX This does not work well...
     } elsif (@module_arg and $module_arg[0] eq 'Text::MeCab' and
-             not $args->{info} and not $args->{scandeps}) {
+             not $args->{info}) {
       my $mecab_config = mecab_config_file_name ();
       unless (defined $mecab_config) {
         install_mecab ();
         $mecab_config = mecab_config_file_name ();
       }
       # <http://cpansearch.perl.org/src/DMAKI/Text-MeCab-0.20014/tools/probe_mecab.pl>
-      install_makeinstaller 'textmecab',
-          qq{--mecab-config="$mecab_config" } .
-          qq{--encoding="} . mecab_charset () . q{"};
-      $envs->{SHELL} = "$MakeInstaller.textmecab";
+      if ($args->{scandeps}) {
+        push @option,
+            qq{--configure-args=} .
+            qq{--mecab-config="$mecab_config" } .
+            qq{--encoding="} . mecab_charset () . q{"};
+      } else {
+        install_makeinstaller 'textmecab',
+            qq{--mecab-config="$mecab_config" } .
+            qq{--encoding="} . mecab_charset () . q{"};
+        $envs->{SHELL} = "$MakeInstaller.textmecab";
+        push @option, '--look';
+      }
       $envs->{LD_LIBRARY_PATH} = mecab_lib_dir_name ();
-      push @option, '--look';
     } elsif (@module_arg and $module_arg[0] eq 'Math::Pari' and
              not $args->{info} and not $args->{scandeps}) {
       my $file_name = pmtar_dir_name () . '/pari.tar.gz';
