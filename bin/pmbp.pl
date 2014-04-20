@@ -1434,6 +1434,14 @@ sub cpanm ($$) {
       } elsif ($log =~ m{^(\S+) \S+ is required to configure this module; please install it or upgrade your CPAN/CPANPLUS shell.}m) {
         push @required_install, PMBP::Module->new_from_package ($1);
         # Don't set $failed flag.
+      } elsif ($log =~ m{^ERROR from evaluation of .+/vutil/Makefile.PL: ExtUtils::MM_Unix::tool_xsubpp : Can't find xsubpp at }m) {
+        push @required_cpanm,
+            map { PMBP::Module->new_from_package ($_) }
+            qw{ExtUtils::MakeMaker ExtUtils::ParseXS};
+        $failed = 1;
+      } elsif ($log =~ m{error: perl.h: No such file or directory}m) {
+        push @required_system,
+            {name => 'perl-devel', debian_name => 'libperl-dev'};
       } elsif ($log =~ m{^make(?:\[[0-9]+\])?: .+?ExtUtils/xsubpp}m or
                $log =~ m{^Can\'t open perl script ".*?ExtUtils/xsubpp"}m) {
         push @required_install,
