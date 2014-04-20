@@ -3478,11 +3478,14 @@ for my $env (qw(PATH PERL5LIB PERL5OPT)) {
 info 6, '$ ' . join ' ', $0, @Argument;
 info 6, sprintf '%s %vd (%s)', $^X, $^V, $Config{archname};
 info 6, '@INC = ' . join ' ', @INC;
-my $perl_version =
+my $perl_version;
+my $get_perl_version = sub {
+  $perl_version =
     defined $SpecifiedPerlVersion ? init_perl_version $SpecifiedPerlVersion :
     -f "$RootDirName/config/perl/version.txt" ? init_perl_version_by_file_name "$RootDirName/config/perl/version.txt" :
     init_perl_version undef;
-info 1, "Target Perl version: $perl_version";
+  info 1, "Target Perl version: $perl_version";
+}; # $get_perl_version;
 my $dep_graph = [];
 my $exclusions = {};
 my $root_module = PMBP::Module->new_from_package ('.');
@@ -3560,27 +3563,34 @@ while (@Command) {
   } elsif ($command->{type} eq 'print-latest-perl-version') {
     print get_latest_perl_version;
   } elsif ($command->{type} eq 'print-selected-perl-version') {
+    $get_perl_version->() unless defined $perl_version;
     print $perl_version;
   } elsif ($command->{type} eq 'print-perl-archname') {
+    $get_perl_version->() unless defined $perl_version;
     print get_perl_archname $PerlCommand, $perl_version;
   } elsif ($command->{type} eq 'install-perl') {
+    $get_perl_version->() unless defined $perl_version;
     info 0, "Installing Perl $perl_version...";
     install_perl $perl_version;
   } elsif ($command->{type} eq 'install-perl-if-necessary') {
     my $actual_perl_version = get_perl_version $PerlCommand || '?';
+    $get_perl_version->() unless defined $perl_version;
     unless ($actual_perl_version eq $perl_version) {
       info 0, "Installing Perl $perl_version...";
       install_perl $perl_version;
     }
   } elsif ($command->{type} eq 'create-perlbrew-perl-latest-symlink') {
+    $get_perl_version->() unless defined $perl_version;
     create_perlbrew_perl_latest_symlink $perl_version;
 
   } elsif ($command->{type} eq 'install-module') {
+    $get_perl_version->() unless defined $perl_version;
     delete_pmpp_arch_dir $PerlCommand, $perl_version if $pmpp_touched;
     info 0, "Installing @{[$command->{module}->as_short]}...";
     install_module $PerlCommand, $perl_version, $command->{module},
         module_index_file_name => $module_index_file_name;
   } elsif ($command->{type} eq 'install-modules-by-list') {
+    $get_perl_version->() unless defined $perl_version;
     delete_pmpp_arch_dir $PerlCommand, $perl_version if $pmpp_touched;
     my $module_index = PMBP::ModuleIndex->new_empty;
     if (defined $command->{file_name}) {
@@ -3603,14 +3613,17 @@ while (@Command) {
           module_index_file_name => $module_index_file_name;
     }
   } elsif ($command->{type} eq 'install-to-pmpp') {
+    $get_perl_version->() unless defined $perl_version;
     info 0, "Installing @{[$command->{module}->as_short]} to pmpp...";
     install_module $PerlCommand, $perl_version, $command->{module},
         module_index_file_name => $module_index_file_name, pmpp => 1;
     $pmpp_touched = 1;
   } elsif ($command->{type} eq 'install-by-pmpp') {
+    $get_perl_version->() unless defined $perl_version;
     info 0, "Copying pmpp modules...";
     copy_pmpp_modules $PerlCommand, $perl_version;
   } elsif ($command->{type} eq 'update-pmpp-by-list') {
+    $get_perl_version->() unless defined $perl_version;
     my $module_index = PMBP::ModuleIndex->new_empty;
     if (defined $command->{file_name}) {
       read_pmb_install_list $command->{file_name} => $module_index;
@@ -3625,11 +3638,13 @@ while (@Command) {
     }
     $pmpp_touched = 1;
   } elsif ($command->{type} eq 'scandeps') {
+    $get_perl_version->() unless defined $perl_version;
     info 0, "Scanning dependency of @{[$command->{module}->as_short]}...";
     scandeps $global_module_index, $perl_version, $command->{module},
         skip_if_found => 1,
         module_index_file_name => $module_index_file_name;
   } elsif ($command->{type} eq 'select-module') {
+    $get_perl_version->() unless defined $perl_version;
     select_module $global_module_index =>
         $perl_version, $command->{module} => $selected_module_index,
         module_index_file_name => $module_index_file_name,
@@ -3637,6 +3652,7 @@ while (@Command) {
     $global_module_index->merge_module_index ($selected_module_index);
     push @$dep_graph, [$root_module, $command->{module}];
   } elsif ($command->{type} eq 'select-modules-by-list') {
+    $get_perl_version->() unless defined $perl_version;
     my $module_index = PMBP::ModuleIndex->new_empty;
     if (defined $command->{file_name}) {
       read_pmb_install_list $command->{file_name} => $module_index,
@@ -3671,11 +3687,13 @@ while (@Command) {
   } elsif ($command->{type} eq 'write-install-module-index') {
     write_install_module_index $selected_module_index => $command->{file_name};
   } elsif ($command->{type} eq 'write-libs-txt') {
+    $get_perl_version->() unless defined $perl_version;
     my $file_name = $command->{file_name};
     $file_name = get_libs_txt_file_name ($perl_version)
         unless defined $file_name;
     write_libs_txt $PerlCommand, $perl_version => $file_name;
   } elsif ($command->{type} eq 'create-libs-txt-symlink') {
+    $get_perl_version->() unless defined $perl_version;
     my $real_name = get_libs_txt_file_name ($perl_version);
     my $link_name = "$RootDirName/config/perl/libs.txt";
     info_writing 3, 'libs.txt symlink', $link_name;
@@ -3684,6 +3702,7 @@ while (@Command) {
         if -f $link_name || -l $link_name;
     (symlink $real_name => $link_name) or info_die "$0: $link_name: $!";
   } elsif ($command->{type} eq 'create-local-perl-latest-symlink') {
+    $get_perl_version->() unless defined $perl_version;
     my $real_name = "$RootDirName/local/perl-$perl_version";
     my $link_name = "$RootDirName/local/perl-latest";
     info_writing 3, 'perl-latest symlink', $link_name;
@@ -3691,6 +3710,7 @@ while (@Command) {
     remove_tree $link_name;
     symlink $real_name => $link_name or info_die "$0: $link_name: $!";
   } elsif ($command->{type} eq 'create-perl-command-shortcut') {
+    $get_perl_version->() unless defined $perl_version;
     create_perl_command_shortcut $perl_version,
         $command->{command} => $command->{file_name};
   } elsif ($command->{type} eq 'create-perl-command-shortcut-by-list') {
@@ -3719,6 +3739,7 @@ while (@Command) {
       Meta->write_mymeta_json;
     };
   } elsif ($command->{type} eq 'print-libs') {
+    $get_perl_version->() unless defined $perl_version;
     print join ':', (get_lib_dir_names ($PerlCommand, $perl_version));
   } elsif ($command->{type} eq 'set-module-index') {
     $module_index_file_name = $command->{file_name}; # or undef
@@ -3756,10 +3777,12 @@ while (@Command) {
     my $pathname = $command->{module}->pathname;
     print $pathname if defined $pathname;
   } elsif ($command->{type} eq 'print-module-version') {
+    $get_perl_version->() unless defined $perl_version;
     my $ver = get_module_version
         $PerlCommand, $perl_version, $command->{module};
     print $ver if defined $ver;
   } elsif ($command->{type} eq 'print-perl-path') {
+    $get_perl_version->() unless defined $perl_version;
     print get_perl_path ($perl_version);
   } elsif ($command->{type} eq 'print') {
     print $command->{string};
@@ -3772,6 +3795,7 @@ while (@Command) {
     install_svn;
 
   } elsif ($command->{type} eq 'install-perl-app') {
+    $get_perl_version->() unless defined $perl_version;
     install_perl_app $PerlCommand, $perl_version, $command->{url},
         name => $command->{name},
         module_index_file_name => $module_index_file_name;
@@ -3785,7 +3809,8 @@ while (@Command) {
   }
 } # while @Command
 
-delete_pmpp_arch_dir $PerlCommand, $perl_version if $pmpp_touched;
+delete_pmpp_arch_dir $PerlCommand, $perl_version
+    if $pmpp_touched and defined $perl_version;
 destroy;
 profiler_stop 'all';
 {
