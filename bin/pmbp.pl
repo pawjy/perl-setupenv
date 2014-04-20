@@ -1700,6 +1700,19 @@ sub cpanm ($$) {
         if (@required_cpanm or @required_force_cpanm) {
           local $CPANMDepth = $CPANMDepth + 1;
           for my $module (@required_cpanm) {
+            if ($module->package eq 'Test::Harness') {
+              my $file_name = "$cpanm_lib_dir_name/lib/perl5/Test/Harness.pm";
+              mkdir_for_file $file_name;
+              open my $file, '>', $file_name;
+              print $file "1;";
+              close $file;
+            } elsif ($module->package eq 'ExtUtils::Manifest') {
+              my $file_name = "$cpanm_lib_dir_name/lib/perl5/ExtUtils/Manifest.pm";
+              save_url q<https://raw.githubusercontent.com/rafl/extutils-manifest/master/lib/ExtUtils/Manifest.pm> => $file_name;
+              save_url q<http://cpansearch.perl.org/src/JPEACOCK/version-0.9908/lib/version.pm> => "$cpanm_lib_dir_name/lib/perl5/version.pm";
+              save_url q<http://cpansearch.perl.org/src/JPEACOCK/version-0.9908/lib/version/regex.pm> => "$cpanm_lib_dir_name/lib/perl5/version/regex.pm";
+              next;
+            }
             get_local_copy_if_necessary ($module);
             cpanm {perl_command => $perl_command,
                    perl_version => $perl_version,
