@@ -883,11 +883,19 @@ sub install_perlbrew () {
   return if -f "$RootDirName/local/perlbrew/bin/perlbrew" and
             -f "$RootDirName/local/perlbrew/bin/patchperl.main" and
             -f "$RootDirName/local/perlbrew/pmbp-perlbrew-v2";
-  save_url $PerlbrewInstallerURL
-      => "$RootDirName/local/install.perlbrew";
+  my $install_file_name = "$RootDirName/local/install.perlbrew";
+  save_url $PerlbrewInstallerURL => $install_file_name;
+
+  local $/ = undef;
+  open my $install_file, '<', $install_file_name or die "$0: $install_file_name: $!";
+  my $installer = <$install_file>;
+  $installer =~ s{https://raw.github.com/}{https://raw.githubusercontent.com/}g;
+  open $install_file, '>', $install_file_name or die "$0: $install_file_name: $!";
+  print $install_file $installer;
+  close $install_file;
 
   run_command
-      ['sh', "$RootDirName/local/install.perlbrew"],
+      ['sh', $install_file_name],
       envs => get_perlbrew_envs;
   my $perlbrew_file_name = "$RootDirName/local/perlbrew/bin/perlbrew";
   unless (-f $perlbrew_file_name) {
