@@ -866,7 +866,7 @@ sub init_perl_version_by_file_name ($) {
       q<http://ftp.riken.jp/lang/CPAN/>,
       q<http://ftp.yz.yamagata-u.ac.jp/pub/lang/cpan/>,
       q<http://www.perl.com/CPAN/>,
-    ] => "$PMBPDirName/tmp/cpan-top", timeout => 5, tries => 1;
+    ] => "$PMBPDirName/tmp/cpan-top", timeout => 10, tries => 1;
   } # get_cpan_top_url
 }
 
