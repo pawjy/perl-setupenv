@@ -43,44 +43,44 @@ test-stopproxy:
 
 test-main:
 ifeq "$(TARGET)" ""
-	http_proxy=http://localhost:16613 $(PROVE) --verbose t/*/*.t
+	$(PROVE) --verbose t/*/*.t
 endif
 ifeq "$(TARGET)" "normal"
-	http_proxy=http://localhost:16613 $(PROVE) -j1 --verbose t/pmbp/*.t
+	$(PROVE) -j1 --verbose t/pmbp/*.t
 endif
 ifeq "$(TARGET)" "install-1"
-	http_proxy=http://localhost:16613 $(PROVE) -j1 --verbose t/pmbp-install-1/*.t
+	$(PROVE) -j1 --verbose t/pmbp-install-1/*.t
 endif
 ifeq "$(TARGET)" "update"
-	http_proxy=http://localhost:16613 $(PROVE) -j1 --verbose t/pmbp-update/*.t
+	$(PROVE) -j1 --verbose t/pmbp-update/*.t
 endif
 ifeq "$(TARGET)" "lists"
-	http_proxy=http://localhost:16613 $(PROVE) -j1 --verbose t/pmbp-lists/*.t
+	$(PROVE) -j1 --verbose t/pmbp-lists/*.t
 endif
 ifeq "$(TARGET)" "env"
-	http_proxy=http://localhost:16613 $(PROVE) -j1 --verbose t/pmbp-env/*.t
+	$(PROVE) -j1 --verbose t/pmbp-env/*.t
 endif
 ifeq "$(TARGET)" "scan"
-	http_proxy=http://localhost:16613 $(PROVE) -j1 --verbose t/pmbp-scan/*.t
+	$(PROVE) -j1 --verbose t/pmbp-scan/*.t
 endif
 ifeq "$(TARGET)" "perl"
-	http_proxy=http://localhost:16613 $(PROVE) --verbose t/pmbp-perl/*.t
+	$(PROVE) --verbose t/pmbp-perl/*.t
 endif
 ifeq "$(TARGET)" "imagemagick"
-	http_proxy=http://localhost:16613 $(PROVE) --verbose t/pmbp-imagemagick/*.t
+	$(PROVE) --verbose t/pmbp-imagemagick/*.t
 endif
 ifeq "$(TARGET)" "apache"
-	http_proxy=http://localhost:16613 $(PROVE) --verbose t/pmbp-apache/*.t
+	$(PROVE) --verbose t/pmbp-apache/*.t
 endif
 ifeq "$(TARGET)" "modperl"
-	http_proxy=http://localhost:16613 $(PROVE) --verbose t/pmbp-modperl/*.t
+	$(PROVE) --verbose t/pmbp-modperl/*.t
 endif
 ifeq "$(TARGET)" "mecab"
-	http_proxy=http://localhost:16613 $(PROVE) --verbose t/pmbp-mecab/*.t
+	$(PROVE) --verbose t/pmbp-mecab/*.t
 endif
 ifeq "$(TARGET)" "rrdtool"
-	http_proxy=http://localhost:16613 $(PROVE) --verbose t/pmbp-rrdtool/*.t
+	$(PROVE) --verbose t/pmbp-rrdtool/*.t
 endif
 ifeq "$(TARGET)" "svn"
-	http_proxy=http://localhost:16613 $(PROVE) --verbose t/pmbp-svn/*.t
+	$(PROVE) --verbose t/pmbp-svn/*.t
 endif
