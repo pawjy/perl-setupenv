@@ -38,12 +38,7 @@ my $FallbackPMTarDirName = $ENV{PMBP_FALLBACK_PMTAR_DIR_NAME};
 my $PMTarDirName = $ENV{PMBP_PMTAR_DIR_NAME};
 my $PMPPDirName = $ENV{PMBP_PMPP_DIR_NAME};
 my @Command;
-my @CPANMirror = qw(
-  http://search.cpan.org/CPAN
-  http://cpan.metacpan.org/
-  http://backpan.perl.org/
-);
-#unshift @CPANMirror, qw(http://cpan.mirrors.travis-ci.org/) if $ENV{TRAVIS};
+my @CPANMirror;
 my $Verbose = $ENV{PMBP_VERBOSE} || 0;
 my $PreserveInfoFile = 0;
 my $DumpInfoFileBeforeDie = $ENV{PMBP_DUMP_BEFORE_DIE} || $ENV{TRAVIS} || 0;
@@ -871,7 +866,7 @@ sub init_perl_version_by_file_name ($) {
       q<http://ftp.riken.jp/lang/CPAN/>,
       q<http://ftp.yz.yamagata-u.ac.jp/pub/lang/cpan/>,
       q<http://www.perl.com/CPAN/>,
-    ] => "$PMBPDirName/tmp/cpan-top", timeout => 10, tries => 1;
+    ] => "$PMBPDirName/tmp/cpan-top", timeout => 5, tries => 1;
   } # get_cpan_top_url
 }
 
@@ -1276,7 +1271,15 @@ sub cpanm ($$) {
 
     push @option,
         '--mirror' => pmtar_dir_name (),
-        map { ('--mirror' => $_) } @CPANMirror, get_cpan_top_url;
+        map { ('--mirror' => $_) }
+            @CPANMirror,
+            #qw(http://cpan.mirrors.travis-ci.org/) if $ENV{TRAVIS};
+            get_cpan_top_url,
+            #http://search.cpan.org/CPAN
+            qw(
+              http://cpan.metacpan.org/
+              http://backpan.perl.org/
+            );
 
     if (defined $args->{module_index_file_name} and
         -f $args->{module_index_file_name}) {
@@ -1875,7 +1878,16 @@ sub save_by_pathname ($$) {
     return 1;
   }
 
-  for (@CPANMirror) {
+  for (
+    #qw(http://cpan.mirrors.travis-ci.org/) if $ENV{TRAVIS};
+    main::get_cpan_top_url,
+    #http://search.cpan.org/CPAN
+    @CPANMirror,
+    qw(
+      http://cpan.metacpan.org/
+      http://backpan.perl.org/
+    ),
+  ) {
     my $mirror = $_;
     $mirror =~ s{/+$}{};
     $mirror .= "/authors/id/$pathname";
