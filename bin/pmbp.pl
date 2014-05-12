@@ -584,6 +584,7 @@ sub _save_url {
          '-O', $file_name,
          ($args{save_response_headers} ? '--save-headers' : ()),
          ($args{timeout} ? '--timeout=' . $args{timeout} : ()),
+         '--tries=' . ($args{tries} || 3),
          (map {
            ('--header' => $_->[0] . ': ' . $_->[1]);
          } @{$args{request_headers} or []}),
@@ -870,7 +871,7 @@ sub init_perl_version_by_file_name ($) {
       q<http://ftp.riken.jp/lang/CPAN/>,
       q<http://ftp.yz.yamagata-u.ac.jp/pub/lang/cpan/>,
       q<http://www.perl.com/CPAN/>,
-    ] => "$PMBPDirName/tmp/cpan-top", timeout => 10;
+    ] => "$PMBPDirName/tmp/cpan-top", timeout => 10, tries => 1;
   } # get_cpan_top_url
 }
 
