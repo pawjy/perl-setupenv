@@ -860,13 +860,17 @@ sub init_perl_version_by_file_name ($) {
   my $CPANTopURL;
   sub get_cpan_top_url () {
     return $CPANTopURL ||= save_url [
-      q<http://search.cpan.org/CPAN/>,
-      q<http://www.cpan.org/>,
-      q<http://ftp.nara.wide.ad.jp/pub/CPAN/>,
-      q<http://ftp.jaist.ac.jp/pub/CPAN/>,
-      q<http://ftp.riken.jp/lang/CPAN/>,
-      q<http://ftp.yz.yamagata-u.ac.jp/pub/lang/cpan/>,
-      q<http://www.perl.com/CPAN/>,
+      qw<
+        http://www.cpan.org/
+        http://ftp.nara.wide.ad.jp/pub/CPAN/
+        http://ftp.jaist.ac.jp/pub/CPAN/
+        http://ftp.riken.jp/lang/CPAN/
+        http://ftp.yz.yamagata-u.ac.jp/pub/lang/cpan/
+        http://www.perl.com/CPAN/
+        http://www.cpan.dk/
+        http://cpan.cpantesters.org/
+        http://search.cpan.org/CPAN/
+      >,
     ] => "$PMBPDirName/tmp/cpan-top", max_redirect => 0, timeout => 5, tries => 1;
   } # get_cpan_top_url
 }
