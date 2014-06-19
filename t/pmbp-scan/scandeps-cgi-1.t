@@ -11,7 +11,7 @@ perl $pmbp --root-dir-name="$tempdir" \
     --write-libs-txt="$tempdir/libs.txt" \
     --write-module-index="$tempdir/index.txt"
 
-(grep "CGI " "$tempdir/index.txt" > /dev/null && echo "ok 1") || echo "not ok 1"
+(grep "CGI.pm" "$tempdir/index.txt" > /dev/null && echo "ok 1") || echo "not ok 1"
 (grep "CGI::Carp " "$tempdir/index.txt" > /dev/null && echo "ok 2") || echo "not ok 2"
 
 rm -fr $tempdir
