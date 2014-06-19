@@ -882,9 +882,11 @@ sub get_perlbrew_envs () {
 } # get_perlbrew_envs
 
 sub install_perlbrew () {
-  return if -f "$RootDirName/local/perlbrew/bin/perlbrew" and
-            -f "$RootDirName/local/perlbrew/bin/patchperl.main" and
-            -f "$RootDirName/local/perlbrew/pmbp-perlbrew-v2";
+  return if -s "$RootDirName/local/perlbrew/bin/perlbrew" and
+            -s "$RootDirName/local/perlbrew/bin/patchperl" and
+            -s "$RootDirName/local/perlbrew/bin/patchperl.main" and
+            -s ("$RootDirName/local/perlbrew/bin/patchperl") < (-s "$RootDirName/local/perlbrew/bin/patchperl.main") and
+            -s "$RootDirName/local/perlbrew/pmbp-perlbrew-v2";
   my $install_file_name = "$RootDirName/local/install.perlbrew";
   save_url $PerlbrewInstallerURL => $install_file_name;
 

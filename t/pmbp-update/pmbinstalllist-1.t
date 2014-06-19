@@ -35,7 +35,7 @@ perl $pmbp --root-dir-name="$tempdir" \
     --write-module-index "$tempdir/index.txt" \
     --write-pmb-install-list "$pmbitxt"
 
-(grep CGI~ "$pmbitxt" > /dev/null || (echo "not ok 9" && false)) && echo "ok 9"
+(grep CGI "$pmbitxt" > /dev/null || (echo "not ok 9" && false)) && echo "ok 9"
 (grep Path::Class "$pmbitxt" > /dev/null || (echo "ok 10" && false)) && echo "not ok 10"
 (grep DBI~ "$pmbitxt" > /dev/null || (echo "ok 11" && false)) && echo "not ok 11"
 

@@ -8,13 +8,13 @@ json=`echo $tempdir/deps/pmtar/deps/CGI.pm-*.json`
 perl $pmbp --root-dir-name="$tempdir" --scandeps=CGI::Carp
 
 (ls $json > /dev/null && \
- grep FCGI $json > /dev/null && \
+ grep CGI.pm $json > /dev/null && \
  echo "ok 1") || echo "not ok 1"
 
 perl $pmbp --root-dir-name="$tempdir" --scandeps=CGI::Carp
 
 (ls $json > /dev/null && \
- grep FCGI $json > /dev/null && \
+ grep CGI.pm $json > /dev/null && \
  echo "ok 2") || echo "not ok 2"
 
 libs=`perl $pmbp --root-dir-name="$tempdir" --print-libs`
