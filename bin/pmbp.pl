@@ -2011,7 +2011,7 @@ sub pmpp_git_pull () {
 sub copy_pmpp_modules ($$) {
   my ($perl_command, $perl_version) = @_;
   return unless run_command ['sh', '-c', "cd \Q$PMPPDirName\E"];
-  delete_pmpp_arch_dir ($perl_command, $perl_version);
+  hide_pmpp_arch_dir ($perl_command, $perl_version);
 
   my $ignores = [map { s{^/}{}; s{/$}{}; $_ } grep { 
     m{^/.+/$};
@@ -2062,9 +2062,15 @@ sub copy_pmpp_modules ($$) {
 sub delete_pmpp_arch_dir ($$) {
   my ($perl_command, $perl_version) = @_;
   my $archname = get_perl_archname $perl_command, $perl_version;
+  remove_tree (pmpp_dir_name . "/lib/perl5/$archname/");
+} # delete_pmpp_arch_dir
+
+sub hide_pmpp_arch_dir ($$) {
+  my ($perl_command, $perl_version) = @_;
+  my $archname = get_perl_archname $perl_command, $perl_version;
   add_to_gitignore ["/lib/perl5/$archname/", '/man/']
       => pmpp_dir_name . "/.gitignore";
-} # delete_pmpp_arch_dir
+} # hide_pmpp_arch_dir
 
 ## ------ Local Perl module directories ------
 
@@ -3622,13 +3628,13 @@ while (@Command) {
 
   } elsif ($command->{type} eq 'install-module') {
     $get_perl_version->() unless defined $perl_version;
-    delete_pmpp_arch_dir $PerlCommand, $perl_version if $pmpp_touched;
+    hide_pmpp_arch_dir $PerlCommand, $perl_version if $pmpp_touched;
     info 0, "Installing @{[$command->{module}->as_short]}...";
     install_module $PerlCommand, $perl_version, $command->{module},
         module_index_file_name => $module_index_file_name;
   } elsif ($command->{type} eq 'install-modules-by-list') {
     $get_perl_version->() unless defined $perl_version;
-    delete_pmpp_arch_dir $PerlCommand, $perl_version if $pmpp_touched;
+    hide_pmpp_arch_dir $PerlCommand, $perl_version if $pmpp_touched;
     my $module_index = PMBP::ModuleIndex->new_empty;
     if (defined $command->{file_name}) {
       read_pmb_install_list $command->{file_name} => $module_index;
@@ -3799,6 +3805,7 @@ while (@Command) {
   } elsif ($command->{type} eq 'init-pmpp-git') {
     init_pmpp_git;
     pmpp_git_pull;
+    delete_pmpp_arch_dir $PerlCommand, $perl_version;
   } elsif ($command->{type} eq 'print-scanned-dependency') {
     my $mod_names = scan_dependency_from_directory $command->{dir_name};
     print map { $_ . "\n" } sort { $a cmp $b } keys %$mod_names;
@@ -3846,7 +3853,7 @@ while (@Command) {
   }
 } # while @Command
 
-delete_pmpp_arch_dir $PerlCommand, $perl_version
+hide_pmpp_arch_dir $PerlCommand, $perl_version
     if $pmpp_touched and defined $perl_version;
 destroy;
 profiler_stop 'all';
