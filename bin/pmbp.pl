@@ -1238,6 +1238,7 @@ sub cpanm ($$) {
 
   my $archname = $args->{info} ? $Config{archname} : get_perl_archname $perl_command, $perl_version;
   my @additional_path;
+  my @additional_option;
 
   my $redo = 0;
   COMMAND: {
@@ -1521,6 +1522,11 @@ sub cpanm ($$) {
         ## can no longer reproduce the problem.)
         push @required_install, PMBP::Module->new_from_module_arg
             ('Net::SSLeay~1.36='.get_cpan_top_url.'/authors/id/F/FL/FLORA/Net-SSLeay-1.36.tar.gz');
+      } elsif ($log =~ m{^lib/Params/Validate/XS.xs:.+?: error: 'cvgv' undeclared \(first use in this function\)}m) {
+        ## Downgrade Params::Validate 1.12 -> 1.11
+        push @required_install, PMBP::Module->new_from_module_arg
+            ('Params::Validate~1.11='.get_cpan_top_url.'/authors/id/D/DR/DROLSKY/Params-Validate-1.11.tar.gz');
+        push @additional_option, '--skip-satisfied';
       } elsif ($log =~ /fatal error: openssl\/err.h: No such file or directory/m) {
         push @required_system,
             {name => 'openssl-devel', debian_name => 'libssl-dev'};
@@ -1645,6 +1651,7 @@ sub cpanm ($$) {
                @perl_option,
                $CPANMWrapper,
                @option,
+               @additional_option,
                @module_arg);
     my $json_temp_file;
     my $cpanm_error = '';
