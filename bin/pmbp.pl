@@ -1307,7 +1307,7 @@ sub cpanm ($$) {
                 PERL5LIB => (join ':', grep { defined and length } 
                                  "$cpanm_lib_dir_name/lib/perl5/$archname",
                                  "$cpanm_lib_dir_name/lib/perl5",
-                                 $ENV{PERL5LIB}),
+                                 ((sprintf "%vd", $^V) eq $perl_version ? ($ENV{PERL5LIB}) : ())),
                 HOME => get_cpanm_dummy_home_dir_name ($perl_lib_dir_name),
                 PERL_CPANM_HOME => $CPANMHomeDirName,
                 MAKEFLAGS => ''};
