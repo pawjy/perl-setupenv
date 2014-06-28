@@ -1303,6 +1303,9 @@ sub cpanm ($$) {
     ## Let cpanm not use Web API, as it slows down operations.
     push @option, '--mirror-only';
 
+    info 8, sprintf "Current perl version = %vd, target perl version = %s",
+        $^V, $perl_version;
+
     my $envs = {LANG => 'C',
                 PATH => (join ':', @additional_path, $path),
                 PERL5LIB => (join ':', grep { defined and length } 
