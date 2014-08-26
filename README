@@ -4,8 +4,8 @@ Tools for Perl application environment setup
 * pmbp.pl
 
 The pmbp.pl script is a tool to manage runtime environments for Perl
-applications, built on the top of infrastructures such as perlbrew and
-cpanm.
+applications, built on the top of infrastructures such as yum/apt/brew,
+perlbrew, cpanm, carton, and git.
 
   bin/pmbp.pl
   doc/pmbp.txt
@@ -38,7 +38,7 @@ Integrated with Makefile.setupenv.
 
 Unless otherwise stated, following terms are applied:
 
-Copyright 2012-2013 Wakaba <wakaba@suikawiki.org>.
+Copyright 2012-2014 Wakaba <wakaba@suikawiki.org>.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.

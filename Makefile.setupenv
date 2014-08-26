@@ -3,7 +3,9 @@
 # Makefile.setupenv - Setup local Perl environment for development
 
 # Copyright 2012 Hatena <http://www.hatena.com/>.
-# Copyright 2012 Wakaba <w@suika.fam.cx>.
+# Copyright 2012 Wakaba <wakaba@suikawiki.org>.
+
+# This file is DEPRECATED - use pmbp.pl directly, or use Makefile.pmbp.example instead.
 
 # Repository: <https://github.com/wakaba/perl-setupenv>.
 # Document: <https://github.com/wakaba/perl-setupenv/blob/master/README>.
@@ -124,9 +126,9 @@ lplackup:
 	echo "$(PERL_ENV) exec $(PERL) `$(PERL_ENV_PATH) which plackup || echo 'plackup'` \"\$$@\"" >> $(LPLACKUP_PATH)
 	chmod ugo+x $(LPLACKUP_PATH)
 
-# ------ carton - Perl module management ------
+# ------ carton 0.9 - Perl module management ------
 
-# DEPRECATED - Use pmb!
+# DEPRECATED - Use pmbp!
 
 cpanm: $(CARTON_SUPPORT_BIN_PATH)/cpanm
 
@@ -157,7 +159,8 @@ $(CARTON_SUPPORT_BIN_PATH)/carton: $(CARTON_SUPPORT_BIN_PATH)/cpanm \
 #	    Module::Install::Repository
 	#$(GIT) clone git://github.com/masaki/carton.git $(CARTON_SUPPORT_BIN_PATH)/../carton || (cd $(CARTON_SUPPORT_BIN_PATH)/../carton && $(GIT) pull)
 	#$(CARTON_ENV) $(CPANM_) --reinstall $(CARTON_SUPPORT_BIN_PATH)/../carton
-	$(CARTON_ENV) $(CPANM_) --reinstall Carton
+	#$(CARTON_ENV) $(CPANM_) --reinstall Carton
+	$(CARTON_ENV) $(CPANM_) --reinstall MIYAGAWA/carton-v0.9.4.tar.gz
 	#ln -s $(CARTON_SUPPORT_BIN_PATH)/../carton/bin/carton $@
 	touch -c $@
 
