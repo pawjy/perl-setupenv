@@ -6,6 +6,7 @@ pmbp.pl - Perl application environment manager
 
 use strict;
 use warnings;
+use warnings FATAL => 'recursion';
 use Config;
 use Cwd qw(abs_path);
 use File::Path qw(mkpath rmtree);
@@ -2257,8 +2258,8 @@ sub _scandeps_write_result ($$$;%) {
   $module_index->merge_modules ([map { $_->[0] } @$result]);
 } # _scandeps_write_result
 
-sub load_deps ($$) {
-  my ($module_index, $input_module) = @_;
+sub load_deps ($$$;%) {
+  my ($module_index, $input_module, $perl_version, %args) = @_;
   my $module = $input_module;
   if (defined $module->version) {
     $module = $module_index->find_by_module ($module) || $module;
@@ -2280,8 +2281,12 @@ sub load_deps ($$) {
     my $json_file_name = deps_json_dir_name . "/$dist.json";
     info 2, "Loading |$json_file_name|...";
     unless (-f $json_file_name) {
-      info 2, "Module dependency data file |$json_file_name| not found";
-      return undef;
+      info 2, "Module dependency data file |$json_file_name| not found; retry scandeps...";
+      scandeps $module_index, $perl_version, $module, %args;
+      unless (-f $json_file_name) {
+        info 2, "Module dependency data file |$json_file_name| not found; retried but failed";
+        return undef;
+      }
     }
     my $json = load_json $json_file_name;
     if (defined $json and ref $json eq 'ARRAY') {
@@ -2304,18 +2309,18 @@ sub select_module ($$$$;%) {
     info_die "distvname of module |@{[$module->as_short]}| is not known";
   }
   
-  my $mods = load_deps $src_module_index => $module;
+  my $mods = load_deps $src_module_index => $module, $perl_version, %args;
   unless ($mods) {
     info 0, "Scanning dependency of @{[$module->as_short]}...";
     scandeps $src_module_index, $perl_version, $module, %args;
-    $mods = load_deps $src_module_index => $module;
+    $mods = load_deps $src_module_index => $module, $perl_version, %args;
     unless ($mods) {
       if ($module->is_perl) {
         $mods = [];
       } elsif (defined $module->pathname) {
         if (save_by_pathname $module->pathname => $module) {
           scandeps $src_module_index, $perl_version, $module, %args;
-          $mods = load_deps $src_module_index => $module;
+          $mods = load_deps $src_module_index => $module, $perl_version, %args;
         }
       } elsif (defined $module->package and defined $module->version) {
         ## This is an unreliable heuristics...
@@ -2325,8 +2330,8 @@ sub select_module ($$$$;%) {
           my $path = $current_module->pathname;
           if (defined $path and $path =~ s{-[0-9A-Za-z.+-]+\.(tar\.(?:gz|bz2)|zip|tgz)$}{-@{[$module->version]}.$1}) {
             if (save_by_pathname $path => $module) {
-              scandeps $src_module_index, $module, $perl_version, %args;
-              $mods = load_deps $src_module_index => $module;
+              scandeps $src_module_index, $perl_version, $module, %args;
+              $mods = load_deps $src_module_index => $module, $perl_version, %args;
             }
           }
         }
