@@ -900,7 +900,7 @@ sub install_perlbrew () {
   close $install_file;
 
   run_command
-      ['sh', $install_file_name],
+      ['bash', $install_file_name],
       envs => get_perlbrew_envs;
   my $perlbrew_file_name = "$RootDirName/local/perlbrew/bin/perlbrew";
   unless (-f $perlbrew_file_name) {
