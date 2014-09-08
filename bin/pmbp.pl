@@ -1548,7 +1548,7 @@ sub cpanm ($$) {
         $failed = 1;
       } elsif ($log =~ /fatal error: mpfr.h: No such file or directory/m) {
         push @required_system,
-            {name => 'mpfr', debian_name => 'libmpfr4'};
+            {name => 'mpfr-devel', debian_name => 'libmpfr-dev'};
         $failed = 1;
       } elsif ($log =~ m{ld: cannot find -lmysqlclient}m) {
         push @required_system,
