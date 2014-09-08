@@ -1546,6 +1546,10 @@ sub cpanm ($$) {
         push @required_system,
             {name => 'gd-devel', debian_name => 'libgd2-xpm-dev'};
         $failed = 1;
+      } elsif ($log =~ /fatal error: mpfr.h: No such file or directory/m) {
+        push @required_system,
+            {name => 'mpfr', debian_name => 'libmpfr4'};
+        $failed = 1;
       } elsif ($log =~ m{ld: cannot find -lmysqlclient}m) {
         push @required_system,
             {name => 'mysql-server-devel',
