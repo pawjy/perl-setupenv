@@ -1304,6 +1304,9 @@ sub cpanm ($$) {
     ## Let cpanm not use Web API, as it slows down operations.
     push @option, '--mirror-only';
 
+    ## Don't rely on LWP
+    push @option, '--wget';
+
     info 8, sprintf "Current perl version = %vd, target perl version = %s",
         $^V, $perl_version;
 
