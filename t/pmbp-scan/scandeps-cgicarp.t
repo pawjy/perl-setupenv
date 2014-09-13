@@ -3,12 +3,12 @@ echo "1..3"
 basedir=`dirname $0`/../..
 pmbp=$basedir/bin/pmbp.pl
 tempdir=`perl -MFile::Temp=tempdir -e 'print tempdir'`/testapp
-json=`echo $tempdir/deps/pmtar/deps/CGI.pm-*.json`
+json=`echo $tempdir/deps/pmtar/deps/CGI*.json`
 
 perl $pmbp --root-dir-name="$tempdir" --scandeps=CGI::Carp
 
 (ls $json > /dev/null && \
- grep CGI.pm $json > /dev/null && \
+ grep CGI- $json > /dev/null && \
  echo "ok 1") || echo "not ok 1"
 
 perl $pmbp --root-dir-name="$tempdir" --scandeps=CGI::Carp
