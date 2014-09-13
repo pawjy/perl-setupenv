@@ -1214,10 +1214,10 @@ sub cpanm ($$) {
   my $result = {};
 
   my $perl_lib_dir_name = $args->{perl_lib_dir_name}
-      || ($args->{info} ? $CPANMDirName : undef)
+      || (($args->{info} or $args->{version}) ? $CPANMDirName : undef)
       or info_die "No |perl_lib_dir_name| specified";
   my $perl_version = $args->{perl_version}
-      || ($args->{info} ? (sprintf '%vd', $^V) : undef)
+      || (($args->{info} or $args->{version}) ? (sprintf '%vd', $^V) : undef)
       or info_die "No |perl_version| specified";
   my $path = get_env_path ($perl_version);
   my $perl_command = $args->{perl_command} || $PerlCommand;
