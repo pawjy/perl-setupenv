@@ -12,7 +12,7 @@ perl $pmbp --root-dir-name="$tempdir" \
     --write-module-index="$packstxt"
 
 (grep CGI::Carp "$packstxt" > /dev/null && echo "ok 1") || echo "not ok 1"
-(grep CGI.pm- "$packstxt" > /dev/null && echo "ok 2") || echo "not ok 2"
+(grep CGI- "$packstxt" > /dev/null && echo "ok 2") || echo "not ok 2"
 (grep Exporter::Lite "$packstxt" > /dev/null && echo "ok 3") || echo "not ok 3"
 (grep Exporter-Lite- "$packstxt" > /dev/null && echo "ok 4") || echo "not ok 4"
 

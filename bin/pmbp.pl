@@ -1207,16 +1207,17 @@ sub install_makeinstaller ($$) {
 }
 
 our $CPANMDepth = 0;
+our $CPANMInvoked = 0;
 sub cpanm ($$);
 sub cpanm ($$) {
   my ($args, $modules) = @_;
   my $result = {};
 
   my $perl_lib_dir_name = $args->{perl_lib_dir_name}
-      || ($args->{info} ? $CPANMDirName : undef)
+      || (($args->{info} or $args->{version}) ? $CPANMDirName : undef)
       or info_die "No |perl_lib_dir_name| specified";
   my $perl_version = $args->{perl_version}
-      || ($args->{info} ? (sprintf '%vd', $^V) : undef)
+      || (($args->{info} or $args->{version}) ? (sprintf '%vd', $^V) : undef)
       or info_die "No |perl_version| specified";
   my $path = get_env_path ($perl_version);
   my $perl_command = $args->{perl_command} || $PerlCommand;
@@ -1236,6 +1237,11 @@ sub cpanm ($$) {
 
   _check_perl_version $perl_command, $perl_version unless $args->{info};
   install_cpanm_wrapper;
+  if (not $args->{version} and not $CPANMInvoked++) {
+    my $r = cpanm ({%$args, info => 0, scandeps => 0, version => 1}, []);
+    info 8, "cpanm version:";
+    info 8, $r->{output_text};
+  }
 
   my $archname = $args->{info} ? $Config{archname} : get_perl_archname $perl_command, $perl_version;
   my @additional_path;
@@ -1263,6 +1269,7 @@ sub cpanm ($$) {
     push @option, '--info' if $args->{info};
     push @option, '--verbose' if $Verbose > 1 and
         not ($args->{scandeps} or $args->{info});
+    push @option, '--version' if $args->{version};
 
     my @module_arg = map {
       ## Implicit dependencies
@@ -1303,6 +1310,9 @@ sub cpanm ($$) {
 
     ## Let cpanm not use Web API, as it slows down operations.
     push @option, '--mirror-only';
+
+    ## Don't rely on LWP
+    push @option, '--no-lwp';
 
     info 8, sprintf "Current perl version = %vd, target perl version = %s",
         $^V, $perl_version;
@@ -1546,6 +1556,10 @@ sub cpanm ($$) {
         push @required_system,
             {name => 'gd-devel', debian_name => 'libgd2-xpm-dev'};
         $failed = 1;
+      } elsif ($log =~ /fatal error: mpfr.h: No such file or directory/m) {
+        push @required_system,
+            {name => 'mpfr-devel', debian_name => 'libmpfr-dev'};
+        $failed = 1;
       } elsif ($log =~ m{ld: cannot find -lmysqlclient}m) {
         push @required_system,
             {name => 'mysql-server-devel',
@@ -1664,7 +1678,7 @@ sub cpanm ($$) {
         info_command_level => $args->{info} ? 2 : 1,
         profiler_name => ($args->{scandeps} ? 'cpanm-scandeps' : $args->{info} ? 'cpanm-info' : 'cpanm'),
         prefix => "cpanm($CPANMDepth/$redo): ",
-        '>' => (($args->{scandeps} || $args->{info}) ? do {
+        '>' => (($args->{scandeps} || $args->{info} || $args->{version}) ? do {
           $json_temp_file = File::Temp->new;
         } : undef),
         discard_stderr => (($args->{scandeps} || $args->{info}) ? 1 : 0),
@@ -1705,8 +1719,18 @@ sub cpanm ($$) {
       ## Parse JSON data, ignoring any progress before it...
       my $garbage;
       ($garbage, $result->{output_json}) = load_json_after_garbage $json_temp_file->filename;
-      $failed = 1 unless @{$result->{output_json} or []};
+      unless (@{$result->{output_json} or []}) {
+        unless ($redo++ > 10) {
+          info 1, "Retrying cpanm --scandeps...";
+          redo COMMAND;
+        }
+        $failed = "no output json data";
+      }
       $scan_errors->(1, $garbage);
+    } elsif ($args->{version} and -f $json_temp_file->filename) {
+      open my $file, '<', $json_temp_file->filename or info_die "$0: $!";
+      local $/ = undef;
+      $result->{output_text} = <$file>;
     }
 
     ($cpanm_ok and not $failed) or do {
@@ -1810,7 +1834,7 @@ sub cpanm ($$) {
         if ($diag{env}) {
           info 0, "Environment variables |PERL5LIB| and/or |PERL5OPT| is set.  Is this really intentional?";
         }
-        info_die "cpanm($CPANMDepth): Processing @{[join ' ', map { ref $_ ? $_->as_short : $_ } @$modules]} failed (@{[$? >> 8]})\n";
+        info_die "cpanm($CPANMDepth): Processing @{[join ' ', map { ref $_ ? $_->as_short : $_ } @$modules]} failed (@{[$? >> 8]}@{[($failed and not $failed eq '1') ? qq< $failed>: '']})\n";
       }
     }; # close or do
 

@@ -24,7 +24,7 @@ perl $pmbp --root-dir-name="$tempdir" \
 
 (ls $tempdir/deps/pmtar/authors/id/misc/Class-Registry-3.0.tar.gz > /dev/null && echo "ok 2" ) || echo "not ok 2"
 (ls $tempdir/deps/pmtar/authors/id/Class-Registry-3.0.tar.gz > /dev/null && echo "not ok 3" ) || echo "ok 3"
-(ls $tempdir/deps/pmtar/authors/id/*/*/*/CGI.pm-*.tar.gz > /dev/null && echo "ok 4" ) || echo "not ok 4"
+(ls $tempdir/deps/pmtar/authors/id/*/*/*/CGI-*.tar.gz > /dev/null && echo "ok 4" ) || echo "not ok 4"
 
 tempdir2=`perl -MFile::Temp=tempdir -e 'print tempdir'`/testapp
 
