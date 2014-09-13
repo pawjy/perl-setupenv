@@ -14,7 +14,7 @@ perl $pmbp --root-dir-name="$tempdir" --scandeps=CGI::Carp
 perl $pmbp --root-dir-name="$tempdir" --scandeps=CGI::Carp
 
 (ls $json > /dev/null && \
- grep CGI.pm $json > /dev/null && \
+ grep CGI- $json > /dev/null && \
  echo "ok 2") || echo "not ok 2"
 
 libs=`perl $pmbp --root-dir-name="$tempdir" --print-libs`
