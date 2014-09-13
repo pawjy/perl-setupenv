@@ -1207,6 +1207,7 @@ sub install_makeinstaller ($$) {
 }
 
 our $CPANMDepth = 0;
+our $CPANMInvoked = 0;
 sub cpanm ($$);
 sub cpanm ($$) {
   my ($args, $modules) = @_;
@@ -1236,6 +1237,11 @@ sub cpanm ($$) {
 
   _check_perl_version $perl_command, $perl_version unless $args->{info};
   install_cpanm_wrapper;
+  if (not $args->{version} and not $CPANMInvoked++) {
+    my $r = cpanm ({%$args, info => 0, scandeps => 0, version => 1}, []);
+    info 8, "cpanm version:";
+    info 8, $r->{output_text};
+  }
 
   my $archname = $args->{info} ? $Config{archname} : get_perl_archname $perl_command, $perl_version;
   my @additional_path;
@@ -1263,6 +1269,7 @@ sub cpanm ($$) {
     push @option, '--info' if $args->{info};
     push @option, '--verbose' if $Verbose > 1 and
         not ($args->{scandeps} or $args->{info});
+    push @option, '--version' if $args->{version};
 
     my @module_arg = map {
       ## Implicit dependencies
@@ -1671,7 +1678,7 @@ sub cpanm ($$) {
         info_command_level => $args->{info} ? 2 : 1,
         profiler_name => ($args->{scandeps} ? 'cpanm-scandeps' : $args->{info} ? 'cpanm-info' : 'cpanm'),
         prefix => "cpanm($CPANMDepth/$redo): ",
-        '>' => (($args->{scandeps} || $args->{info}) ? do {
+        '>' => (($args->{scandeps} || $args->{info} || $args->{version}) ? do {
           $json_temp_file = File::Temp->new;
         } : undef),
         discard_stderr => (($args->{scandeps} || $args->{info}) ? 1 : 0),
@@ -1714,6 +1721,10 @@ sub cpanm ($$) {
       ($garbage, $result->{output_json}) = load_json_after_garbage $json_temp_file->filename;
       $failed = 1 unless @{$result->{output_json} or []};
       $scan_errors->(1, $garbage);
+    } elsif ($args->{version} and -f $json_temp_file->filename) {
+      open my $file, '<', $json_temp_file->filename or info_die "$0: $!";
+      local $/ = undef;
+      $result->{output_text} = <$file>;
     }
 
     ($cpanm_ok and not $failed) or do {
