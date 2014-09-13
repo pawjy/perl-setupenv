@@ -1305,7 +1305,7 @@ sub cpanm ($$) {
     push @option, '--mirror-only';
 
     ## Don't rely on LWP
-    push @option, '--wget';
+    push @option, '--no-lwp';
 
     info 8, sprintf "Current perl version = %vd, target perl version = %s",
         $^V, $perl_version;
