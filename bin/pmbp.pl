@@ -2651,7 +2651,9 @@ sub read_pmbp_exclusions_txt ($$) {
   info 2, "Loading |$file_name|...";
   open my $file, '<', $file_name or die "$0: $file_name: $!";
   while (<$file>) {
-    if (/^-\s*"([^"]+)"\s*(.+)$/) {
+    if (/^\s*#/) {
+      #
+    } elsif (/^-\s*"([^"]+)"\s*(.+)$/) {
       my $mod_name = abs_path "$base_dir_name/$1";
       my $components = [split /\s+/, $2];
       if (defined $mod_name) {
