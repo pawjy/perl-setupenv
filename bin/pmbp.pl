@@ -2102,6 +2102,20 @@ sub pmpp_git_pull () {
   git_pull_current_or_master pmpp_dir_name;
 } # pmpp_git_pull
 
+sub rewrite_perl_shebang ($$$) {
+  my ($old_file_name => $new_file_name, $perl_path) = @_;
+  local $/ = undef;
+  open my $old_file, '<', $old_file_name
+      or info_die "$0: $old_file_name: $!";
+  my $content = <$old_file>;
+  $content =~ s{^#!.*?perl[0-9.]*(?:$|(?=\s))}{#!$perl_path};
+  open my $new_file, '>', $new_file_name
+      or info_die "$0: $new_file_name: $!";
+  binmode $new_file;
+  print $new_file $content;
+  close $new_file;
+} # rewrite_perl_shebang
+
 sub copy_pmpp_modules ($$) {
   my ($perl_command, $perl_version) = @_;
   return unless run_command ['sh', '-c', "cd \Q$PMPPDirName\E"];
@@ -2131,14 +2145,7 @@ sub copy_pmpp_modules ($$) {
         info 2, "Copying file $rel...";
         unlink $dest if -f $dest;
         if ($rewrite_shebang) {
-          local $/ = undef;
-          open my $old_file, '<', $_ or info_die "$0: $_: $!";
-          my $content = <$old_file>;
-          $content =~ s{^#!.*?perl[0-9.]*(?:$|(?=\s))}{#!$perl_path};
-          open my $new_file, '>', $dest or info_die "$0: $dest: $!";
-          binmode $new_file;
-          print $new_file $content;
-          close $new_file;
+          rewrite_perl_shebang $_ => $dest, $perl_path;
         } else {
           copy $_ => $dest or info_die "$0: $dest: $!";
         }
@@ -2217,6 +2224,22 @@ sub write_relative_libs_txt ($$$) {
   info_writing 3, "relative lib paths", $file_name;
   print $file join ':', (get_relative_lib_dir_names ($perl_command, $perl_version));
 } # write_relative_libs_txt
+
+sub rewrite_pm_bin_shebang ($) {
+  my $perl_version = shift;
+  profiler_start 'file';
+  require File::Find;
+  my $bin_path = abs_path (get_pm_dir_name ($perl_version) . '/bin');
+  return unless -d $bin_path;
+  my $perl_path = 'perl';
+  File::Find::find (sub {
+    if (-f $_) {
+      run_command ['chmod', 'u+w', $_];
+      rewrite_perl_shebang $_ => $_, $perl_path;
+    }
+  }, $bin_path);
+  profiler_stop 'file';
+} # rewrite_pm_bin_shebang
 
 sub create_perl_command_shortcut ($$$;%) {
   my ($perl_version, $command => $file_name, %args) = @_;
@@ -3718,6 +3741,7 @@ while (@Command) {
         {type => 'install-modules-by-list',
          file_name => -f $pmb_install_file_name
                           ? $pmb_install_file_name : undef},
+        {type => 'rewrite-pm-bin-shebang'},
         {type => 'write-libs-txt'},
         {type => 'write-relative-libs-txt'},
         {type => 'create-libs-txt-symlink'},
@@ -3914,6 +3938,9 @@ while (@Command) {
     if (-f $file_name) {
       create_perl_command_shortcut_by_file $perl_version, $file_name;
     }
+  } elsif ($command->{type} eq 'rewrite-pm-bin-shebang') {
+    rewrite_pm_bin_shebang $perl_version;
+
   } elsif ($command->{type} eq 'create-pmbp-makefile') {
     save_url $MakefileURL => $command->{value};
   } elsif ($command->{type} eq 'write-makefile-pl') {
