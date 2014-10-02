@@ -152,6 +152,10 @@ GetOptions (
   },
   '--create-perl-command-shortcut=s' => sub {
     ## See also: |create_perl_command_shortcut_by_file|
+    my %args;
+    if ($_[1] =~ s/^\@//) {
+      $args{relocatable} = 1;
+    }
     if ($_[1] =~ /=/) {
       # ../myapp=bin/myapp.pl
       my ($file_name, $command) = split /=/, $_[1], 2;
@@ -161,29 +165,38 @@ GetOptions (
       }
       push @Command,
           {type => 'write-libs-txt'},
+          {type => 'write-relative-libs-txt'},
           {type => 'create-perl-command-shortcut',
            file_name => $file_name,
-           command => $command};
+           command => $command, args => \%args};
     } elsif ($_[1] =~ m{/([^/]+)$}) {
       # local/bin/hoge (== local/bin/hoge=hoge)
       push @Command,
           {type => 'write-libs-txt'},
+          {type => 'write-relative-libs-txt'},
           {type => 'create-perl-command-shortcut',
            file_name => $_[1],
-           command => $1};
+           command => $1, args => \%args};
     } else {
       # perldoc (== perldoc=perldoc)
       push @Command,
           {type => 'write-libs-txt'},
+          {type => 'write-relative-libs-txt'},
           {type => 'create-perl-command-shortcut',
            file_name => $_[1],
-           command => $_[1]};
+           command => $_[1], args => \%args};
     }
   },
   '--create-exec-command=s' => sub {
+    my %args;
+    if ($_[1] =~ s/^\@//) {
+      $args{relocatable} = 1;
+    }
     push @Command,
         {type => 'write-libs-txt'},
-        {type => 'create-perl-command-shortcut', file_name => $_[1]};
+        {type => 'write-relative-libs-txt'},
+        {type => 'create-perl-command-shortcut', file_name => $_[1],
+         args => \%args};
   },
   '--print-scanned-dependency=s' => sub {
     push @Command, {type => 'print-scanned-dependency',
@@ -2166,21 +2179,40 @@ sub get_lib_dir_names ($$) {
   return @lib;
 } # get_lib_dir_names
 
+sub get_relative_lib_dir_names ($$) {
+  return map {
+    File::Spec->abs2rel ($_, $RootDirName) ;
+  } get_lib_dir_names ($_[0], $_[1]);
+} # get_relative_lib_dir_names
+
 sub get_libs_txt_file_name ($) {
   my $perl_version = shift;
   return "$RootDirName/local/config/perl/libs-$perl_version-$Config{archname}.txt";
 } # get_libs_txt_file_name
 
+sub get_relative_libs_txt_file_name ($) {
+  my $perl_version = shift;
+  return "$RootDirName/local/config/perl/relative-libs-$perl_version-$Config{archname}.txt";
+} # get_relative_libs_txt_file_name
+
 sub write_libs_txt ($$$) {
   my ($perl_command, $perl_version => $file_name) = @_;
   mkdir_for_file $file_name;
   open my $file, '>', $file_name or info_die "$0: $file_name: $!";
-  info_writing 0, "lib paths", $file_name;
+  info_writing 3, "lib paths", $file_name;
   print $file join ':', (get_lib_dir_names ($perl_command, $perl_version));
 } # write_libs_txt
 
-sub create_perl_command_shortcut ($$$) {
-  my ($perl_version, $command => $file_name) = @_;
+sub write_relative_libs_txt ($$$) {
+  my ($perl_command, $perl_version => $file_name) = @_;
+  mkdir_for_file $file_name;
+  open my $file, '>', $file_name or info_die "$0: $file_name: $!";
+  info_writing 3, "relative lib paths", $file_name;
+  print $file join ':', (get_relative_lib_dir_names ($perl_command, $perl_version));
+} # write_relative_libs_txt
+
+sub create_perl_command_shortcut ($$$;%) {
+  my ($perl_version, $command => $file_name, %args) = @_;
   $file_name = resolve_path $file_name, $RootDirName;
   my $arg;
   ($command, $arg) = @$command if defined $command and ref $command eq 'ARRAY';
@@ -2193,13 +2225,34 @@ sub create_perl_command_shortcut ($$$) {
   my $pm_path = get_pm_dir_name ($perl_version) . "/bin";
   my $lib_path = get_pm_dir_name ($perl_version) . "/lib";
   open my $file, '>', $file_name or info_die "$0: $file_name: $!";
-  printf $file qq{\#!/bin/sh\nPMBP_ORIG_PATH="`perl -e '%s'`" PATH="%s" PERL5LIB="`cat %s 2> /dev/null`" LD_LIBRARY_PATH="%s" exec %s"\$\@"\n},
-      _quote_dq 'print $ENV{PMBP_ORIG_PATH} || $ENV{PATH}',
-      _quote_dq "$pm_path:$perl_path:" . '$PATH',
-      _quote_dq get_libs_txt_file_name ($perl_version),
-      _quote_dq $lib_path . ':$LD_LIBRARY_PATH',
-      (defined $command ? '"' . $command . '" ' : '') .
-      (defined $arg ? '"' . $arg . '" ' : '');
+  if ($args{relocatable}) {
+    my $file_path = resolve_path '..', $file_name;
+    my $root_path = File::Spec->abs2rel ($RootDirName, $file_path);
+    $command = File::Spec->abs2rel ($command, $RootDirName)
+        if defined $command and $command =~ m{/};
+    $pm_path = File::Spec->abs2rel ($pm_path);
+    $perl_path = File::Spec->abs2rel ($perl_path);
+    $lib_path = File::Spec->abs2rel ($lib_path);
+    printf $file qq{\#!/bin/sh
+rootpath="%s"
+libpaths=`cat \$rootpath/%s 2> /dev/null | perl -MCwd=abs_path -e '\\\$p = abs_path shift; local \\\$/ = undef; print join q{:}, map { \\\$p . q{/} . \\\$_ } split /:/, <>' "\$rootpath"`
+PMBP_ORIG_PATH="`perl -e '%s'`" PATH="%s" PERL5LIB="\$libpaths" LD_LIBRARY_PATH="%s" exec %s"\$\@"\n},
+        ($root_path eq '.' ? '`dirname $0`' : '`dirname $0`/'._quote_dq $root_path),
+        _quote_dq +File::Spec->abs2rel (get_relative_libs_txt_file_name ($perl_version), $RootDirName),
+        _quote_dq 'print $ENV{PMBP_ORIG_PATH} || $ENV{PATH}',
+        _quote_dq "\$rootpath/$pm_path:\$rootpath/$perl_path:" . '$PATH',
+        _quote_dq '$rootpath/' . $lib_path . ':$LD_LIBRARY_PATH',
+        (defined $command ? '"' . $command . '" ' : '') .
+        (defined $arg ? '"' . $arg . '" ' : '');
+  } else {
+    printf $file qq{\#!/bin/sh\nPMBP_ORIG_PATH="`perl -e '%s'`" PATH="%s" PERL5LIB="`cat %s 2> /dev/null`" LD_LIBRARY_PATH="%s" exec %s"\$\@"\n},
+        _quote_dq 'print $ENV{PMBP_ORIG_PATH} || $ENV{PATH}',
+        _quote_dq "$pm_path:$perl_path:" . '$PATH',
+        _quote_dq get_libs_txt_file_name ($perl_version),
+        _quote_dq $lib_path . ':$LD_LIBRARY_PATH',
+        (defined $command ? '"' . $command . '" ' : '') .
+        (defined $arg ? '"' . $arg . '" ' : '');
+  }
   close $file;
   chmod 0755, $file_name or info_die "$0: $file_name: $!";
 } # create_perl_command_shortcut
@@ -2212,22 +2265,29 @@ sub create_perl_command_shortcut_by_file ($$) {
     ## See also: |--create-perl-command-shortcut| command
     tr/\x0D\x0A//d;
     if (/^#/) {
-      #
-    } elsif (/=/) {
+      next;
+    }
+
+    my %args;
+    if (s/^\@//) {
+      $args{relocatable} = 1;
+    }
+    if (/=/) {
       # ../myapp=bin/myapp.pl
       my ($file_name, $command) = split /=/, $_, 2;
       if ($command =~ s/^(\S+)\s+(?=\S)//) {
         # ../myapp=perl bin/myapp.pl
         $command = [$1, $command];
       }
-      create_perl_command_shortcut $perl_version, $command => $file_name;
+      create_perl_command_shortcut $perl_version, $command => $file_name,
+          %args;
       add_to_gitignore ['/'.$file_name] => "$RootDirName/.gitignore";
     } elsif (m{/([^/]+)$}) {
       # local/bin/hoge (== local/bin/hoge=hoge)
-      create_perl_command_shortcut $perl_version, $1 => $_;
+      create_perl_command_shortcut $perl_version, $1 => $_, %args;
       add_to_gitignore ['/'.$_] => "$RootDirName/.gitignore";
     } elsif (/^(.+)$/) {
-      create_perl_command_shortcut $perl_version, $1 => $1;
+      create_perl_command_shortcut $perl_version, $1 => $1, %args;
       add_to_gitignore ['/'.$1] => "$RootDirName/.gitignore";
     }
   }
@@ -3652,6 +3712,7 @@ while (@Command) {
          file_name => -f $pmb_install_file_name
                           ? $pmb_install_file_name : undef},
         {type => 'write-libs-txt'},
+        {type => 'write-relative-libs-txt'},
         {type => 'create-libs-txt-symlink'},
         {type => 'create-local-perl-latest-symlink'},
         {type => 'create-perl-command-shortcut',
@@ -3813,6 +3874,12 @@ while (@Command) {
     $file_name = get_libs_txt_file_name ($perl_version)
         unless defined $file_name;
     write_libs_txt $PerlCommand, $perl_version => $file_name;
+  } elsif ($command->{type} eq 'write-relative-libs-txt') {
+    $get_perl_version->() unless defined $perl_version;
+    my $file_name = $command->{file_name};
+    $file_name = get_relative_libs_txt_file_name ($perl_version)
+        unless defined $file_name;
+    write_relative_libs_txt $PerlCommand, $perl_version => $file_name;
   } elsif ($command->{type} eq 'create-libs-txt-symlink') {
     $get_perl_version->() unless defined $perl_version;
     my $real_name = get_libs_txt_file_name ($perl_version);
@@ -3833,7 +3900,8 @@ while (@Command) {
   } elsif ($command->{type} eq 'create-perl-command-shortcut') {
     $get_perl_version->() unless defined $perl_version;
     create_perl_command_shortcut $perl_version,
-        $command->{command} => $command->{file_name};
+        $command->{command} => $command->{file_name},
+        %{$command->{args} or {}};
   } elsif ($command->{type} eq 'create-perl-command-shortcut-by-list') {
     my $file_name = "$RootDirName/config/perl/pmbp-shortcuts.txt";
     if (-f $file_name) {
