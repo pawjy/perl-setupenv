@@ -960,7 +960,9 @@ sub install_perl ($) {
                  '-j' => $PerlbrewParallelCount,
                  '-A' => 'ccflags=-fPIC',
                  '-D' => 'usethreads',
-                 '-D' => 'useshrplib'],
+                 '-D' => 'useshrplib', # required for mod_perl
+                 #'-D' => 'userelocatableinc', # can't be used with useshrplib
+                ],
                 envs => get_perlbrew_envs,
                 prefix => "perlbrew($i): ",
                 profiler_name => 'perlbrew',
