@@ -2232,11 +2232,10 @@ sub rewrite_pm_bin_shebang ($) {
   require File::Find;
   my $bin_path = abs_path (get_pm_dir_name ($perl_version) . '/bin');
   return unless -d $bin_path;
-  my $perl_path = 'perl';
   File::Find::find (sub {
     if (-f $_) {
       run_command ['chmod', 'u+w', $_];
-      rewrite_perl_shebang $_ => $_, $perl_path;
+      rewrite_perl_shebang $_ => $_, "/usr/bin/env perl";
     }
   }, $bin_path);
   profiler_stop 'file';
