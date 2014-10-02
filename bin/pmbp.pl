@@ -2108,7 +2108,8 @@ sub rewrite_perl_shebang ($$$) {
   open my $old_file, '<', $old_file_name
       or info_die "$0: $old_file_name: $!";
   my $content = <$old_file>;
-  $content =~ s{^#!.*?perl[0-9.]*(?:$|(?=\s))}{#!$perl_path};
+  $content =~ s{^#!.*?perl[0-9.]*(?:$|(?=\s))}{#!$perl_path}
+      or return;
   open my $new_file, '>', $new_file_name
       or info_die "$0: $new_file_name: $!";
   binmode $new_file;
