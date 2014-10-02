@@ -2108,13 +2108,14 @@ sub rewrite_perl_shebang ($$$) {
   open my $old_file, '<', $old_file_name
       or info_die "$0: $old_file_name: $!";
   my $content = <$old_file>;
-  $content =~ s{^#!.*?perl[0-9.]*(?:$|(?=\s))}{#!$perl_path}
-      or return;
-  open my $new_file, '>', $new_file_name
-      or info_die "$0: $new_file_name: $!";
-  binmode $new_file;
-  print $new_file $content;
-  close $new_file;
+  if ($content =~ s{^#!.*?perl[0-9.]*(?:$|(?=\s))}{#!$perl_path} or
+      not $old_file_name eq $new_file_name) {
+    open my $new_file, '>', $new_file_name
+        or info_die "$0: $new_file_name: $!";
+    binmode $new_file;
+    print $new_file $content;
+    close $new_file;
+  }
 } # rewrite_perl_shebang
 
 sub copy_pmpp_modules ($$) {
@@ -2232,10 +2233,11 @@ sub rewrite_pm_bin_shebang ($) {
   require File::Find;
   my $bin_path = abs_path (get_pm_dir_name ($perl_version) . '/bin');
   return unless -d $bin_path;
+  my $env = which 'env';
   File::Find::find (sub {
     if (-f $_) {
       run_command ['chmod', 'u+w', $_];
-      rewrite_perl_shebang $_ => $_, "/usr/bin/env perl";
+      rewrite_perl_shebang $_ => $_, "$env perl";
     }
   }, $bin_path);
   profiler_stop 'file';
