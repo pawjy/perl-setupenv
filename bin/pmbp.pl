@@ -19,6 +19,7 @@ BEGIN { eval q{ use Time::HiRes qw(time); 1 } or warn $@ };
 
 my $PerlCommand = 'perl';
 my $SpecifiedPerlVersion = $ENV{PMBP_PERL_VERSION};
+my $PerlOptions = {};
 my $WgetCommand = 'wget';
 my @WgetOption = ($ENV{PMBP_IGNORE_TLS_ERRORS} ? '--no-check-certificate' : ());
 my $CurlCommand = 'curl';
@@ -68,6 +69,7 @@ GetOptions (
   '--pmtar-dir-name=s' => \$PMTarDirName,
   '--pmpp-dir-name=s' => \$PMPPDirName,
   '--perl-version=s' => \$SpecifiedPerlVersion,
+  '--perl-relocatable' => sub { $PerlOptions->{relocatable} = 1 },
   '--verbose' => sub { $Verbose++ },
   '--preserve-info-file' => \$PreserveInfoFile,
   '--dump-info-file-before-die' => \$DumpInfoFileBeforeDie,
@@ -1002,6 +1004,12 @@ sub install_perl ($) {
     $i++;
     my $log_file_name;
     my $redo;
+    my @perl_option;
+    if ($PerlOptions->{relocatable}) {
+      push @perl_option, '-D' => 'userelocatableinc'; # can't be used with useshrplib
+    } else {
+      push @perl_option, '-D' => 'useshrplib'; # required by mod_perl
+    }
     run_command ["$RootDirName/local/perlbrew/bin/perlbrew",
                  'install',
                  'perl-' . $perl_version,
@@ -1010,8 +1018,7 @@ sub install_perl ($) {
                  '-j' => $PerlbrewParallelCount,
                  '-A' => 'ccflags=-fPIC',
                  '-D' => 'usethreads',
-                 '-D' => 'useshrplib', # required for mod_perl
-                 #'-D' => 'userelocatableinc', # can't be used with useshrplib
+                 @perl_option,
                 ],
                 envs => get_perlbrew_envs,
                 prefix => "perlbrew($i): ",
