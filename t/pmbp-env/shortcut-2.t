@@ -6,7 +6,7 @@ tempdir=`perl -MFile::Temp=tempdir -e 'print tempdir'`/testapp
 
 mkdir -p "$tempdir/deps/pmpp/bin"
 
-echo "#!/bin/perl
+echo "#!/usr/bin/env perl
 use Path::Class;
 print \$Path::Class::VERSION" > "$tempdir/deps/pmpp/bin/hogehoge"
 chmod u+x "$tempdir/deps/pmpp/bin/hogehoge"
