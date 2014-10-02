@@ -21,6 +21,8 @@ my $PerlCommand = 'perl';
 my $SpecifiedPerlVersion = $ENV{PMBP_PERL_VERSION};
 my $WgetCommand = 'wget';
 my @WgetOption = ($ENV{PMBP_IGNORE_TLS_ERRORS} ? '--no-check-certificate' : ());
+my $CurlCommand = 'curl';
+my @CurlOption = ($ENV{PMBP_IGNORE_TLS_ERRORS} ? '--insecure' : ());
 my $GitCommand = 'git';
 my $SudoCommand = 'sudo';
 my $AptGetCommand = 'apt-get';
@@ -51,6 +53,7 @@ my @Argument = @ARGV;
 
 GetOptions (
   '--perl-command=s' => \$PerlCommand,
+  '--curl-command=s' => \$CurlCommand,
   '--wget-command=s' => \$WgetCommand,
   '--git-command=s' => \$GitCommand,
   '--sudo-command=s' => \$SudoCommand,
@@ -562,6 +565,8 @@ sub run_command ($;%) {
 
 ## ------ Downloading ------
 
+my $HasWget;
+my $HasCurl;
 sub _save_url {
   my ($url => $file_name, %args) = @_;
 
@@ -570,25 +575,57 @@ sub _save_url {
         [stat $file_name]->[9] + $args{max_age} > time;
   }
 
+  my $fetcher;
+  $HasWget = which ($WgetCommand) ? 1 : 0 if not defined $HasWget;
+  $HasCurl = which ($CurlCommand) ? 1 : 0 if not defined $HasCurl;
+  if ($HasWget) {
+    $fetcher = 'wget';
+  } elsif ($HasCurl) {
+    $fetcher = 'curl';
+  } else {
+    info_die "There is no |wget| or |curl|";
+  }
+
   mkdir_for_file $file_name;
   info 1, "Downloading <$url>...";
   for (0..$DownloadRetryCount) {
     info 1, "Retrying download ($_/$DownloadRetryCount)...";
+    my @option;
+    if ($fetcher eq 'wget') {
+      @option = (
+        $WgetCommand,
+        @WgetOption,
+        '-O', $file_name,
+        ($args{save_response_headers} ? '--save-headers' : ()),
+        ($args{timeout} ? '--timeout=' . $args{timeout} : ()),
+        '--tries=' . ($args{tries} || 3),
+        ($args{max_redirect} ? '--max_redirect=' . $args{max_redirect} : ()),
+        (map {
+          ('--header' => $_->[0] . ': ' . $_->[1]);
+        } @{$args{request_headers} or []}),
+        $url,
+      );
+    } elsif ($fetcher eq 'curl') {
+      @option = (
+        $CurlCommand,
+        @CurlOption,
+        '-s', '-S', '-L',
+        '-o', $file_name,
+        ($args{save_response_headers} ? ('-D', '-') : ()), # XXX not work as intended
+        ($args{timeout} ? '--max-time=' . $args{timeout} : ()),
+        '--retry=' . ($args{tries} || 3),
+        ($args{max_redirect} ? '--max-redirs=' . $args{max_redirect} : ()),
+        (map {
+          ('--header' => $_->[0] . ': ' . $_->[1]);
+        } @{$args{request_headers} or []}),
+        $url,
+      );
+    }
     my $result = run_command
-        [$WgetCommand,
-         @WgetOption,
-         '-O', $file_name,
-         ($args{save_response_headers} ? '--save-headers' : ()),
-         ($args{timeout} ? '--timeout=' . $args{timeout} : ()),
-         '--tries=' . ($args{tries} || 3),
-         ($args{max_redirect} ? '--max_redirect=' . $args{max_redirect} : ()),
-         (map {
-           ('--header' => $_->[0] . ': ' . $_->[1]);
-         } @{$args{request_headers} or []}),
-         $url],
+        \@option,
         info_level => 2,
         profiler_name => 'network',
-        prefix => "wget($_/$DownloadRetryCount): ";
+        prefix => "$fetcher($_/$DownloadRetryCount): ";
     return 1 if $result && -f $file_name;
   }
   return 0;
@@ -4250,7 +4287,7 @@ If you have the "curl" command, the following command line saves the
 latest pmbp.pl script as "local/bin/pmbp.pl" under the current
 directory:
 
-  $ curl http://wakaba.github.io/packages/pmbp | sh
+  $ curl -s -S -L https://wakaba.github.io/packages/pmbp | sh
 
 =head1 OPTIONS
 
@@ -4378,6 +4415,12 @@ your system and is irrelevant to the "command" kind of options to the
 script.
 
 =over 4
+
+=item --curl-command="curl"
+
+Specify the path to the C<curl> command used to download files from
+the Internet.  If this option is not specified, the C<curl> command in
+the current C<PATH> is used.
 
 =item --wget-command="wget"
 
