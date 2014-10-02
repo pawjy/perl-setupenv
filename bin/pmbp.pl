@@ -612,9 +612,9 @@ sub _save_url {
         '-s', '-S', '-L',
         '-o', $file_name,
         ($args{save_response_headers} ? ('-D', '-') : ()), # XXX not work as intended
-        ($args{timeout} ? '--max-time=' . $args{timeout} : ()),
+        ($args{timeout} ? ('--max-time', $args{timeout}) : ()),
         '--retry=' . ($args{tries} || 3),
-        ($args{max_redirect} ? '--max-redirs=' . $args{max_redirect} : ()),
+        ($args{max_redirect} ? ('--max-redirs', $args{max_redirect}) : ()),
         (map {
           ('--header' => $_->[0] . ': ' . $_->[1]);
         } @{$args{request_headers} or []}),
