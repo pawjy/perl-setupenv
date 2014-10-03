@@ -2108,7 +2108,8 @@ sub rewrite_perl_shebang ($$$) {
   open my $old_file, '<', $old_file_name
       or info_die "$0: $old_file_name: $!";
   my $content = <$old_file>;
-  if ($content =~ s{^#!.*?perl[0-9.]*(?:$|(?=\s))}{#!$perl_path} or
+  if (($perl_path =~ /env perl/ and $content =~ s{^#!.*?perl.*$}{#!$perl_path}m) or ## |env| does not support multiple args
+      $content =~ s{^#!.*?perl[0-9.]*(?:$|(?=\s))}{#!$perl_path}m or
       not $old_file_name eq $new_file_name) {
     open my $new_file, '>', $new_file_name
         or info_die "$0: $new_file_name: $!";
