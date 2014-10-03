@@ -258,6 +258,16 @@ This dependency graph represents that the application requires
 modules/dongry (a submodule) and Data::Dumper, which require Carp and
 Test::More, respectively.
 
+=head2 Run a Perl application on Heroku
+
+Define C<deps> rule in the C<Makefile> of the root directory of the
+application such that C<make deps> will run setup process of the
+application including invocation(s) of C<pmbp.pl> (see
+<https://github.com/wakaba/perl-setupenv/blob/master/Makefile.pmbp.example>
+for an example) and use
+<https://github.com/wakaba/heroku-buildpack-perl-pmbp> as the Heroku
+buildpack of the application.
+
 =head1 TROUBLESHOOTING
 
 =head2 Second invocation of pmbp --update takes as long time as the first time, nevertheless you said this should not happen :-<
