@@ -1344,6 +1344,10 @@ sub cpanm ($$) {
       push @option, '--save-dists' => pmtar_dir_name ();
     }
 
+    if (@module_arg and $module_arg[0] eq 'DBD::mysql' and not $args->{info}) {
+      push @option, '--configure-args=--ssl';
+    }
+
     push @option,
         '--mirror' => pmtar_dir_name (),
         map { ('--mirror' => $_) }
