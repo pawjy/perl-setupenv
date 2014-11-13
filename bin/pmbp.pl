@@ -1042,6 +1042,14 @@ sub install_perl ($) {
     if (-f $perl_path) {
       copy_log_file $log_file_name => "perl-$perl_version"
           if defined $log_file_name and $SavePerlbrewLog;
+
+      my $created_libperl = "$RootDirName/local/perlbrew/build/perl-$perl_version/libperl.so";
+      my $expected_libperl = "$RootDirName/local/perl-$perl_version/pm/lib/libperl.so";
+      if (-f $created_libperl and not -f $expected_libperl) {
+        mkdir_for_file $expected_libperl;
+        run_command ['cp', $created_libperl => $expected_libperl]
+            or info_die "Can't copy libperl.so";
+      }
     } else {
       copy_log_file $log_file_name => "perl-$perl_version"
           if defined $log_file_name;
