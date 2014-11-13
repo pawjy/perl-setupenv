@@ -1046,6 +1046,7 @@ sub install_perl ($) {
       my $created_libperl = "$RootDirName/local/perlbrew/build/perl-$perl_version/libperl.so";
       my $expected_libperl = "$RootDirName/local/perl-$perl_version/pm/lib/libperl.so";
       if (-f $created_libperl and not -f $expected_libperl) {
+        mkdir_for_file $expected_libperl;
         run_command ['cp', $created_libperl => $expected_libperl]
             or info_die "Can't copy libperl.so";
       }
