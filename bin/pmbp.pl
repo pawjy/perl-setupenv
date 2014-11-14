@@ -523,7 +523,7 @@ sub info_log_file ($$$) {
 
 sub _quote_dq ($) {
   my $s = shift;
-  no warnings 'uninitialized';
+  $s = '' unless defined $s;
   $s =~ s/\"/\\\"/g;
   return $s;
 } # _quote_dq
@@ -1235,21 +1235,30 @@ sub install_cpanm_wrapper () {
   $CPANMWrapperCreated = 1;
 } # install_cpanm_wrapper
 
-sub install_makeinstaller ($$) {
-  my ($name, $makefilepl_args) = @_;
+sub install_makeinstaller ($$;%) {
+  my ($name, $makefilepl_args, %args) = @_;
   #return if -f "$MakeInstaller.$name";
   info_writing 1, "makeinstaller.$name", "$MakeInstaller.$name";
   mkdir_for_file "$MakeInstaller.$name";
   open my $file, '>', "$MakeInstaller.$name"
       or info_die "$0: $MakeInstaller.name: $!";
+  my $cmd1 = 'Makefile.PL';
+  my $cmd2 = 'make';
+  if ($args{module_build}) {
+    $cmd1 = 'Build.PL';
+    $cmd2 = './Build';
+  }
   printf $file q{#!/bin/sh
     (
       export SHELL="%s"
-      echo perl Makefile.PL %s && perl Makefile.PL %s && \
-      echo make                && make && \
-      echo make install        && make install
+      echo perl %s %s && perl %s %s && \
+      echo %s                && %s && \
+      echo %s install        && %s install
     ) || echo "!!! MakeInstaller failed !!!"
-  }, _quote_dq $ENV{SHELL}, $makefilepl_args, $makefilepl_args;
+  }, _quote_dq $ENV{SHELL},
+      $cmd1, $makefilepl_args, $cmd1, $makefilepl_args,
+      $cmd2, $cmd2,
+      $cmd2, $cmd2;
   close $file;
   chmod 0755, "$MakeInstaller.$name";
 } # install_makeinstaller
@@ -1402,7 +1411,10 @@ sub cpanm ($$) {
     if (@module_arg and $module_arg[0] eq 'GD' and
         not $args->{info} and not $args->{scandeps}) {
       ## <http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=636649>
-      install_makeinstaller 'gd', q{CCFLAGS="$PMBP__CCFLAGS"};
+      install_makeinstaller 'gd', q{CCFLAGS="$PMBP__CCFLAGS"},
+          module_build => 1;
+      ## Though it has both Makefile.PL and Build.PL, Makefile.PL does
+      ## not make GD.so in some Debian environment.
       my $ccflags = '-Wformat=0 ' . get_perl_config $perl_command, $perl_version, 'ccflags';
       $envs->{PMBP__CCFLAGS} = $ccflags;
       $envs->{SHELL} = "$MakeInstaller.gd";
@@ -1509,24 +1521,28 @@ sub cpanm ($$) {
         } else {
           push @required_install, $mod;
         }
-      } elsif ($log =~ /^Building version-\S+ \.\.\. FAIL/m) {
+      }
+      if ($log =~ /^Building version-\S+ \.\.\. FAIL/m) {
         push @required_install,
             map { PMBP::Module->new_from_package ($_) }
             qw{ExtUtils::MakeMaker ExtUtils::ParseXS};
-      } elsif ($log =~ /Can't locate object method "new" via package "ExtUtils::ParseXS" at /m) {
+      }
+      if ($log =~ /Can't locate object method "new" via package "ExtUtils::ParseXS" at /m) {
         ## Requires 3.18_02 or later
         push @required_install,
             PMBP::Module->new_from_package ('ExtUtils::ParseXS~3.21');
         $failed = 1;
-      } elsif ($log =~ /^skipping .+\/perl-/m) {
+      }
+      if ($log =~ /^skipping .+\/perl-/m) {
         if (@module_arg and $module_arg[0] eq 'Module::Metadata') {
           push @required_install, PMBP::Module->new_from_module_arg
               ('Module::Metadata='.get_cpan_top_url.'/authors/id/A/AP/APEIRON/Module-Metadata-1.000011.tar.gz');
           $failed = 1;
         }
-      } elsif ($level == 1 and
-               ($log =~ /! (?:Installing|Configuring) (\S+) failed\. See (.+?) for details\./m or
-                $log =~ /! Configure failed for (\S+). See (.+?) for details\.$/m)) {
+      }
+      if ($level == 1 and
+          ($log =~ /! (?:Installing|Configuring) (\S+) failed\. See (.+?) for details\./m or
+           $log =~ /! Configure failed for (\S+). See (.+?) for details\.$/m)) {
         my $log = copy_log_file $2 => $1;
         $scan_errors->($level + 1, $log);
         if ($log =~ m{! You might have to install the following modules first to get --scandeps working correctly.\n!((?:\n! \* \S+)+)}) {
@@ -1537,36 +1553,45 @@ sub cpanm ($$) {
         }
 
         $failed = 1;
-      } elsif ($log =~ m{^(\S+) \S+ is required to configure this module; please install it or upgrade your CPAN/CPANPLUS shell.}m) {
+      }
+      if ($log =~ m{^(\S+) \S+ is required to configure this module; please install it or upgrade your CPAN/CPANPLUS shell.}m) {
         push @required_install, PMBP::Module->new_from_package ($1);
         # Don't set $failed flag.
-      } elsif ($log =~ m{^ERROR from evaluation of .+/vutil/Makefile.PL: ExtUtils::MM_Unix::tool_xsubpp : Can't find xsubpp at }m) {
+      }
+      if ($log =~ m{^ERROR from evaluation of .+/vutil/Makefile.PL: ExtUtils::MM_Unix::tool_xsubpp : Can't find xsubpp at }m) {
         push @required_cpanm,
             map { PMBP::Module->new_from_package ($_) }
             qw{ExtUtils::MakeMaker ExtUtils::ParseXS};
         $failed = 1;
-      } elsif ($log =~ m{error: perl.h: No such file or directory}m) {
+      }
+      if ($log =~ m{error: perl.h: No such file or directory}m) {
         push @required_system,
             {name => 'perl-devel', debian_name => 'libperl-dev'};
-      } elsif ($log =~ m{^make(?:\[[0-9]+\])?: .+?ExtUtils/xsubpp}m or
-               $log =~ m{^Can\'t open perl script ".*?ExtUtils/xsubpp"}m) {
+      }
+      if ($log =~ m{^make(?:\[[0-9]+\])?: .+?ExtUtils/xsubpp}m or
+          $log =~ m{^Can\'t open perl script ".*?ExtUtils/xsubpp"}m) {
         push @required_install,
             map { PMBP::Module->new_from_package ($_) }
             qw{ExtUtils::MakeMaker ExtUtils::ParseXS};
         $failed = 1;
-      } elsif ($log =~ m{Undefined subroutine &ExtUtils::ParseXS::\S+ called}m) {
+      }
+      if ($log =~ m{Undefined subroutine &ExtUtils::ParseXS::\S+ called}m) {
         push @required_install,
             map { PMBP::Module->new_from_package ($_) }
             qw{ExtUtils::MakeMaker ExtUtils::ParseXS};
         $failed = 1;
-      } elsif ($log =~ /^Failed to extract .+.zip - You need to have unzip or Archive::Zip installed./m) {
+      }
+      if ($log =~ /^Failed to extract .+.zip - You need to have unzip or Archive::Zip installed./m) {
         push @required_cpanm, PMBP::Module->new_from_package ('Archive::Zip');
-      } elsif ($log =~ /^(JSON::PP) ([0-9.]+) is not available/m) {
+      }
+      if ($log =~ /^(JSON::PP) ([0-9.]+) is not available/m) {
         push @required_cpanm, PMBP::Module->new_from_package ($1 . '~' . $2);
-      } elsif ($log =~ /^only nested arrays of non-refs are supported at .*?\/ExtUtils\/MakeMaker.pm/m) {
+      }
+      if ($log =~ /^only nested arrays of non-refs are supported at .*?\/ExtUtils\/MakeMaker.pm/m) {
         push @required_install,
             PMBP::Module->new_from_package ('ExtUtils::MakeMaker');
-      } elsif ($log =~ /^String found where operator expected at Makefile.PL line [0-9]+, near \"([0-9A-Za-z_]+)/m) {
+      }
+      if ($log =~ /^String found where operator expected at Makefile.PL line [0-9]+, near \"([0-9A-Za-z_]+)/m) {
         my $module_name = {
           author_tests => 'Module::Install::AuthorTests',
           readme_from => 'Module::Install::ReadmeFromPod',
@@ -1574,7 +1599,8 @@ sub cpanm ($$) {
         }->{$1};
         push @required_install, PMBP::Module->new_from_package ($module_name)
             if $module_name;
-      } elsif ($log =~ /^Bareword "([0-9A-Za-z_]+)" not allowed while "strict subs" in use at Makefile.PL /m) {
+      }
+      if ($log =~ /^Bareword "([0-9A-Za-z_]+)" not allowed while "strict subs" in use at Makefile.PL /m) {
         my $module_name = {
           auto_manifest => 'Module::Install::AutoManifest',
           auto_set_repository => 'Module::Install::Repository',
@@ -1583,21 +1609,28 @@ sub cpanm ($$) {
         }->{$1};
         push @required_install, PMBP::Module->new_from_package ($module_name)
             if $module_name;
-      } elsif ($log =~ m{^(Devel::CheckLib) not found in inc/ nor \@INC at inc/Module/Install/XSUtil.pm}m) {
+      }
+      if ($log =~ m{^(Devel::CheckLib) not found in inc/ nor \@INC at inc/Module/Install/XSUtil.pm}m) {
         push @required_cpanm, PMBP::Module->new_from_package ($1);
-      } elsif ($log =~ /Checking if you have Module::Build [0-9.]+ ... No \([0-9.]+ < ([0-9.]+)\)/m) {
+      }
+      if ($log =~ /Checking if you have Module::Build [0-9.]+ ... No \([0-9.]+ < ([0-9.]+)\)/m) {
         push @required_cpanm, PMBP::Module->new_from_package ('Module::Build~' . $1);
-      } elsif ($log =~ m{Module::CoreList \S+ \(loaded from .*\) doesn't seem to have entries for perl \S+. You're strongly recommended to upgrade Module::CoreList from CPAN.}m) {
+      }
+      if ($log =~ m{Module::CoreList \S+ \(loaded from .*\) doesn't seem to have entries for perl \S+. You're strongly recommended to upgrade Module::CoreList from CPAN.}m) {
         push @required_force_cpanm, PMBP::Module->new_from_package ('Module::CoreList');
-      } elsif ($log =~ /^Can\'t call method "load_all_extensions" on an undefined value at inc\/Module\/Install.pm /m) {
+      }
+      if ($log =~ /^Can\'t call method "load_all_extensions" on an undefined value at inc\/Module\/Install.pm /m) {
         $remove_inc = 1;
-      } elsif ($log =~ /^(\S+) version \S+ required--this is only version \S+/m) {
+      }
+      if ($log =~ /^(\S+) version \S+ required--this is only version \S+/m) {
         push @required_install, PMBP::Module->new_from_package ($1);
-      } elsif ($log =~ m{^One can rerun Makefile.PL after fetching GP/PARI archive}m and
-               not (@module_arg and $module_arg[0] eq 'Math::Pari')) {
+      }
+      if ($log =~ m{^One can rerun Makefile.PL after fetching GP/PARI archive}m and
+          not (@module_arg and $module_arg[0] eq 'Math::Pari')) {
         push @required_install, PMBP::Module->new_from_package ('Math::Pari');
-      } elsif ($log =~ /^cc: Internal error: Killed \(program cc1\)/m and
-               @module_arg and $module_arg[0] eq 'Net::SSLeay') {
+      }
+      if ($log =~ /^cc: Internal error: Killed \(program cc1\)/m and
+          @module_arg and $module_arg[0] eq 'Net::SSLeay') {
         ## In some environment latest version of Net::SSLeay fails to
         ## compile.  According to Google-sensei |nice| could resolve
         ## the problem but I can't confirm it.  Downgrading to 1.36 or
@@ -1607,84 +1640,103 @@ sub cpanm ($$) {
         ## can no longer reproduce the problem.)
         push @required_install, PMBP::Module->new_from_module_arg
             ('Net::SSLeay~1.36='.get_cpan_top_url.'/authors/id/F/FL/FLORA/Net-SSLeay-1.36.tar.gz');
-      } elsif ($log =~ m{^lib/Params/Validate/XS.xs:.+?: error: .*?cvgv.*? undeclared \(first use in this function\)}m) {
+      }
+      if ($log =~ m{^lib/Params/Validate/XS.xs:.+?: error: .*?cvgv.*? undeclared \(first use in this function\)}m) {
         ## Downgrade Params::Validate 1.12 -> 1.11
         push @required_install, PMBP::Module->new_from_module_arg
             ('Params::Validate~1.11='.get_cpan_top_url.'/authors/id/D/DR/DROLSKY/Params-Validate-1.11.tar.gz');
         push @additional_option, '--skip-satisfied';
-      } elsif ($log =~ /fatal error: openssl\/err.h: No such file or directory/m) {
+      }
+      if ($log =~ /fatal error: openssl\/err.h: No such file or directory/m) {
         push @required_system,
             {name => 'openssl-devel', debian_name => 'libssl-dev'};
-      } elsif ($log =~ m{^Can't link/include (?:C library )?'gmp.h', 'gmp'}m) {
+      }
+      if ($log =~ m{^Can't link/include (?:C library )?'gmp.h', 'gmp'}m) {
         push @required_system,
             {name => 'gmp-devel', debian_name => 'libgmp-dev',
              homebrew_name => 'gmp'};
         $failed = 1;
-      } elsif ($log =~ m{^Can't link/include 'v8'}m) {
+      }
+      if ($log =~ m{^Can't link/include 'v8'}m) {
         push @required_system, {name => 'v8-devel', debian_name => 'libv8-dev',
                                 homebrew_name => 'v8'};
-      } elsif ($log =~ /^Could not find gdlib-config in the search path. Please install libgd /m) {
+      }
+      if ($log =~ /^Could not find gdlib-config in the search path. Please install libgd /m) {
         push @required_system,
             {name => 'gd-devel', debian_name => 'libgd2-xpm-dev'};
         $failed = 1;
-      } elsif ($log =~ /fatal error: mpfr.h: No such file or directory/m) {
+      }
+      if ($log =~ /fatal error: mpfr.h: No such file or directory/m) {
         push @required_system,
             {name => 'mpfr-devel', debian_name => 'libmpfr-dev'};
         $failed = 1;
-      } elsif ($log =~ m{ld: cannot find -lmysqlclient}m) {
+      }
+      if ($log =~ m{ld: cannot find -lmysqlclient}m) {
         push @required_system,
             {name => 'mysql-server-devel',
              redhat_name => 'MySQL-devel',
              debian_name => 'libmysqld-dev'};
         $failed = 1;
-      } elsif ($log =~ /^The value of POSTGRES_INCLUDE points to a non-existent directory/m) {
+      }
+      if ($log =~ /^The value of POSTGRES_INCLUDE points to a non-existent directory/m) {
         push @required_system, {name => 'postgresql-devel',
                                 debian_name => 'libpq-dev'};
-      } elsif ($log =~ m{ld: cannot find -lperl}m) {
+      }
+      if ($log =~ m{ld: cannot find -lperl}m) {
         push @required_system,
             {name => 'perl-devel',
              redhat_name => 'perl-libs',
              debian_name => 'libperl-dev'};
-      } elsif ($log =~ m{Can't exec "mysql_config": No such file or directory}m) {
+      }
+      if ($log =~ m{Can't exec "mysql_config": No such file or directory}m) {
         push @required_system,
             {name => 'mysql-client-devel',
              redhat_name => 'MySQL-devel',
              debian_name => 'libmysqlclient-dev'};
         $failed = 1;
-      } elsif ($log =~ /^version.c:.+?: error: db.h: No such file or directory/m and
-               $log =~ /^-> FAIL Installing DB_File failed/m) {
+      }
+      if ($log =~ /^version.c:.+?: error: db.h: No such file or directory/m and
+          $log =~ /^-> FAIL Installing DB_File failed/m) {
         push @required_system,
             {name => 'bdb-devel', redhat_name => 'db-devel',
              debian_name => 'libdb-dev'};
         $failed = 1;
-      } elsif ($log =~ m{ld: cannot find -lperl$}m) {
+      }
+      if ($log =~ m{ld: cannot find -lperl$}m) {
         push @required_system,
             {name => 'perl-devel', debian_name => 'libperl-dev'};
         $failed = 1;
-      } elsif ($log =~ /^Expat.xs:.+?: error: expat.h: No such file or directory/m) {
+      }
+      if ($log =~ /^Expat.xs:.+?: error: expat.h: No such file or directory/m) {
         push @required_system,
             {name => 'expat-devel', debian_name => 'libexpat1-dev'};
         $failed = 1;
-      } elsif ($log =~ /^This module requires GNU Libidn, which could not be found./m) {
+      }
+      if ($log =~ /^This module requires GNU Libidn, which could not be found./m) {
         push @required_system,
             {name => 'libidn-devel', debian_name => 'libidn11-dev'};
         $failed = 1;
-      } elsif ($log =~ /fatal error: libkakasi.h: No such file or directory/m) {
+      }
+      if ($log =~ /fatal error: libkakasi.h: No such file or directory/m) {
         push @required_system,
             {name => 'kakasi-devel', debian_name => 'libkakasi2-dev'};
         $failed = 1;
-      } elsif ($log =~ /^Can\'t proceed without mecab-config./m) {
+      }
+      if ($log =~ /^Can\'t proceed without mecab-config./m) {
         $required_misc{mecab} = 1;
         $failed = 1;
-      } elsif ($log =~ /^The GeoIP CAPI is not installed you should do that. Otherwise try/m) {
+      }
+      if ($log =~ /^The GeoIP CAPI is not installed you should do that. Otherwise try/m) {
         push @required_system,
             {name => 'GeoIP-devel', debian_name => 'libgeoip-dev'};
         $failed = 1;
-      } elsif ($log =~ /^ERROR: proj library not found, where is cs2cs\?/m) {
+      }
+      if ($log =~ /^ERROR: proj library not found, where is cs2cs\?/m) {
         push @required_system,
             {name => 'proj-devel', debian_name => 'libproj-dev'};
         $failed = 1;
-      } elsif ($log =~ /^\* I could not find a working copy of (\S+)\./m) {
+      }
+      if ($log =~ /^\* I could not find a working copy of (\S+)\./m) {
         my $name = $1;
         if ($name eq 'glib-2.0') {
           push @required_system,
@@ -1699,37 +1751,46 @@ sub cpanm ($$) {
         } else {
           push @required_system, {name => $name};
         }
-      } elsif ($log =~ /^! Couldn\'t find module or a distribution (\S+) \(/m) {
+      }
+      if ($log =~ /^! Couldn\'t find module or a distribution (\S+) \(/m) {
         my $mod = {
           'Date::Parse' => 'Date::Parse',
           'Test::Builder::Tester' => 'Test::Simple', # Test-Simple 0.98 < TBT 1.07
         }->{$1};
         push @required_install,
             PMBP::Module->new_from_package ($mod) if $mod;
-      } elsif ($log =~ /^Could not find Python.h in include path. make will not work at Makefile.PL/m) {
+      }
+      if ($log =~ /^Could not find Python.h in include path. make will not work at Makefile.PL/m) {
         push @required_system,
             {name => 'python-devel', debian_name => 'python-dev'};
-      } elsif ($log =~ /\bsh: 1: cc: not found$/m or
-               $log =~ /^configure: error: no acceptable C compiler found/m) {
+      }
+      if ($log =~ /\bsh: 1: cc: not found$/m or
+          $log =~ /^configure: error: no acceptable C compiler found/m) {
         push @required_system, {name => 'gcc'};
-      } elsif ($log =~ /^We have to reconfigure CPAN.pm due to following uninitialized parameters:/m) {
+      }
+      if ($log =~ /^We have to reconfigure CPAN.pm due to following uninitialized parameters:/m) {
         kill 15, $cpanm_pid;
         push @required_cpanm, PMBP::Module->new_from_package ('CPAN');
         $required_misc{cpan} = 1;
         $failed = 1;
-      } elsif ($log =~ /^Undefined subroutine &Scalar::Util::blessed called/m) {
+      }
+      if ($log =~ /^Undefined subroutine &Scalar::Util::blessed called/m) {
         if ($ENV{PERL5LIB} or $ENV{PERL5OPT}) {
           $diag{env} = 1;
         }
-      } elsif ($log =~ /^! Can't configure the distribution\. You probably need to have 'make'\./m) {
+      }
+      if ($log =~ /^! Can't configure the distribution\. You probably need to have 'make'\./m) {
         push @required_system, {name => 'make'};
-      } elsif ($log =~ /^!!! MakeInstaller failed !!!$/m) {
+      }
+      if ($log =~ /^!!! MakeInstaller failed !!!$/m) {
         $failed = 1;
-      } elsif ($log =~ m{/cpanm did not return a true value at }m) {
+      }
+      if ($log =~ m{/cpanm did not return a true value at }m) {
         unlink $CPANMCommand;
         install_cpanm;
         $failed = 1;
-      } elsif ($log =~ m{^Perl v([0-9.]+) required--this is only v([0-9.]+), stopped at }m) {
+      }
+      if ($log =~ m{^Perl v([0-9.]+) required--this is only v([0-9.]+), stopped at }m) {
         info 0, "Perl $1 or later is requested (current: $2)";
         $failed = 1;
       }
@@ -1831,7 +1892,8 @@ sub cpanm ($$) {
           undef $install_extutils_embed;
           $redo = 1;
         }
-        if (@required_cpanm or @required_force_cpanm) {
+        if (not @required_system and
+            (@required_cpanm or @required_force_cpanm)) {
           local $CPANMDepth = $CPANMDepth + 1;
           for my $module (@required_cpanm) {
             if ($module->package eq 'Test::Harness') {
