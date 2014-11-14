@@ -523,7 +523,7 @@ sub info_log_file ($$$) {
 
 sub _quote_dq ($) {
   my $s = shift;
-  no warnings 'uninitialized';
+  $s = '' unless defined $s;
   $s =~ s/\"/\\\"/g;
   return $s;
 } # _quote_dq
@@ -1235,21 +1235,30 @@ sub install_cpanm_wrapper () {
   $CPANMWrapperCreated = 1;
 } # install_cpanm_wrapper
 
-sub install_makeinstaller ($$) {
-  my ($name, $makefilepl_args) = @_;
+sub install_makeinstaller ($$;%) {
+  my ($name, $makefilepl_args, %args) = @_;
   #return if -f "$MakeInstaller.$name";
   info_writing 1, "makeinstaller.$name", "$MakeInstaller.$name";
   mkdir_for_file "$MakeInstaller.$name";
   open my $file, '>', "$MakeInstaller.$name"
       or info_die "$0: $MakeInstaller.name: $!";
+  my $cmd1 = 'Makefile.PL';
+  my $cmd2 = 'make';
+  if ($args{module_build}) {
+    $cmd1 = 'Build.PL';
+    $cmd2 = './Build';
+  }
   printf $file q{#!/bin/sh
     (
       export SHELL="%s"
-      echo perl Makefile.PL %s && perl Makefile.PL %s && \
-      echo make                && make && \
-      echo make install        && make install
+      echo perl %s %s && perl %s %s && \
+      echo %s                && %s && \
+      echo %s install        && %s install
     ) || echo "!!! MakeInstaller failed !!!"
-  }, _quote_dq $ENV{SHELL}, $makefilepl_args, $makefilepl_args;
+  }, _quote_dq $ENV{SHELL},
+      $cmd1, $makefilepl_args, $cmd1, $makefilepl_args,
+      $cmd2, $cmd2,
+      $cmd2, $cmd2;
   close $file;
   chmod 0755, "$MakeInstaller.$name";
 } # install_makeinstaller
@@ -1402,7 +1411,10 @@ sub cpanm ($$) {
     if (@module_arg and $module_arg[0] eq 'GD' and
         not $args->{info} and not $args->{scandeps}) {
       ## <http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=636649>
-      install_makeinstaller 'gd', q{CCFLAGS="$PMBP__CCFLAGS"};
+      install_makeinstaller 'gd', q{CCFLAGS="$PMBP__CCFLAGS"},
+          module_build => 1;
+      ## Though it has both Makefile.PL and Build.PL, Makefile.PL does
+      ## not make GD.so in some Debian environment.
       my $ccflags = '-Wformat=0 ' . get_perl_config $perl_command, $perl_version, 'ccflags';
       $envs->{PMBP__CCFLAGS} = $ccflags;
       $envs->{SHELL} = "$MakeInstaller.gd";
