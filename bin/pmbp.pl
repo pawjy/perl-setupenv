@@ -626,7 +626,7 @@ sub run_command ($;%) {
 
 ## ------ Downloading ------
 
-sub install_system_packages ($);
+sub install_system_packages ($;%);
 
 my $HasWget;
 my $HasCurl;
@@ -649,8 +649,9 @@ sub _save_url {
       $fetcher = 'curl';
       last;
     } else {
-      install_system_packages [{name => 'wget'}];
+      install_system_packages [{name => 'curl'}];
       undef $HasWget;
+      undef $HasCurl;
       next;
     }
     info_die "There is no |wget| or |curl|";
