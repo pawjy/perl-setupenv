@@ -3428,6 +3428,8 @@ sub get_latest_svn_versions () {
     open my $file, '<', $file_name or die "$0: $file_name: $!";
     local $/ = undef;
     $html = scalar <$file>;
+    $html =~ s/&nbsp;/ /g;
+    $html =~ s/\s+/ /g;
   }
 
   my $versions = {subversion => '1.8.8',
