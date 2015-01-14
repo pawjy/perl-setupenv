@@ -855,7 +855,8 @@ sub use_perl_core_module ($) {
     'File::Path' => {name => 'perl-File-Path', debian_name => 'libfile-path-perl'},
     'File::Copy' => {name => 'perl-File-Copy', debian_name => 'libfile-copy-perl'},
     'File::Temp' => {name => 'perl-File-Temp', debian_name => 'libfile-temp-perl'},
-    'Digest::MD5' => {name => 'perl-Digest-MD5', debian_name => 'libdigest-md5-perl'}, # 5.7.3+
+    'Digest::MD5' => {name => 'perl-Digest-MD5', debian_name => 'libdigest-md5-perl'}, # core 5.7.3+
+    'PerlIO' => {name => 'perl-PerlIO', redhat_name => 'perl(PerlIO)', debian_name => 'perl-modules'}, # core 5.7.3+
   }->{$package} or die "Package info for |$package| not defined";
 
   install_system_packages [$sys], update_unless_found => 1;
@@ -1032,6 +1033,18 @@ sub install_perlbrew () {
             -s "$RootDirName/local/perlbrew/bin/patchperl.main" and
             -s ("$RootDirName/local/perlbrew/bin/patchperl") < (-s "$RootDirName/local/perlbrew/bin/patchperl.main") and
             -s "$RootDirName/local/perlbrew/pmbp-perlbrew-v2";
+
+  use_perl_core_module 'PerlIO';
+
+  my @install;
+  push @install, {name => 'bzip2'} unless which ('bzip2');
+  push @install, {name => 'make'} unless which ('make');
+  push @install, {name => 'gcc'} unless which ('gcc');
+  if (@install) {
+    install_system_packages \@install
+        or info_die "Need to install commands before perlbrew";
+  }
+
   my $install_file_name = "$RootDirName/local/install.perlbrew";
   save_url $PerlbrewInstallerURL => $install_file_name;
 
