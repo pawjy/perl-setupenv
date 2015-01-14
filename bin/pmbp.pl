@@ -288,6 +288,7 @@ $PMPPDirName ||= $RootDirName . '/deps/pmpp';
   sub open_info_file () {
     $InfoFileName = "$PMBPLogDirName/pmbp-" . time . "-" . $$ . ".log";
     mkdir_for_file ($InfoFileName);
+    require IO::File;
     open $InfoFile, '>', $InfoFileName or die "$0: $InfoFileName: $!";
     $InfoFile->autoflush (1);
     info_writing (0, "operation log file", $InfoFileName);
