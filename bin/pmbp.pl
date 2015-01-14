@@ -9,9 +9,6 @@ use warnings;
 use warnings FATAL => 'recursion';
 use Config;
 use Cwd qw(abs_path);
-use File::Path qw(mkpath rmtree);
-use File::Copy qw(copy move);
-use File::Temp qw(tempdir);
 use File::Spec ();
 use Getopt::Long;
 ## Some environment does not have this module.
@@ -291,6 +288,7 @@ $PMPPDirName ||= $RootDirName . '/deps/pmpp';
   sub open_info_file () {
     $InfoFileName = "$PMBPLogDirName/pmbp-" . time . "-" . $$ . ".log";
     mkdir_for_file ($InfoFileName);
+    require IO::File;
     open $InfoFile, '>', $InfoFileName or die "$0: $InfoFileName: $!";
     $InfoFile->autoflush (1);
     info_writing (0, "operation log file", $InfoFileName);
@@ -302,6 +300,11 @@ $PMPPDirName ||= $RootDirName . '/deps/pmpp';
   } # delete_info_file
   
   sub info ($$) {
+    unless (defined $InfoFile) {
+      print STDERR $_[1], ($_[1] =~ /\n\z/ ? "" : "\n");
+      return;
+    }
+
     if ($Verbose >= $_[0]) {
       $InfoNeedNewline--, print STDERR "\n" if $InfoNeedNewline;
       if ($_[1] =~ /\.\.\.\z/) {
@@ -380,6 +383,8 @@ $PMPPDirName ||= $RootDirName . '/deps/pmpp';
 
 ## ------ PMBP ------
 
+sub copy_file ($$);
+
 {
   my $PMBPLibDirName;
   
@@ -448,7 +453,7 @@ sub update_pmbp_pl () {
 
   info_writing 0, 'latest version of pmbp.pl', $pmbp_pl_file_name;
   mkdir_for_file ($pmbp_pl_file_name);
-  copy $temp2_file_name => $pmbp_pl_file_name
+  copy_file $temp2_file_name => $pmbp_pl_file_name
       or info_die "$0: $pmbp_pl_file_name: $!";
 } # update_pmbp_pl
 
@@ -463,8 +468,7 @@ sub exec_show_pmbp_tutorial () {
 
 ## ------ Files and directories ------
 
-sub make_path ($) { mkpath $_[0] }
-sub remove_tree ($) { rmtree $_[0] }
+sub use_perl_core_module ($);
 
 sub resolve_path ($$) {
   my $path = ($_[0] =~ m{^/}) ? $_[0] : "$_[1]/$_[0]";
@@ -480,11 +484,35 @@ sub resolve_path ($$) {
   return $path;
 } # resolve_path
 
+sub remove_tree ($) {
+  if (eval { require File::Path }) {
+    File::Path::rmtree ($_[0]);
+  } else {
+    (system 'rm', '-fr', $_[0]) == 0 or die $!;
+  }
+} # remove_tree
+
+sub make_path ($) {
+  if (eval { require File::Path }) {
+    File::Path::mkpath ($_[0]);
+  } else {
+    (system 'mkdir', '-p', $_[0]) == 0 or die $!;
+  }
+} # make_path
+
 sub mkdir_for_file ($) {
   my $file_name = $_[0];
   $file_name =~ s{[^/\\]+$}{};
   make_path $file_name;
 } # mkdir_for_file
+
+sub copy_file ($$) {
+  if (eval { require File::Copy }) {
+    return File::Copy::copy ($_[0] => $_[1]);
+  } else {
+    return ((system 'cp', $_[0] => $_[1]) == 0); # with $!
+  }
+} # copy_file
 
 sub copy_log_file ($$) {
   my ($file_name, $module_name) = @_;
@@ -492,7 +520,7 @@ sub copy_log_file ($$) {
   $log_file_name =~ s/::/-/g;
   $log_file_name = "$PMBPLogDirName/@{[time]}-$log_file_name.log";
   mkdir_for_file $log_file_name;
-  copy $file_name => $log_file_name or 
+  copy_file $file_name => $log_file_name or 
       info_die "Can't save log file: $!\n";
   info_writing 0, "install log file", $log_file_name;
   open my $file, '<', $file_name or info_die "$0: $file_name: $!";
@@ -519,6 +547,20 @@ sub info_log_file ($$$) {
   return $content;
 } # info_log_file
 
+our $HasFileTemp = 1;
+sub FileTemp () {
+  {
+    local $HasFileTemp = 0;
+    use_perl_core_module 'File::Temp';
+  }
+  return File::Temp->new;
+} # FileTemp
+
+sub create_temp_dir_name () {
+  use_perl_core_module 'File::Temp';
+  return File::Temp::tempdir ('PMBP-XX'.'XX'.'XX', TMPDIR => 1, CLEANUP => 1);
+} # create_temp_dir_name
+
 ## ------ Commands ------
 
 sub _quote_dq ($) {
@@ -542,8 +584,12 @@ sub run_command ($;%) {
   }
   my $stderr_file;
   if ($args{discard_stderr}) {
-    $stderr_file = File::Temp->new;
-    $args{"2>"} = $stderr_file->filename;
+    if ($HasFileTemp) {
+      $stderr_file = FileTemp;
+      $args{"2>"} = $stderr_file->filename;
+    } else {
+      $args{"2>"} = sub {};
+    }
   }
   local %ENV = map { defined $_ ? $_ : '' } (%ENV, %$envs);
   profiler_start ($args{profiler_name} || 'command');
@@ -580,6 +626,8 @@ sub run_command ($;%) {
 
 ## ------ Downloading ------
 
+sub install_system_packages ($);
+
 my $HasWget;
 my $HasCurl;
 sub _save_url {
@@ -591,13 +639,20 @@ sub _save_url {
   }
 
   my $fetcher;
-  $HasWget = which ($WgetCommand) ? 1 : 0 if not defined $HasWget;
-  $HasCurl = which ($CurlCommand) ? 1 : 0 if not defined $HasCurl;
-  if ($HasWget) {
-    $fetcher = 'wget';
-  } elsif ($HasCurl) {
-    $fetcher = 'curl';
-  } else {
+  for (0..1) {
+    $HasWget = which ($WgetCommand) ? 1 : 0 if not defined $HasWget;
+    $HasCurl = which ($CurlCommand) ? 1 : 0 if not defined $HasCurl;
+    if ($HasWget) {
+      $fetcher = 'wget';
+      last;
+    } elsif ($HasCurl) {
+      $fetcher = 'curl';
+      last;
+    } else {
+      install_system_packages [{name => 'wget'}];
+      undef $HasWget;
+      next;
+    }
     info_die "There is no |wget| or |curl|";
   }
 
@@ -720,8 +775,8 @@ sub load_json_after_garbage ($) {
   my $HasAPT;
   my $HasYUM;
   my $HasBrew;
-  sub install_system_packages ($) {
-    my ($packages) = @_;
+  sub install_system_packages ($;%) {
+    my ($packages, %args) = @_;
     return unless @$packages;
     
     $HasAPT = which ($AptGetCommand) ? 1 : 0
@@ -731,15 +786,24 @@ sub load_json_after_garbage ($) {
     $HasBrew = which ($BrewCommand) ? 1 : 0
         if not defined $HasBrew;
 
+    my @sudo = which ($SudoCommand) ? ($SudoCommand) : ();
+
     my $cmd;
     my $env = '';
     if ($HasAPT) {
-      $cmd = [$SudoCommand, '--', $AptGetCommand, 'install', '-y', map { $_->{debian_name} || $_->{name} } @$packages];
+      $cmd = [$AptGetCommand, 'install', '-y', map { $_->{debian_name} || $_->{name} } @$packages];
       $env = 'DEBIAN_FRONTEND="noninteractive" ';
     } elsif ($HasYUM) {
-      $cmd = [$SudoCommand, '--', $YumCommand, 'install', '-y', map { $_->{redhat_name} || $_->{name} } @$packages];
+      $cmd = [$YumCommand, 'install', '-y', map { $_->{redhat_name} || $_->{name} } @$packages];
     } elsif ($HasBrew) {
       $cmd = [$BrewCommand, 'install', map { $_->{homebrew_name} || $_->{name} } @$packages];
+    }
+    if ($HasAPT or $HasYUM) {
+      if (@sudo) {
+        unshift @$cmd, @sudo, '--';
+      } else {
+        $cmd = ['su', '-c', join ' ', map { quotemeta $_ } @$cmd];
+      }
     }
 
     if ($cmd) {
@@ -752,11 +816,23 @@ sub load_json_after_garbage ($) {
           info 0, '(Instead of installing libperl-devel, you can use --install-perl command)';
         }
       } else {
-        return run_command $cmd,
-            info_level => 0,
-            info_command_level => 0,
-            envs => {DEBIAN_FRONTEND => "noninteractive"},
-            accept_input => -t STDIN;
+        for (0..1) {
+          my $return = run_command $cmd,
+              info_level => 0,
+              info_command_level => 0,
+              envs => {DEBIAN_FRONTEND => "noninteractive"},
+              accept_input => -t STDIN;
+
+          if (not $return and $args{update_unless_found}) {
+            if ($HasAPT) {
+              # E: Unable to locate package
+              run_command [$AptGetCommand, 'update'] and next;
+            }
+          }
+
+          return $return;
+        }
+        return 0;
       }
     } else {
       info 0, "Install following packages and retry:";
@@ -770,6 +846,22 @@ sub load_json_after_garbage ($) {
     return 0;
   } # install_system_packages
 }
+
+sub use_perl_core_module ($) {
+  my $package = $_[0];
+  eval qq{ require $package } and return;
+
+  my $sys = {
+    'File::Path' => {name => 'perl-File-Path', debian_name => 'libfile-path-perl'},
+    'File::Copy' => {name => 'perl-File-Copy', debian_name => 'libfile-copy-perl'},
+    'File::Temp' => {name => 'perl-File-Temp', debian_name => 'libfile-temp-perl'},
+    'Digest::MD5' => {name => 'perl-Digest-MD5', debian_name => 'libdigest-md5-perl'}, # 5.7.3+
+  }->{$package} or die "Package info for |$package| not defined";
+
+  install_system_packages [$sys], update_unless_found => 1;
+
+  eval qq{ require $package } or die $@;
+} # use_perl_core_module
 
 {
   sub get_perlbrew_perl_bin_dir_name ($) {
@@ -1269,7 +1361,7 @@ sub install_makeinstaller ($$;%) {
     my $lib_dir_name = shift;
     return $CPANMDummyHomeDirNames->{$lib_dir_name} ||= do {
       ## For Module::Build-based packages (e.g. Class::Accessor::Lvalue)
-      require Digest::MD5;
+      use_perl_core_module 'Digest::MD5';
       my $key = Digest::MD5::md5_hex ($lib_dir_name);
       my $home_dir_name = "$CPANMHomeDirName/$key";
       my $file_name = "$home_dir_name/.modulebuildrc";
@@ -1647,6 +1739,9 @@ sub cpanm ($$) {
             ('Params::Validate~1.11='.get_cpan_top_url.'/authors/id/D/DR/DROLSKY/Params-Validate-1.11.tar.gz');
         push @additional_option, '--skip-satisfied';
       }
+      if ($log =~ /Can't configure the distribution. You probably need to have 'make'/m) {
+        push @required_system, {name => 'make'};
+      }
       if ($log =~ /fatal error: openssl\/err.h: No such file or directory/m) {
         push @required_system,
             {name => 'openssl-devel', debian_name => 'libssl-dev'};
@@ -1811,7 +1906,7 @@ sub cpanm ($$) {
         profiler_name => ($args->{scandeps} ? 'cpanm-scandeps' : $args->{info} ? 'cpanm-info' : 'cpanm'),
         prefix => "cpanm($CPANMDepth/$redo): ",
         '>' => (($args->{scandeps} || $args->{info} || $args->{version}) ? do {
-          $json_temp_file = File::Temp->new;
+          $json_temp_file = FileTemp;
         } : undef),
         discard_stderr => (($args->{scandeps} || $args->{info}) ? 1 : 0),
         '$$' => \$cpanm_pid,
@@ -2074,7 +2169,7 @@ sub save_by_pathname ($$) {
       }
     } else {
       if (-f $mirror) {
-        copy $mirror => $dest_file_name or
+        copy_file $mirror => $dest_file_name or
             info_die "$0: Can't copy $mirror";
         $module->{url} = $mirror;
         $module->{pathname} = $pathname;
@@ -2224,7 +2319,7 @@ sub copy_pmpp_modules ($$) {
         if ($rewrite_shebang) {
           rewrite_perl_shebang $_ => $dest, $perl_path;
         } else {
-          copy $_ => $dest or info_die "$0: $dest: $!";
+          copy_file $_ => $dest or info_die "$0: $dest: $!";
         }
         chmod ((stat $_)[2], $dest);
       } elsif (-d $_) {
@@ -2416,7 +2511,7 @@ sub scandeps ($$$;%) {
     }
   }
 
-  my $temp_dir_name = $args{temp_dir_name} || tempdir('PMBP-XX'.'XX'.'XX', TMPDIR => 1, CLEANUP => 1);
+  my $temp_dir_name = $args{temp_dir_name} || create_temp_dir_name;
 
   get_local_copy_if_necessary $module;
   my $result = cpanm {perl_version => $perl_version,
@@ -2819,7 +2914,7 @@ sub read_install_list ($$$;%) {
                 or info_die "Build distmeta failed";
         info_die "Build distmeta failed" unless -f "$dir_name/META.yml";
       }
-      my $temp_dir_name = tempdir('PMBP-XX'.'XX'.'XX', TMPDIR => 1, CLEANUP => 1);
+      my $temp_dir_name = create_temp_dir_name;
       my $result = cpanm {perl_version => $perl_version,
                           perl_lib_dir_name => $temp_dir_name,
                           temp_dir_name => $temp_dir_name,
@@ -5568,7 +5663,7 @@ Wakaba <wakaba@suikawiki.org>.
 
 =head1 LICENSE
 
-Copyright 2012-2014 Wakaba <wakaba@suikawiki.org>.
+Copyright 2012-2015 Wakaba <wakaba@suikawiki.org>.
 
 Copyright 2012-2013 Hatena <http://www.hatena.ne.jp/company/>.
 
