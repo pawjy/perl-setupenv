@@ -803,7 +803,7 @@ sub load_json_after_garbage ($) {
       if (@sudo) {
         unshift @$cmd, @sudo, '--';
       } else {
-        $cmd = ['su', '-c', join ' ', map { quotemeta $_ } @$cmd];
+        $cmd = ['su', '-c', join ' ', map { length $_ ? quotemeta $_ : '""' } @$cmd];
       }
     }
 
@@ -821,8 +821,7 @@ sub load_json_after_garbage ($) {
           my $return = run_command $cmd,
               info_level => 0,
               info_command_level => 0,
-              envs => {DEBIAN_FRONTEND => "noninteractive"},
-              accept_input => -t STDIN;
+              envs => {DEBIAN_FRONTEND => "noninteractive"};
 
           if (not $return and $args{update_unless_found}) {
             if ($HasAPT) {
@@ -861,7 +860,7 @@ sub use_perl_core_module ($) {
 
   install_system_packages [$sys], update_unless_found => 1;
 
-  eval qq{ require $package } or die $@;
+  eval qq{ require $package } or die $@; # not info_die
 } # use_perl_core_module
 
 {
@@ -1243,6 +1242,11 @@ sub install_cpanm () {
   if (not -f $CPANMCommand or
       [stat $CPANMCommand]->[9] < [stat $0]->[9]) { # mtime
     save_url $CPANMURL => $CPANMCommand;
+
+    unless (run_command ['perl', '-MExtUtils::MakeMaker', '-e', ' ']) {
+      install_system_packages [{name => 'perl-ExtUtils-MakeMaker', debian_name => 'libextutils-makemaker-perl'}] # core 5+
+          or info_die "Your perl does not have |ExtUtils::MakeMaker| (which is a core module)";
+    }
   }
 } # install_cpanm
 
@@ -1608,6 +1612,9 @@ sub cpanm ($$) {
         if (defined $mod->package and $mod->package eq 'ExtUtils::Embed') {
           $install_extutils_embed = 1;
           $failed = 1;
+        } elsif (defined $mod->package and $mod->package eq 'ExtUtils::Manifest') {
+          push @required_system, {name => 'perl-ExtUtils-Manifest'}; # core 5.001+
+          $failed = 1;
         } elsif ($level == 1) {
           push @required_cpanm, $mod;
           push @required_install, $mod;
@@ -1674,7 +1681,11 @@ sub cpanm ($$) {
             qw{ExtUtils::MakeMaker ExtUtils::ParseXS};
         $failed = 1;
       }
-      if ($log =~ /^Failed to extract .+.zip - You need to have unzip or Archive::Zip installed./m) {
+      if ($log =~ /Failed to extract .+?.tar.gz - You need to have tar or Archive::Tar installed./m) {
+        #push @required_cpanm, PMBP::Module->new_from_package ('Archive::Tar'); # core 5.9.3+
+        push @required_system, {name => 'tar'};
+      }
+      if ($log =~ /Failed to extract .+.zip - You need to have unzip or Archive::Zip installed./m) {
         push @required_cpanm, PMBP::Module->new_from_package ('Archive::Zip');
       }
       if ($log =~ /^(JSON::PP) ([0-9.]+) is not available/m) {
@@ -1861,6 +1872,7 @@ sub cpanm ($$) {
             {name => 'python-devel', debian_name => 'python-dev'};
       }
       if ($log =~ /\bsh: 1: cc: not found$/m or
+          $log =~ /\bsh: gcc: command not found/m or
           $log =~ /^configure: error: no acceptable C compiler found/m) {
         push @required_system, {name => 'gcc'};
       }
