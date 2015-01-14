@@ -774,8 +774,8 @@ sub load_json_after_garbage ($) {
   my $HasAPT;
   my $HasYUM;
   my $HasBrew;
-  sub install_system_packages ($) {
-    my ($packages) = @_;
+  sub install_system_packages ($;%) {
+    my ($packages, %args) = @_;
     return unless @$packages;
     
     $HasAPT = which ($AptGetCommand) ? 1 : 0
@@ -815,11 +815,23 @@ sub load_json_after_garbage ($) {
           info 0, '(Instead of installing libperl-devel, you can use --install-perl command)';
         }
       } else {
-        return run_command $cmd,
-            info_level => 0,
-            info_command_level => 0,
-            envs => {DEBIAN_FRONTEND => "noninteractive"},
-            accept_input => -t STDIN;
+        for (0..1) {
+          my $return = run_command $cmd,
+              info_level => 0,
+              info_command_level => 0,
+              envs => {DEBIAN_FRONTEND => "noninteractive"},
+              accept_input => -t STDIN;
+
+          if (not $return and $args{update_unless_found}) {
+            if ($HasAPT) {
+              # E: Unable to locate package
+              run_command [$AptGetCommand, 'update'] and next;
+            }
+          }
+
+          return $return;
+        }
+        return 0;
       }
     } else {
       info 0, "Install following packages and retry:";
@@ -845,7 +857,7 @@ sub use_perl_core_module ($) {
     'Digest::MD5' => {name => 'perl-Digest-MD5', debian_name => 'libdigest-md5-perl'}, # 5.7.3+
   }->{$package} or die "Package info for |$package| not defined";
 
-  install_system_packages [$sys];
+  install_system_packages [$sys], update_unless_found => 1;
 
   eval qq{ require $package } or die $@;
 } # use_perl_core_module
