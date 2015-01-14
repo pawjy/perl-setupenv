@@ -2340,7 +2340,7 @@ sub create_perl_command_shortcut ($$$;%) {
     $pm_path = File::Spec->abs2rel ($pm_path);
     $perl_path = File::Spec->abs2rel ($perl_path);
     $lib_path = File::Spec->abs2rel ($lib_path);
-    printf $file qq{\#!/bin/bash
+    printf $file qq{\#!/bin/sh
 rootpath="\$(cd %s && pwd)"
 libpaths=`cat \$rootpath/%s 2> /dev/null | perl -MCwd=abs_path -e '\\\$p = abs_path shift; local \\\$/ = undef; print join q{:}, map { \\\$p . q{/} . \\\$_ } split /:/, <>' "\$rootpath"`
 PMBP_ORIG_PATH="`perl -e '%s'`" PATH="%s" PERL5LIB="\$libpaths" LD_LIBRARY_PATH="%s" exec %s"\$\@"\n},
@@ -2352,7 +2352,7 @@ PMBP_ORIG_PATH="`perl -e '%s'`" PATH="%s" PERL5LIB="\$libpaths" LD_LIBRARY_PATH=
         (defined $command ? '"' . $command . '" ' : '') .
         (defined $arg ? '"' . $arg . '" ' : '');
   } else {
-    printf $file qq{\#!/bin/bash\nPMBP_ORIG_PATH="%s" PATH="%s" PERL5LIB="`cat %s 2> /dev/null`" LD_LIBRARY_PATH="%s" exec %s"\$\@"\n},
+    printf $file qq{\#!/bin/sh\nPMBP_ORIG_PATH="%s" PATH="%s" PERL5LIB="`cat %s 2> /dev/null`" LD_LIBRARY_PATH="%s" exec %s"\$\@"\n},
         _quote_dq '${PMBP_ORIG_PATH:-PATH}',
         _quote_dq "$pm_path:$perl_path:" . '${PMBP_ORIG_PATH:-$PATH}',
         _quote_dq get_libs_txt_file_name ($perl_version),
