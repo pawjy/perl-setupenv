@@ -2872,7 +2872,7 @@ sub read_install_list ($$$;%) {
   info 2, "Examining |$dir_name| ...";
 
   my $onadd = sub { my $source = shift; return sub {
-    info 1, sprintf '%s requires %s', $source, $_[0]->as_short;
+    info 1, sprintf '|%s| requires |%s|', $source, $_[0]->as_short;
     push @{$args{dep_graph} or []}, [$args{dep_graph_source} => $_[0]]
         if $args{dep_graph_source};
   } }; # $onadd
@@ -2955,6 +2955,10 @@ sub read_install_list ($$$;%) {
     my $mod_names = scan_dependency_from_directory ($dir_name);
     my $modules = [];
     for (keys %$mod_names) {
+      if ($args{exclusions}->{modules}->{$_}) {
+        info 6, "Module |$_| excluded by |$args{exclusions}->{modules}->{$_}|";
+        next;
+      }
       my $mod = PMBP::Module->new_from_package ($_);
       push @$modules, $mod;
       $onadd->($dir_name)->($mod);
@@ -3072,12 +3076,13 @@ sub scan_dependency_from_directory ($) {
   my @exclude_pattern = map { "^$_" } qw(modules bin/modules t_deps/modules t_deps/projects);
   for (split /\n/, qx{cd \Q$dir_name\E && find @{[join ' ', grep quotemeta, @include_dir_name]} 2> /dev/null @{[join ' ', map { "| grep -v $_" } grep quotemeta, @exclude_pattern]} | grep "\\.\\(pm\\|pl\\|t\\)\$" | xargs grep "\\(use\\|require\\|extends\\) " --no-filename}) {
     s/\#.*$//;
-    if (/\b(?:(?:use|require)\s*(?:base|parent)|extends)\s*(.+)/) {
+    while (/\b(?:(?:use|require)\s*(?:base|parent)|extends)\s*(.+)/g) {
       my $base = $1;
       while ($base =~ /([0-9A-Za-z_:]+)/g) {
         $modules->{$1} = 1;
       }
-    } elsif (/\b(?:use|require)\s*([0-9A-Za-z_:]+)/) {
+    }
+    while (/\b(?:use|require)\s*([0-9A-Za-z_:]+)/g) {
       my $name = $1;
       next if $name =~ /["']/;
       $modules->{$name} = 1;
@@ -3432,7 +3437,7 @@ sub get_latest_svn_versions () {
     $html =~ s/\s+/ /g;
   }
 
-  my $versions = {subversion => '1.8.8',
+  my $versions = {subversion => '1.8.11',
                   _mirror => 'http://www.apache.org/dist/'};
 
   if ($html =~ /The best available version of Apache Subversion is:\s*([0-9.]+)/) {
