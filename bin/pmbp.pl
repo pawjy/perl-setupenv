@@ -9,9 +9,6 @@ use warnings;
 use warnings FATAL => 'recursion';
 use Config;
 use Cwd qw(abs_path);
-use File::Path qw(mkpath rmtree);
-use File::Copy qw(copy move);
-use File::Temp qw(tempdir);
 use File::Spec ();
 use Getopt::Long;
 ## Some environment does not have this module.
@@ -31,12 +28,12 @@ my $AptGetCommand = 'apt-get';
 my $YumCommand = 'yum';
 my $BrewCommand = 'brew';
 my $DownloadRetryCount = 2;
-my $PerlbrewInstallerURL = q<https://raw.github.com/gugod/App-perlbrew/develop/perlbrew-install>; # q<http://install.perlbrew.pl/>;
+my $PerlbrewInstallerURL = q<https://raw.githubusercontent.com/gugod/App-perlbrew/develop/perlbrew-install>; # q<http://install.perlbrew.pl/>;
 my $PerlbrewParallelCount = $ENV{PMBP_PARALLEL_COUNT} || ($ENV{TRAVIS} ? 4 : 1);
 my $SavePerlbrewLog = not $ENV{TRAVIS};
-my $CPANMURL = q<https://raw.github.com/miyagawa/cpanminus/master/cpanm>; # q<http://cpanmin.us/>;
-my $PMBPURL = q<https://github.com/wakaba/perl-setupenv/raw/master/bin/pmbp.pl>;
-my $MakefileURL = q<https://raw.github.com/wakaba/perl-setupenv/master/Makefile.pmbp.example>;
+my $CPANMURL = q<https://raw.githubusercontent.com/miyagawa/cpanminus/master/cpanm>; # q<http://cpanmin.us/>;
+my $PMBPURL = q<https://raw.githubusercontent.com/wakaba/perl-setupenv/master/bin/pmbp.pl>;
+my $MakefileURL = q<https://raw.githubusercontent.com/wakaba/perl-setupenv/master/Makefile.pmbp.example>;
 my $ImageMagickURL = q<http://www.imagemagick.org/download/ImageMagick.tar.gz>;
 my $RootDirName = '.';
 my $FallbackPMTarDirName = $ENV{PMBP_FALLBACK_PMTAR_DIR_NAME};
@@ -292,6 +289,7 @@ $PMPPDirName ||= $RootDirName . '/deps/pmpp';
   sub open_info_file () {
     $InfoFileName = "$PMBPLogDirName/pmbp-" . time . "-" . $$ . ".log";
     mkdir_for_file ($InfoFileName);
+    require IO::File;
     open $InfoFile, '>', $InfoFileName or die "$0: $InfoFileName: $!";
     $InfoFile->autoflush (1);
     info_writing (0, "operation log file", $InfoFileName);
@@ -303,6 +301,11 @@ $PMPPDirName ||= $RootDirName . '/deps/pmpp';
   } # delete_info_file
   
   sub info ($$) {
+    unless (defined $InfoFile) {
+      print STDERR $_[1], ($_[1] =~ /\n\z/ ? "" : "\n");
+      return;
+    }
+
     if ($Verbose >= $_[0]) {
       $InfoNeedNewline--, print STDERR "\n" if $InfoNeedNewline;
       if ($_[1] =~ /\.\.\.\z/) {
@@ -381,6 +384,8 @@ $PMPPDirName ||= $RootDirName . '/deps/pmpp';
 
 ## ------ PMBP ------
 
+sub copy_file ($$);
+
 {
   my $PMBPLibDirName;
   
@@ -449,7 +454,7 @@ sub update_pmbp_pl () {
 
   info_writing 0, 'latest version of pmbp.pl', $pmbp_pl_file_name;
   mkdir_for_file ($pmbp_pl_file_name);
-  copy $temp2_file_name => $pmbp_pl_file_name
+  copy_file $temp2_file_name => $pmbp_pl_file_name
       or info_die "$0: $pmbp_pl_file_name: $!";
 } # update_pmbp_pl
 
@@ -464,8 +469,7 @@ sub exec_show_pmbp_tutorial () {
 
 ## ------ Files and directories ------
 
-sub make_path ($) { mkpath $_[0] }
-sub remove_tree ($) { rmtree $_[0] }
+sub use_perl_core_module ($);
 
 sub resolve_path ($$) {
   my $path = ($_[0] =~ m{^/}) ? $_[0] : "$_[1]/$_[0]";
@@ -481,11 +485,35 @@ sub resolve_path ($$) {
   return $path;
 } # resolve_path
 
+sub remove_tree ($) {
+  if (eval { require File::Path }) {
+    File::Path::rmtree ($_[0]);
+  } else {
+    (system 'rm', '-fr', $_[0]) == 0 or die $!;
+  }
+} # remove_tree
+
+sub make_path ($) {
+  if (eval { require File::Path }) {
+    File::Path::mkpath ($_[0]);
+  } else {
+    (system 'mkdir', '-p', $_[0]) == 0 or die $!;
+  }
+} # make_path
+
 sub mkdir_for_file ($) {
   my $file_name = $_[0];
   $file_name =~ s{[^/\\]+$}{};
   make_path $file_name;
 } # mkdir_for_file
+
+sub copy_file ($$) {
+  if (eval { require File::Copy }) {
+    return File::Copy::copy ($_[0] => $_[1]);
+  } else {
+    return ((system 'cp', $_[0] => $_[1]) == 0); # with $!
+  }
+} # copy_file
 
 sub copy_log_file ($$) {
   my ($file_name, $module_name) = @_;
@@ -493,7 +521,7 @@ sub copy_log_file ($$) {
   $log_file_name =~ s/::/-/g;
   $log_file_name = "$PMBPLogDirName/@{[time]}-$log_file_name.log";
   mkdir_for_file $log_file_name;
-  copy $file_name => $log_file_name or 
+  copy_file $file_name => $log_file_name or 
       info_die "Can't save log file: $!\n";
   info_writing 0, "install log file", $log_file_name;
   open my $file, '<', $file_name or info_die "$0: $file_name: $!";
@@ -520,6 +548,20 @@ sub info_log_file ($$$) {
   return $content;
 } # info_log_file
 
+our $HasFileTemp = 1;
+sub FileTemp () {
+  {
+    local $HasFileTemp = 0;
+    use_perl_core_module 'File::Temp';
+  }
+  return File::Temp->new;
+} # FileTemp
+
+sub create_temp_dir_name () {
+  use_perl_core_module 'File::Temp';
+  return File::Temp::tempdir ('PMBP-XX'.'XX'.'XX', TMPDIR => 1, CLEANUP => 1);
+} # create_temp_dir_name
+
 ## ------ Commands ------
 
 sub _quote_dq ($) {
@@ -543,8 +585,12 @@ sub run_command ($;%) {
   }
   my $stderr_file;
   if ($args{discard_stderr}) {
-    $stderr_file = File::Temp->new;
-    $args{"2>"} = $stderr_file->filename;
+    if ($HasFileTemp) {
+      $stderr_file = FileTemp;
+      $args{"2>"} = $stderr_file->filename;
+    } else {
+      $args{"2>"} = sub {};
+    }
   }
   local %ENV = map { defined $_ ? $_ : '' } (%ENV, %$envs);
   profiler_start ($args{profiler_name} || 'command');
@@ -581,6 +627,8 @@ sub run_command ($;%) {
 
 ## ------ Downloading ------
 
+sub install_system_packages ($;%);
+
 my $HasWget;
 my $HasCurl;
 sub _save_url {
@@ -592,13 +640,21 @@ sub _save_url {
   }
 
   my $fetcher;
-  $HasWget = which ($WgetCommand) ? 1 : 0 if not defined $HasWget;
-  $HasCurl = which ($CurlCommand) ? 1 : 0 if not defined $HasCurl;
-  if ($HasWget) {
-    $fetcher = 'wget';
-  } elsif ($HasCurl) {
-    $fetcher = 'curl';
-  } else {
+  for (0..1) {
+    $HasWget = which ($WgetCommand) ? 1 : 0 if not defined $HasWget;
+    $HasCurl = which ($CurlCommand) ? 1 : 0 if not defined $HasCurl;
+    if ($HasWget) {
+      $fetcher = 'wget';
+      last;
+    } elsif ($HasCurl) {
+      $fetcher = 'curl';
+      last;
+    } else {
+      install_system_packages [{name => 'curl'}];
+      undef $HasWget;
+      undef $HasCurl;
+      next;
+    }
     info_die "There is no |wget| or |curl|";
   }
 
@@ -721,8 +777,8 @@ sub load_json_after_garbage ($) {
   my $HasAPT;
   my $HasYUM;
   my $HasBrew;
-  sub install_system_packages ($) {
-    my ($packages) = @_;
+  sub install_system_packages ($;%) {
+    my ($packages, %args) = @_;
     return unless @$packages;
     
     $HasAPT = which ($AptGetCommand) ? 1 : 0
@@ -732,15 +788,24 @@ sub load_json_after_garbage ($) {
     $HasBrew = which ($BrewCommand) ? 1 : 0
         if not defined $HasBrew;
 
+    my @sudo = which ($SudoCommand) ? ($SudoCommand) : ();
+
     my $cmd;
     my $env = '';
     if ($HasAPT) {
-      $cmd = [$SudoCommand, '--', $AptGetCommand, 'install', '-y', map { $_->{debian_name} || $_->{name} } @$packages];
+      $cmd = [$AptGetCommand, 'install', '-y', map { $_->{debian_name} || $_->{name} } @$packages];
       $env = 'DEBIAN_FRONTEND="noninteractive" ';
     } elsif ($HasYUM) {
-      $cmd = [$SudoCommand, '--', $YumCommand, 'install', '-y', map { $_->{redhat_name} || $_->{name} } @$packages];
+      $cmd = [$YumCommand, 'install', '-y', map { $_->{redhat_name} || $_->{name} } @$packages];
     } elsif ($HasBrew) {
       $cmd = [$BrewCommand, 'install', map { $_->{homebrew_name} || $_->{name} } @$packages];
+    }
+    if ($HasAPT or $HasYUM) {
+      if (@sudo) {
+        unshift @$cmd, @sudo, '--';
+      } else {
+        $cmd = ['su', '-c', join ' ', map { length $_ ? quotemeta $_ : '""' } @$cmd];
+      }
     }
 
     if ($cmd) {
@@ -753,11 +818,22 @@ sub load_json_after_garbage ($) {
           info 0, '(Instead of installing libperl-devel, you can use --install-perl command)';
         }
       } else {
-        return run_command $cmd,
-            info_level => 0,
-            info_command_level => 0,
-            envs => {DEBIAN_FRONTEND => "noninteractive"},
-            accept_input => -t STDIN;
+        for (0..1) {
+          my $return = run_command $cmd,
+              info_level => 0,
+              info_command_level => 0,
+              envs => {DEBIAN_FRONTEND => "noninteractive"};
+
+          if (not $return and $args{update_unless_found}) {
+            if ($HasAPT) {
+              # E: Unable to locate package
+              run_command [$AptGetCommand, 'update'] and next;
+            }
+          }
+
+          return $return;
+        }
+        return 0;
       }
     } else {
       info 0, "Install following packages and retry:";
@@ -771,6 +847,23 @@ sub load_json_after_garbage ($) {
     return 0;
   } # install_system_packages
 }
+
+sub use_perl_core_module ($) {
+  my $package = $_[0];
+  eval qq{ require $package } and return;
+
+  my $sys = {
+    'File::Path' => {name => 'perl-File-Path', debian_name => 'libfile-path-perl'},
+    'File::Copy' => {name => 'perl-File-Copy', debian_name => 'libfile-copy-perl'},
+    'File::Temp' => {name => 'perl-File-Temp', debian_name => 'libfile-temp-perl'},
+    'Digest::MD5' => {name => 'perl-Digest-MD5', debian_name => 'libdigest-md5-perl'}, # core 5.7.3+
+    'PerlIO' => {name => 'perl-PerlIO', redhat_name => 'perl(PerlIO)', debian_name => 'perl-modules'}, # core 5.7.3+
+  }->{$package} or die "Package info for |$package| not defined";
+
+  install_system_packages [$sys], update_unless_found => 1;
+
+  eval qq{ require $package } or die $@; # not info_die
+} # use_perl_core_module
 
 {
   sub get_perlbrew_perl_bin_dir_name ($) {
@@ -941,6 +1034,18 @@ sub install_perlbrew () {
             -s "$RootDirName/local/perlbrew/bin/patchperl.main" and
             -s ("$RootDirName/local/perlbrew/bin/patchperl") < (-s "$RootDirName/local/perlbrew/bin/patchperl.main") and
             -s "$RootDirName/local/perlbrew/pmbp-perlbrew-v2";
+
+  use_perl_core_module 'PerlIO';
+
+  my @install;
+  push @install, {name => 'bzip2'} unless which ('bzip2');
+  push @install, {name => 'make'} unless which ('make');
+  push @install, {name => 'gcc'} unless which ('gcc');
+  if (@install) {
+    install_system_packages \@install
+        or info_die "Need to install commands before perlbrew";
+  }
+
   my $install_file_name = "$RootDirName/local/install.perlbrew";
   save_url $PerlbrewInstallerURL => $install_file_name;
 
@@ -1151,6 +1256,11 @@ sub install_cpanm () {
   if (not -f $CPANMCommand or
       [stat $CPANMCommand]->[9] < [stat $0]->[9]) { # mtime
     save_url $CPANMURL => $CPANMCommand;
+
+    unless (run_command ['perl', '-MExtUtils::MakeMaker', '-e', ' ']) {
+      install_system_packages [{name => 'perl-ExtUtils-MakeMaker', debian_name => 'libextutils-makemaker-perl'}] # core 5+
+          or info_die "Your perl does not have |ExtUtils::MakeMaker| (which is a core module)";
+    }
   }
 } # install_cpanm
 
@@ -1270,7 +1380,7 @@ sub install_makeinstaller ($$;%) {
     my $lib_dir_name = shift;
     return $CPANMDummyHomeDirNames->{$lib_dir_name} ||= do {
       ## For Module::Build-based packages (e.g. Class::Accessor::Lvalue)
-      require Digest::MD5;
+      use_perl_core_module 'Digest::MD5';
       my $key = Digest::MD5::md5_hex ($lib_dir_name);
       my $home_dir_name = "$CPANMHomeDirName/$key";
       my $file_name = "$home_dir_name/.modulebuildrc";
@@ -1516,6 +1626,9 @@ sub cpanm ($$) {
         if (defined $mod->package and $mod->package eq 'ExtUtils::Embed') {
           $install_extutils_embed = 1;
           $failed = 1;
+        } elsif (defined $mod->package and $mod->package eq 'ExtUtils::Manifest') {
+          push @required_system, {name => 'perl-ExtUtils-Manifest'}; # core 5.001+
+          $failed = 1;
         } elsif ($level == 1) {
           push @required_cpanm, $mod;
           push @required_install, $mod;
@@ -1582,7 +1695,11 @@ sub cpanm ($$) {
             qw{ExtUtils::MakeMaker ExtUtils::ParseXS};
         $failed = 1;
       }
-      if ($log =~ /^Failed to extract .+.zip - You need to have unzip or Archive::Zip installed./m) {
+      if ($log =~ /Failed to extract .+?.tar.gz - You need to have tar or Archive::Tar installed./m) {
+        #push @required_cpanm, PMBP::Module->new_from_package ('Archive::Tar'); # core 5.9.3+
+        push @required_system, {name => 'tar'};
+      }
+      if ($log =~ /Failed to extract .+.zip - You need to have unzip or Archive::Zip installed./m) {
         push @required_cpanm, PMBP::Module->new_from_package ('Archive::Zip');
       }
       if ($log =~ /^(JSON::PP) ([0-9.]+) is not available/m) {
@@ -1647,6 +1764,9 @@ sub cpanm ($$) {
         push @required_install, PMBP::Module->new_from_module_arg
             ('Params::Validate~1.11='.get_cpan_top_url.'/authors/id/D/DR/DROLSKY/Params-Validate-1.11.tar.gz');
         push @additional_option, '--skip-satisfied';
+      }
+      if ($log =~ /Can't configure the distribution. You probably need to have 'make'/m) {
+        push @required_system, {name => 'make'};
       }
       if ($log =~ /fatal error: openssl\/err.h: No such file or directory/m) {
         push @required_system,
@@ -1766,6 +1886,7 @@ sub cpanm ($$) {
             {name => 'python-devel', debian_name => 'python-dev'};
       }
       if ($log =~ /\bsh: 1: cc: not found$/m or
+          $log =~ /\bsh: gcc: command not found/m or
           $log =~ /^configure: error: no acceptable C compiler found/m) {
         push @required_system, {name => 'gcc'};
       }
@@ -1812,7 +1933,7 @@ sub cpanm ($$) {
         profiler_name => ($args->{scandeps} ? 'cpanm-scandeps' : $args->{info} ? 'cpanm-info' : 'cpanm'),
         prefix => "cpanm($CPANMDepth/$redo): ",
         '>' => (($args->{scandeps} || $args->{info} || $args->{version}) ? do {
-          $json_temp_file = File::Temp->new;
+          $json_temp_file = FileTemp;
         } : undef),
         discard_stderr => (($args->{scandeps} || $args->{info}) ? 1 : 0),
         '$$' => \$cpanm_pid,
@@ -2075,7 +2196,7 @@ sub save_by_pathname ($$) {
       }
     } else {
       if (-f $mirror) {
-        copy $mirror => $dest_file_name or
+        copy_file $mirror => $dest_file_name or
             info_die "$0: Can't copy $mirror";
         $module->{url} = $mirror;
         $module->{pathname} = $pathname;
@@ -2225,7 +2346,7 @@ sub copy_pmpp_modules ($$) {
         if ($rewrite_shebang) {
           rewrite_perl_shebang $_ => $dest, $perl_path;
         } else {
-          copy $_ => $dest or info_die "$0: $dest: $!";
+          copy_file $_ => $dest or info_die "$0: $dest: $!";
         }
         chmod ((stat $_)[2], $dest);
       } elsif (-d $_) {
@@ -2344,18 +2465,18 @@ sub create_perl_command_shortcut ($$$;%) {
     printf $file qq{\#!/bin/sh
 rootpath="\$(cd %s && pwd)"
 libpaths=`cat \$rootpath/%s 2> /dev/null | perl -MCwd=abs_path -e '\\\$p = abs_path shift; local \\\$/ = undef; print join q{:}, map { \\\$p . q{/} . \\\$_ } split /:/, <>' "\$rootpath"`
-PATH="%s" PMBP_ORIG_PATH="`perl -e '%s'`" PERL5LIB="\$libpaths" LD_LIBRARY_PATH="%s" exec %s"\$\@"\n},
+PMBP_ORIG_PATH="`perl -e '%s'`" PATH="%s" PERL5LIB="\$libpaths" LD_LIBRARY_PATH="%s" exec %s"\$\@"\n},
         ($root_path eq '.' ? '`dirname $0`' : '`dirname $0`/'._quote_dq $root_path),
         _quote_dq +File::Spec->abs2rel (get_relative_libs_txt_file_name ($perl_version), $RootDirName),
-        _quote_dq "\$rootpath/$pm_path:\$rootpath/$perl_path:" . '${PMBP_ORIG_PATH:-PATH}',
-        _quote_dq '${PMBP_ORIG_PATH:-PATH}',
+        _quote_dq '${PMBP_ORIG_PATH:-$PATH}',
+        _quote_dq "\$rootpath/$pm_path:\$rootpath/$perl_path:" . '${PMBP_ORIG_PATH:-$PATH}',
         _quote_dq '$rootpath/' . $lib_path . ':$LD_LIBRARY_PATH',
         (defined $command ? '"' . $command . '" ' : '') .
         (defined $arg ? '"' . $arg . '" ' : '');
   } else {
-    printf $file qq{\#!/bin/sh\nPATH="%s" PMBP_ORIG_PATH="%s" PERL5LIB="`cat %s 2> /dev/null`" LD_LIBRARY_PATH="%s" exec %s"\$\@"\n},
-        _quote_dq "$pm_path:$perl_path:" . '${PMBP_ORIG_PATH:-PATH}',
-        _quote_dq '${PMBP_ORIG_PATH:-PATH}',
+    printf $file qq{\#!/bin/sh\nPMBP_ORIG_PATH="%s" PATH="%s" PERL5LIB="`cat %s 2> /dev/null`" LD_LIBRARY_PATH="%s" exec %s"\$\@"\n},
+        _quote_dq '${PMBP_ORIG_PATH:-$PATH}',
+        _quote_dq "$pm_path:$perl_path:" . '${PMBP_ORIG_PATH:-$PATH}',
         _quote_dq get_libs_txt_file_name ($perl_version),
         _quote_dq $lib_path . ':$LD_LIBRARY_PATH',
         (defined $command ? '"' . $command . '" ' : '') .
@@ -2417,7 +2538,7 @@ sub scandeps ($$$;%) {
     }
   }
 
-  my $temp_dir_name = $args{temp_dir_name} || tempdir('PMBP-XX'.'XX'.'XX', TMPDIR => 1, CLEANUP => 1);
+  my $temp_dir_name = $args{temp_dir_name} || create_temp_dir_name;
 
   get_local_copy_if_necessary $module;
   my $result = cpanm {perl_version => $perl_version,
@@ -2752,7 +2873,7 @@ sub read_install_list ($$$;%) {
   info 2, "Examining |$dir_name| ...";
 
   my $onadd = sub { my $source = shift; return sub {
-    info 1, sprintf '%s requires %s', $source, $_[0]->as_short;
+    info 1, sprintf '|%s| requires |%s|', $source, $_[0]->as_short;
     push @{$args{dep_graph} or []}, [$args{dep_graph_source} => $_[0]]
         if $args{dep_graph_source};
   } }; # $onadd
@@ -2820,7 +2941,7 @@ sub read_install_list ($$$;%) {
                 or info_die "Build distmeta failed";
         info_die "Build distmeta failed" unless -f "$dir_name/META.yml";
       }
-      my $temp_dir_name = tempdir('PMBP-XX'.'XX'.'XX', TMPDIR => 1, CLEANUP => 1);
+      my $temp_dir_name = create_temp_dir_name;
       my $result = cpanm {perl_version => $perl_version,
                           perl_lib_dir_name => $temp_dir_name,
                           temp_dir_name => $temp_dir_name,
@@ -2835,6 +2956,10 @@ sub read_install_list ($$$;%) {
     my $mod_names = scan_dependency_from_directory ($dir_name);
     my $modules = [];
     for (keys %$mod_names) {
+      if ($args{exclusions}->{modules}->{$_}) {
+        info 6, "Module |$_| excluded by |$args{exclusions}->{modules}->{$_}|";
+        next;
+      }
       my $mod = PMBP::Module->new_from_package ($_);
       push @$modules, $mod;
       $onadd->($dir_name)->($mod);
@@ -2952,12 +3077,13 @@ sub scan_dependency_from_directory ($) {
   my @exclude_pattern = map { "^$_" } qw(modules bin/modules t_deps/modules t_deps/projects);
   for (split /\n/, qx{cd \Q$dir_name\E && find @{[join ' ', grep quotemeta, @include_dir_name]} 2> /dev/null @{[join ' ', map { "| grep -v $_" } grep quotemeta, @exclude_pattern]} | grep "\\.\\(pm\\|pl\\|t\\)\$" | xargs grep "\\(use\\|require\\|extends\\) " --no-filename}) {
     s/\#.*$//;
-    if (/\b(?:(?:use|require)\s*(?:base|parent)|extends)\s*(.+)/) {
+    while (/\b(?:(?:use|require)\s*(?:base|parent)|extends)\s*(.+)/g) {
       my $base = $1;
       while ($base =~ /([0-9A-Za-z_:]+)/g) {
         $modules->{$1} = 1;
       }
-    } elsif (/\b(?:use|require)\s*([0-9A-Za-z_:]+)/) {
+    }
+    while (/\b(?:use|require)\s*([0-9A-Za-z_:]+)/g) {
       my $name = $1;
       next if $name =~ /["']/;
       $modules->{$name} = 1;
@@ -3308,9 +3434,11 @@ sub get_latest_svn_versions () {
     open my $file, '<', $file_name or die "$0: $file_name: $!";
     local $/ = undef;
     $html = scalar <$file>;
+    $html =~ s/&nbsp;/ /g;
+    $html =~ s/\s+/ /g;
   }
 
-  my $versions = {subversion => '1.8.8',
+  my $versions = {subversion => '1.8.11',
                   _mirror => 'http://www.apache.org/dist/'};
 
   if ($html =~ /The best available version of Apache Subversion is:\s*([0-9.]+)/) {
@@ -5569,7 +5697,7 @@ Wakaba <wakaba@suikawiki.org>.
 
 =head1 LICENSE
 
-Copyright 2012-2014 Wakaba <wakaba@suikawiki.org>.
+Copyright 2012-2015 Wakaba <wakaba@suikawiki.org>.
 
 Copyright 2012-2013 Hatena <http://www.hatena.ne.jp/company/>.
 
