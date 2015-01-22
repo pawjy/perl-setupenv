@@ -17,6 +17,7 @@ BEGIN { eval q{ use Time::HiRes qw(time); 1 } or warn $@ };
 my $PerlCommand = 'perl';
 my $SpecifiedPerlVersion = $ENV{PMBP_PERL_VERSION};
 my $PerlOptions = {};
+$PerlOptions->{relocatable} = 1 if $ENV{PMBP_HEROKU_BUILDPACK};
 my $WgetCommand = 'wget';
 my @WgetOption = ($ENV{PMBP_IGNORE_TLS_ERRORS} ? '--no-check-certificate' : ());
 my $CurlCommand = 'curl';
