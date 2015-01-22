@@ -2465,7 +2465,7 @@ sub create_perl_command_shortcut ($$$;%) {
     printf $file qq{\#!/bin/sh
 rootpath="\$(cd %s && pwd)"
 libpaths=`cat \$rootpath/%s 2> /dev/null | perl -MCwd=abs_path -e '\\\$p = abs_path shift; local \\\$/ = undef; print join q{:}, map { \\\$p . q{/} . \\\$_ } split /:/, <>' "\$rootpath"`
-PMBP_ORIG_PATH="`perl -e '%s'`" PATH="%s" PERL5LIB="\$libpaths" LD_LIBRARY_PATH="%s" exec %s"\$\@"\n},
+PMBP_ORIG_PATH="%s" PATH="%s" PERL5LIB="\$libpaths" LD_LIBRARY_PATH="%s" exec %s"\$\@"\n},
         ($root_path eq '.' ? '`dirname $0`' : '`dirname $0`/'._quote_dq $root_path),
         _quote_dq +File::Spec->abs2rel (get_relative_libs_txt_file_name ($perl_version), $RootDirName),
         _quote_dq '${PMBP_ORIG_PATH:-$PATH}',
