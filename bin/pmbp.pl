@@ -1768,7 +1768,7 @@ sub cpanm ($$) {
       if ($log =~ /Can't configure the distribution. You probably need to have 'make'/m) {
         push @required_system, {name => 'make'};
       }
-      if ($log =~ /fatal error: openssl\/err.h: No such file or directory/m) {
+      if ($log =~ /error: openssl\/err.h: No such file or directory/m) {
         push @required_system,
             {name => 'openssl-devel', debian_name => 'libssl-dev'};
       }
