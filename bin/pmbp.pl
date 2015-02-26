@@ -1629,7 +1629,7 @@ sub cpanm ($$) {
         } elsif (defined $mod->package and $mod->package eq 'ExtUtils::Manifest') {
           push @required_system, {name => 'perl-ExtUtils-Manifest'}; # core 5.001+
           $failed = 1;
-        } elsif ($level == 1) {
+        } elsif ($level <= 2) {
           push @required_cpanm, $mod;
           push @required_install, $mod;
         } else {
