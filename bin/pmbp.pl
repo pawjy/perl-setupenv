@@ -3401,7 +3401,7 @@ sub get_latest_apache_httpd_versions () {
 
   my $versions = {httpd => '2.4.3',
                   'httpd-2.4' => '2.4.3',
-                  'httpd-2.2' => '2.2.23',
+                  'httpd-2.2' => '2.2.29',
                   'httpd-2.0' => '2.0.64',
                   _mirror => 'http://www.apache.org/dist/'};
 
