@@ -650,7 +650,8 @@ sub _save_url {
       $fetcher = 'curl';
       last;
     } else {
-      install_system_packages [{name => 'curl'}];
+      install_system_packages [{name => 'curl'}]
+          or info_die "There is no |wget| or |curl|";
       undef $HasWget;
       undef $HasCurl;
       next;
@@ -860,7 +861,7 @@ sub use_perl_core_module ($) {
     'PerlIO' => {name => 'perl-PerlIO', redhat_name => 'perl(PerlIO)', debian_name => 'perl-modules'}, # core 5.7.3+
   }->{$package} or die "Package info for |$package| not defined";
 
-  install_system_packages [$sys], update_unless_found => 1;
+  install_system_packages [$sys], update_unless_found => 1; # or die at require
 
   eval qq{ require $package } or die $@; # not info_die
 } # use_perl_core_module
