@@ -650,7 +650,8 @@ sub _save_url {
       $fetcher = 'curl';
       last;
     } else {
-      install_system_packages [{name => 'curl'}];
+      install_system_packages [{name => 'curl'}]
+          or info_die "There is no |wget| or |curl|";
       undef $HasWget;
       undef $HasCurl;
       next;
@@ -860,7 +861,7 @@ sub use_perl_core_module ($) {
     'PerlIO' => {name => 'perl-PerlIO', redhat_name => 'perl(PerlIO)', debian_name => 'perl-modules'}, # core 5.7.3+
   }->{$package} or die "Package info for |$package| not defined";
 
-  install_system_packages [$sys], update_unless_found => 1;
+  install_system_packages [$sys], update_unless_found => 1; # or die at require
 
   eval qq{ require $package } or die $@; # not info_die
 } # use_perl_core_module
@@ -1403,11 +1404,11 @@ sub cpanm ($$) {
   my $perl_lib_dir_name = $args->{perl_lib_dir_name}
       || (($args->{info} or $args->{version}) ? $CPANMDirName : undef)
       or info_die "No |perl_lib_dir_name| specified";
+  my $perl_command = $args->{perl_command} || $PerlCommand;
   my $perl_version = $args->{perl_version}
-      || (($args->{info} or $args->{version}) ? (sprintf '%vd', $^V) : undef)
+      || (($args->{info} or $args->{version}) ? (get_perl_version ($perl_command)) : undef)
       or info_die "No |perl_version| specified";
   my $path = get_env_path ($perl_version);
-  my $perl_command = $args->{perl_command} || $PerlCommand;
 
   if (not $args->{info} and @$modules == 1 and ref $modules->[0]) {
     if ($modules->[0]->is_perl) {
@@ -1629,7 +1630,7 @@ sub cpanm ($$) {
         } elsif (defined $mod->package and $mod->package eq 'ExtUtils::Manifest') {
           push @required_system, {name => 'perl-ExtUtils-Manifest'}; # core 5.001+
           $failed = 1;
-        } elsif ($level == 1) {
+        } elsif ($level <= 2) {
           push @required_cpanm, $mod;
           push @required_install, $mod;
         } else {
@@ -3400,7 +3401,7 @@ sub get_latest_apache_httpd_versions () {
 
   my $versions = {httpd => '2.4.3',
                   'httpd-2.4' => '2.4.3',
-                  'httpd-2.2' => '2.2.23',
+                  'httpd-2.2' => '2.2.29',
                   'httpd-2.0' => '2.0.64',
                   _mirror => 'http://www.apache.org/dist/'};
 
