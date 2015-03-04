@@ -3969,6 +3969,8 @@ while (@Command) {
       unshift @Command, {type => 'install-perl-if-necessary'};
     }
 
+    info 1, sprintf "Selected CPAN mirror: <%s>", get_cpan_top_url;
+
   } elsif ($command->{type} eq 'print-pmbp-pl-etag') {
     my $etag = get_pmbp_pl_etag;
     print $etag if defined $etag;
