@@ -1354,23 +1354,34 @@ sub install_makeinstaller ($$;%) {
   mkdir_for_file "$MakeInstaller.$name";
   open my $file, '>', "$MakeInstaller.$name"
       or info_die "$0: $MakeInstaller.name: $!";
-  my $cmd1 = 'Makefile.PL';
-  my $cmd2 = 'make';
   if ($args{module_build}) {
-    $cmd1 = 'Build.PL';
-    $cmd2 = './Build';
-  }
-  printf $file q{#!/bin/sh
-    (
+    printf $file q{#!/bin/sh
       export SHELL="%s"
-      echo perl %s %s && perl %s %s && \
-      echo %s                && %s && \
-      echo %s install        && %s install
-    ) || echo "!!! MakeInstaller failed !!!"
-  }, _quote_dq $ENV{SHELL},
-      $cmd1, $makefilepl_args, $cmd1, $makefilepl_args,
-      $cmd2, $cmd2,
-      $cmd2, $cmd2;
+      (
+        if [ -f Build.PL ]; then
+          echo perl Build.PL %s && perl Build.PL %s && \
+          echo ./Build          && ./Build && \
+          echo ./Build install  && ./Build install
+        else
+          echo perl Makefile.PL %s && perl Makefile.PL %s && \
+          echo make                && make && \
+          echo make install        && make install
+        fi
+      ) || echo "!!! MakeInstaller failed !!!"
+    }, _quote_dq $ENV{SHELL},
+       $makefilepl_args, $makefilepl_args,
+       $makefilepl_args, $makefilepl_args;
+  } else {
+    printf $file q{#!/bin/sh
+      (
+        export SHELL="%s"
+        echo perl Makefile.PL %s && perl Makefile.PL %s && \
+        echo make                && make && \
+        echo make install        && make install
+      ) || echo "!!! MakeInstaller failed !!!"
+    }, _quote_dq $ENV{SHELL},
+       $makefilepl_args, $makefilepl_args;
+  }
   close $file;
   chmod 0755, "$MakeInstaller.$name";
 } # install_makeinstaller
@@ -3968,6 +3979,8 @@ while (@Command) {
       unshift @Command, {type => 'create-perlbrew-perl-latest-symlink'};
       unshift @Command, {type => 'install-perl-if-necessary'};
     }
+
+    info 1, sprintf "Selected CPAN mirror: <%s>", get_cpan_top_url;
 
   } elsif ($command->{type} eq 'print-pmbp-pl-etag') {
     my $etag = get_pmbp_pl_etag;
