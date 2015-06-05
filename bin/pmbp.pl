@@ -1304,7 +1304,11 @@ sub install_cpanm_wrapper () {
       if ($module eq 'ExtUtils::MakeMaker' and
           defined $version and
           $version =~ /^(\d+)\.(\d{2})(\d{2})$/) {
-        $version = "$1.$2\_$3";
+        if ($2 eq '04') {
+          $version = "$1.$2";
+        } else {
+          $version = "$1.$2\_$3";
+        }
         warn "$module $1.$2$3 -> $version rewritten\n";
       }
       return $orig_search_module->($self, $module, $version);
