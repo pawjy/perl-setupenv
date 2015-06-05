@@ -1298,17 +1298,28 @@ sub install_cpanm_wrapper () {
       }
     };
 
+    ## To support "Checking if you have ExtUtils::MakeMaker 7.0401 ... Yes (7.04_01)":-<
+    my $orig_accepts = \&CPAN::Meta::Requirements::_Range::Range::_accepts;
+    *CPAN::Meta::Requirements::_Range::Range::_accepts = sub {
+      my ($self, $version) = @_;
+      return 1 if $orig_accepts->(@_);
+      if (defined $self->{minimum} and
+          not defined $self->{maximum} and not defined $self->{exclusions}) {
+        my $min = $self->{minimum};
+        $min =~ tr/_//d;
+        $version =~ tr/_//d;
+        return 1 if $min eq $version;
+      }
+      return;
+    }; # _accepts
+
     my $orig_search_module = \&App::cpanminus::script::search_module;
     *App::cpanminus::script::search_module = sub {
       my ($self, $module, $version) = @_;
       if ($module eq 'ExtUtils::MakeMaker' and
           defined $version and
           $version =~ /^(\d+)\.(\d{2})(\d{2})$/) {
-        if ($2 eq '04') {
-          $version = "$1.$2";
-        } else {
-          $version = "$1.$2\_$3";
-        }
+        $version = "$1.$2\_$3";
         warn "$module $1.$2$3 -> $version rewritten\n";
       }
       return $orig_search_module->($self, $module, $version);
