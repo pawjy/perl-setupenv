@@ -1873,6 +1873,10 @@ sub cpanm ($$) {
             {name => 'kakasi-devel', debian_name => 'libkakasi2-dev'};
         $failed = 1;
       }
+      if ($log =~ /error: Your compiler is not powerful enough to compile MeCab/m) {
+        push @required_system, {name => 'build-essential'}; # debian
+        $failed = 1;
+      }
       if ($log =~ /^Can\'t proceed without mecab-config./m) {
         $required_misc{mecab} = 1;
         $failed = 1;
