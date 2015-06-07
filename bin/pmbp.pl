@@ -1090,7 +1090,7 @@ sub install_perlbrew () {
                   => "$RootDirName/local/perlbrew/bin/patchperl.main"]
       or info_die "Can't move $RootDirName/local/perlbrew/bin/patchperl";
   open my $f, '>', "$RootDirName/local/perlbrew/bin/patchperl"
-      or info_die "Can't write $RootDirName/local/perlbrew/bin/patchperl";
+      or info_die "Can't write $RootDirName/local/perlbrew/bin/patchperl: $!";
   print $f qq{\#!/usr/bin/perl
     use lib "@{[abs_path "$RootDirName/local/perlbrew/lib/perl5"]}";
     do "@{[abs_path "$RootDirName/local/perlbrew/bin/patchperl.main"]}";
