@@ -14,7 +14,7 @@ perlbrew, cpanm, carton, and git.
 
 Install the pmbp.pl into ./local/bin:
 
-  $ curl http://wakaba.github.io/packages/pmbp | sh
+  $ curl https://wakaba.github.io/packages/pmbp | sh
 
 * Makefile.setupenv (deprecated)
 
