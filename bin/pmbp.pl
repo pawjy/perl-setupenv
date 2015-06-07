@@ -1722,6 +1722,9 @@ sub cpanm ($$) {
             qw{ExtUtils::MakeMaker ExtUtils::ParseXS};
         $failed = 1;
       }
+      if ($log =~ /^MoreUtils.xs:.+?: error: 'GIMME' undeclared/m) {
+        push @required_install, PMBP::Module->new_from_package ('List::MoreUtils~0.410');
+      }
       if ($log =~ /Failed to extract .+?.tar.gz - You need to have tar or Archive::Tar installed./m) {
         #push @required_cpanm, PMBP::Module->new_from_package ('Archive::Tar'); # core 5.9.3+
         push @required_system, {name => 'tar'};
