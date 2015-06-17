@@ -2950,7 +2950,8 @@ sub read_install_list ($$$;%) {
       ## cpanfile for module installation).
       get_dependency_from_cpanfile
           ("$dir_name/cpanfile" => $module_index,
-           onadd => $onadd->("$dir_name/cpanfile"));
+           onadd => $onadd->("$dir_name/cpanfile"),
+           exclusions => $args{exclusions});
       last THIS;
     }
     
@@ -3095,6 +3096,12 @@ sub get_dependency_from_cpanfile ($$;%) {
 
   my $modules = [];
   for (keys %{$req->as_string_hash}) {
+    if ($args{exclusions}->{modules}->{$_}) {
+      info 6, "Module |$_| excluded by |$args{exclusions}->{modules}->{$_}|";
+      next;
+    } elsif ($_ eq 'perl') {
+      next;
+    }
     my $module = PMBP::Module->new_from_package ($_);
     push @$modules, $module;
     $args{onadd}->($module) if $args{onadd};
