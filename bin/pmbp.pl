@@ -150,6 +150,15 @@ GetOptions (
   '--add-to-gitignore=s' => sub {
     push @Command, {type => 'add-to-gitignore', value => $_[1]};
   },
+  '--add-git-submodule=s' => sub {
+    my ($parent, $url) = split /\s+/, $_[1], 2;
+    if (defined $url) {
+      push @Command, {type => 'add-git-submodule',
+                      parent_dir_name => $parent, url => $url};
+    } else {
+      push @Command, {type => 'add-git-submodule', url => $parent};
+    }
+  },
   '--create-perl-command-shortcut=s' => sub {
     ## See also: |create_perl_command_shortcut_by_file|
     my %args;
@@ -954,6 +963,59 @@ sub update_gitignore () {
     /config/perl/libs.txt
   )] => $gitignore_file_name;
 } # update_gitignore
+
+sub git_submodule_dir_names ($) {
+  my ($git_dir_name) = @_;
+  my $out = '';
+  run_command
+      ['git', 'submodule', '--quiet', 'foreach', 'sh', '-c', 'true; echo $path'],
+      chdir => $git_dir_name,
+      onoutput => sub { $out .= $_[0]; 6 }
+          or info_die "git submodule failed";
+  return [grep { length } split /\x0A/, $out];
+} # git_submodule_dir_names
+
+sub git_submodule_url ($$) {
+  my ($git_dir_name, $submodule_dir_name) = @_;
+  my $out = '';
+  run_command
+      ['git', 'config', '-f', '.gitmodules', "submodule.$submodule_dir_name.url"],
+      chdir => $git_dir_name,
+      onoutput => sub { $out .= $_[0]; 6 }
+          or info_die "git config failed";
+  chomp $out if defined $out;
+  return length $out ? $out : undef;
+} # git_submodule_url
+
+sub add_git_submodule ($$;%) {
+  my ($git_dir_name, $url, %args) = @_;
+  my $parent = $args{parent_dir_name};
+  $parent = 'modules' if not defined $parent;
+  my $dir_name = [grep { length } split m{/}, $url]->[-1];
+  $dir_name =~ s/\.git$//;
+  $dir_name =~ s/^perl-//;
+  for my $submodule_dir_name (grep { m{^\Q$parent\E/} } @{git_submodule_dir_names $git_dir_name}) {
+    my $submodule_url = git_submodule_url $git_dir_name, $submodule_dir_name;
+    if ($submodule_url eq $url) {
+      info 5, "$git_dir_name: submodule <$url> is already added as |$submodule_dir_name|";
+      return;
+    }
+  }
+  if (-e "$git_dir_name/$parent/$dir_name") {
+    my $i = 2;
+    {
+      if (-e "$git_dir_name/$parent/$dir_name.$i") {
+        $i++;
+        redo;
+      }
+      $dir_name = "$dir_name.$i";
+    }
+  }
+  run_command
+      ['git', 'submodule', 'add', $url, "$parent/$dir_name"],
+      chdir => $git_dir_name
+          or info_die "git submodule failed";
+} # add_git_submodule
 
 ## ------ Perl ------
 
@@ -2950,7 +3012,8 @@ sub read_install_list ($$$;%) {
       ## cpanfile for module installation).
       get_dependency_from_cpanfile
           ("$dir_name/cpanfile" => $module_index,
-           onadd => $onadd->("$dir_name/cpanfile"));
+           onadd => $onadd->("$dir_name/cpanfile"),
+           exclusions => $args{exclusions});
       last THIS;
     }
     
@@ -3095,6 +3158,12 @@ sub get_dependency_from_cpanfile ($$;%) {
 
   my $modules = [];
   for (keys %{$req->as_string_hash}) {
+    if ($args{exclusions}->{modules}->{$_}) {
+      info 6, "Module |$_| excluded by |$args{exclusions}->{modules}->{$_}|";
+      next;
+    } elsif ($_ eq 'perl') {
+      next;
+    }
     my $module = PMBP::Module->new_from_package ($_);
     push @$modules, $module;
     $args{onadd}->($module) if $args{onadd};
@@ -4014,6 +4083,10 @@ while (@Command) {
     update_gitignore;
   } elsif ($command->{type} eq 'add-to-gitignore') {
     add_to_gitignore [$command->{value}] => "$RootDirName/.gitignore";
+
+  } elsif ($command->{type} eq 'add-git-submodule') {
+    add_git_submodule $RootDirName, $command->{url},
+        parent_dir_name => $command->{parent_dir_name};
 
   } elsif ($command->{type} eq 'print-cpan-top-url') {
     print get_cpan_top_url;
@@ -5531,6 +5604,43 @@ command might be useful to combine multiple C<--print-*> commands.
 
 Add the specified file name or path to the C<.gitignore> file in the
 root directory (if not yet).
+
+=item --add-git-submodule="url"
+
+=item --add-git-submodule="parent-path url"
+
+Add a Git submodule.
+
+When this command is invoked, the root directory (the path specified
+by C<--root-dir-name>) must be a Git repository.
+
+If a URL is specified, it is interpreted as a Git repository URL and
+the container directory path is set to C<modules>.  If a path relative
+to the root of the Git repository, followed by a space character,
+followed by a URL, is specified, it is used as the container directory
+path and the URL is interpreted as a Git repository URL.  Note that
+there must be no trailing slash (C</>) character in the container
+directory path.
+
+If there is already a Git submodule with the specified URL as a child
+of the container directory, this command does nothing.
+
+Otherwise, the specified Git repository is added as a child of the
+container directory, whose directory name is the last path segment of
+the Git repository URL, ignoring any C<perl-> prefix and C<.git>
+suffix.  If there is already a file with same name, C<.n> where I<n>
+is an integer is appended to the name.
+
+For example,
+
+  $ perl local/bin/pmbp.pl --add-git-submodule git://example/my/app1.git
+
+... will add the Git repository as a submodule C<modules/app1>.
+
+  $ perl local/bin/pmbp.pl --add-git-submodule "t_deps/modules git://example/my/app1.git"
+
+... will add the Git repository as a submodule C<t_deps/modules/app1>,
+even when there is C<modules/app1>.
 
 =back
 

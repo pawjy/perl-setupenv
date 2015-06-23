@@ -28,6 +28,10 @@ test: test-deps test-main
 
 test-deps: git-submodules deps
 
+test-deps-travis: test-deps
+	$(GIT) config --global user.email "temp@travis.test"
+	$(GIT) config --global user.name "Travis CI"
+
 test-main:
 ifeq "$(TARGET)" ""
 	$(PROVE) --verbose t/*/*.t
@@ -46,6 +50,9 @@ ifeq "$(TARGET)" "lists"
 endif
 ifeq "$(TARGET)" "env"
 	$(PROVE) -j1 --verbose t/pmbp-env/*.t
+endif
+ifeq "$(TARGET)" "git"
+	$(PROVE) -j1 --verbose t/pmbp-git/*.t
 endif
 ifeq "$(TARGET)" "scan"
 	$(PROVE) -j1 --verbose t/pmbp-scan/*.t

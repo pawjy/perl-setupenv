@@ -15,11 +15,12 @@ env:
     - TARGET=rrdtool
     - TARGET=mecab
     - TARGET=env
+    - TARGET=git
     - TARGET=update
     - TARGET=install-1
     - TARGET=normal
 before_install: git submodule update --init
-install: "make test-deps"
+install: "make test-deps-travis"
 script: "make test"
 after_success:
   - curl https://gist.githubusercontent.com/wakaba/9970857/raw/travis-merger.pl | perl
