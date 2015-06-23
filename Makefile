@@ -28,6 +28,10 @@ test: test-deps test-main
 
 test-deps: git-submodules deps
 
+test-deps-travis: test-deps
+	$(GIT) config --global user.email "temp@travis.test"
+	$(GIT) config --global user.name "Travis CI"
+
 test-main:
 ifeq "$(TARGET)" ""
 	$(PROVE) --verbose t/*/*.t
