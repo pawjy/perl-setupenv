@@ -47,6 +47,9 @@ endif
 ifeq "$(TARGET)" "env"
 	$(PROVE) -j1 --verbose t/pmbp-env/*.t
 endif
+ifeq "$(TARGET)" "git"
+	$(PROVE) -j1 --verbose t/pmbp-git/*.t
+endif
 ifeq "$(TARGET)" "scan"
 	$(PROVE) -j1 --verbose t/pmbp-scan/*.t
 endif

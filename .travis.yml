@@ -15,6 +15,7 @@ env:
     - TARGET=rrdtool
     - TARGET=mecab
     - TARGET=env
+    - TARGET=git
     - TARGET=update
     - TARGET=install-1
     - TARGET=normal
