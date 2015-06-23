@@ -159,6 +159,17 @@ GetOptions (
       push @Command, {type => 'add-git-submodule', url => $parent};
     }
   },
+  '--add-git-submodule-recursively=s' => sub {
+    my ($parent, $url) = split /\s+/, $_[1], 2;
+    if (defined $url) {
+      push @Command, {type => 'add-git-submodule',
+                      parent_dir_name => $parent, url => $url,
+                      recursive => 1};
+    } else {
+      push @Command, {type => 'add-git-submodule', url => $parent,
+                      recursive => 1};
+    }
+  },
   '--create-perl-command-shortcut=s' => sub {
     ## See also: |create_perl_command_shortcut_by_file|
     my %args;
@@ -964,16 +975,30 @@ sub update_gitignore () {
   )] => $gitignore_file_name;
 } # update_gitignore
 
-sub git_submodule_dir_names ($) {
+sub git_submodules ($) {
   my ($git_dir_name) = @_;
   my $out = '';
+  #run_command
+  #    ['git', 'submodule', '--quiet', 'foreach', 'sh', '-c', 'true; echo $path'],
+  #    chdir => $git_dir_name,
+  #    onoutput => sub { $out .= $_[0]; 6 }
+  #        or info_die "git submodule failed";
+  #return [map { +{dir_name => $_} } grep { length } split /\x0A/, $out];
+  return [] unless -f "$git_dir_name/.gitmodules";
   run_command
-      ['git', 'submodule', '--quiet', 'foreach', 'sh', '-c', 'true; echo $path'],
+      ['git', 'config', '-f', '.gitmodules',
+       '--get-regexp', '^submodule\..+\.url$'],
       chdir => $git_dir_name,
-      onoutput => sub { $out .= $_[0]; 6 }
-          or info_die "git submodule failed";
-  return [grep { length } split /\x0A/, $out];
-} # git_submodule_dir_names
+      onoutput => sub { $out .= $_[0]; 6 };
+  # fail if no .gitmodules, no submodule in .gitmodules, or not in git repo
+  my @r;
+  for (split /\x0A/, $out) {
+    if (m{^submodule\.(\S+)\.url\s+(.+)$}) {
+      push @r, {dir_name => $1, url => $2};
+    }
+  }
+  return \@r;
+} # git_submodules
 
 sub git_submodule_url ($$) {
   my ($git_dir_name, $submodule_dir_name) = @_;
@@ -987,6 +1012,7 @@ sub git_submodule_url ($$) {
   return length $out ? $out : undef;
 } # git_submodule_url
 
+sub add_git_submodule ($$;%);
 sub add_git_submodule ($$;%) {
   my ($git_dir_name, $url, %args) = @_;
   my $parent = $args{parent_dir_name};
@@ -994,11 +1020,15 @@ sub add_git_submodule ($$;%) {
   my $dir_name = [grep { length } split m{/}, $url]->[-1];
   $dir_name =~ s/\.git$//;
   $dir_name =~ s/^perl-//;
-  for my $submodule_dir_name (grep { m{^\Q$parent\E/} } @{git_submodule_dir_names $git_dir_name}) {
-    my $submodule_url = git_submodule_url $git_dir_name, $submodule_dir_name;
-    if ($submodule_url eq $url) {
-      info 5, "$git_dir_name: submodule <$url> is already added as |$submodule_dir_name|";
-      return;
+  for my $submodule (grep { $_->{dir_name} =~ m{^\Q$parent\E/} } @{git_submodules $git_dir_name}) {
+    if ($submodule->{url} eq $url) {
+      info 5, "$git_dir_name: submodule <$url> is already added as |$submodule->{dir_name}|";
+      if ($args{recursive} and $args{top_level}) {
+        for my $submodule (grep { $_->{dir_name} =~ m{^modules/} } @{git_submodules "$git_dir_name/$submodule->{dir_name}"}) {
+          add_git_submodule $git_dir_name, $submodule->{url}, recursive => $args{recursive};
+        }
+      }
+      return undef;
     }
   }
   if (-e "$git_dir_name/$parent/$dir_name") {
@@ -1015,6 +1045,12 @@ sub add_git_submodule ($$;%) {
       ['git', 'submodule', 'add', $url, "$parent/$dir_name"],
       chdir => $git_dir_name
           or info_die "git submodule failed";
+  if ($args{recursive}) {
+    for my $submodule (grep { $_->{dir_name} =~ m{^modules/} } @{git_submodules "$git_dir_name/$parent/$dir_name"}) {
+      add_git_submodule $git_dir_name, $submodule->{url}, recursive => $args{recursive};
+    }
+  }
+  return "$parent/$dir_name";
 } # add_git_submodule
 
 ## ------ Perl ------
@@ -4086,7 +4122,9 @@ while (@Command) {
 
   } elsif ($command->{type} eq 'add-git-submodule') {
     add_git_submodule $RootDirName, $command->{url},
-        parent_dir_name => $command->{parent_dir_name};
+        parent_dir_name => $command->{parent_dir_name},
+        recursive => $command->{recursive},
+        top_level => 1;
 
   } elsif ($command->{type} eq 'print-cpan-top-url') {
     print get_cpan_top_url;
@@ -5641,6 +5679,14 @@ For example,
 
 ... will add the Git repository as a submodule C<t_deps/modules/app1>,
 even when there is C<modules/app1>.
+
+=item --add-git-submodule-recursively="url"
+
+=item --add-git-submodule-recursively="parent-path url"
+
+Add a Git submodule recursively.  That is, this command adds the
+specified Git repository, as well as submodules of the repository in
+the C<modules> directory.
 
 =back
 
