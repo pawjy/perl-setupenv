@@ -1041,6 +1041,7 @@ sub add_git_submodule ($$;%) {
       $dir_name = "$dir_name.$i";
     }
   }
+  info 0, "Adding <$url> as a submodule...";
   run_command
       ['git', 'submodule', 'add', $url, "$parent/$dir_name"],
       chdir => $git_dir_name
