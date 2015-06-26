@@ -402,6 +402,20 @@ $PMPPDirName ||= $RootDirName . '/deps/pmpp';
   } # profiler_data
 }
 
+sub get_real_time () {
+  save_url (q<https://ntp-a1.nict.go.jp/cgi-bin/jst> => "$RootDirName/local/timestamp")
+      or do { info 0, "Can't get current timestamp"; return undef };
+  open my $file, '<', "$RootDirName/local/timestamp" or
+      do { info 0, "Failed to open timestamp file"; return undef };
+  local $/ = undef;
+  my $timestamp = <$file>;
+  if ($timestamp =~ m{<BODY>\s*([0-9.]+)\s*</BODY>}s) {
+    return 0+$1;
+  }
+  info 0, "Timestamp file broken";
+  return undef;
+} # get_real_time
+
 ## ------ PMBP ------
 
 sub copy_file ($$);
@@ -4048,6 +4062,20 @@ my $get_perl_version = sub {
 my $dep_graph = [];
 my $exclusions = {};
 my $root_module = PMBP::Module->new_from_package ('.');
+
+{
+  ## Check the clock of the machine.  If its value is wrong, some of
+  ## building process, such as |make|, might not work because of
+  ## failure of timestamp comparison.
+  my $time = time;
+  my $timestamp = get_real_time;
+  my $delta = $time - $timestamp;
+  $delta = -$delta if $delta < 0;
+  if ($delta > 60*10) {
+    info 0, sprintf "Your clock is misconfigured! (Yours = %s, Global = %s, Delta = %s)",
+        $time, $timestamp, $delta;
+  }
+}
 
 while (@Command) {
   my $command = shift @Command;
