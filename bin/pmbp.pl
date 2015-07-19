@@ -2576,7 +2576,7 @@ sub rewrite_pm_bin_shebang ($) {
   profiler_start 'file';
   require File::Find;
   my $bin_path = abs_path (get_pm_dir_name ($perl_version) . '/bin');
-  return unless -d $bin_path;
+  return if not defined $bin_path or not -d $bin_path;
   my $env = which 'env';
   File::Find::find (sub {
     if (-f $_) {
