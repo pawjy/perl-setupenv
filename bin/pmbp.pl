@@ -2594,7 +2594,7 @@ sub create_perl_command_shortcut ($$$;%) {
   ($command, $arg) = @$command if defined $command and ref $command eq 'ARRAY';
   $command = resolve_path $command, $RootDirName
       if defined $command and $command =~ m{/};
-  $arg = resolve_path $arg, $RootDirName if defined $arg;
+  $arg = resolve_path $arg, $RootDirName if defined $arg and not $args{relocatable};
   mkdir_for_file $file_name;
   info_writing 1, "command shortcut", $file_name;
   my $perl_path = get_perlbrew_perl_bin_dir_name $perl_version;
