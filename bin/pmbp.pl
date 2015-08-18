@@ -1216,7 +1216,7 @@ sub install_perlbrew () {
       or info_die "$RootDirName/local/perlbrew/pmbp-perlbrew-v2: $!";
 } # install_perlbrew
 
-sub install_perl ($) {
+sub install_perl_by_perlbrew ($) {
   my $perl_version = shift;
   install_perlbrew;
   my $i = 0;
@@ -1282,6 +1282,66 @@ sub install_perl ($) {
     }
     $PerlCommand = $perl_path;
   } # PERLBREW
+} # install_perl_by_perlbrew
+
+sub install_perlbuild () {
+  my $perlbuild_path = "$RootDirName/local/perlbuild";
+  my $perlbuild_url = q<https://raw.githubusercontent.com/tokuhirom/Perl-Build/master/perl-build>;
+  save_url $perlbuild_url => $perlbuild_path, max_age => 60*60*24*30;
+} # install_perlbuild;
+
+sub install_perl_by_perlbuild ($) {
+  my $perl_version = shift;
+  install_perlbuild;
+  my $i = 0;
+  PERLBREW: {
+    $i++;
+    my $log_file_name;
+    my $redo;
+    my @perl_option;
+    if ($PerlOptions->{relocatable}) {
+      push @perl_option, '-D' => 'userelocatableinc'; # can't be used with useshrplib
+    } else {
+      push @perl_option, '-D' => 'useshrplib'; # required by mod_perl
+    }
+    my $perl_dir_path = "$RootDirName/local/perlbrew/perls/perl-$perl_version";
+    run_command ['perl',
+                 "$RootDirName/local/perlbuild",
+                 $perl_version,
+                 $perl_dir_path,
+                 '-j' => $PerlbrewParallelCount,
+                 '-A' => 'ccflags=-fPIC',
+                 '-D' => 'usethreads',
+                 '--noman',
+                 @perl_option,
+                ],
+                envs => get_perlbrew_envs,
+                prefix => "perlbuild($i): ",
+                profiler_name => 'perlbuild';
+    
+    my $perl_path = "$RootDirName/local/perlbrew/perls/perl-$perl_version/bin/perl";
+    if (-f $perl_path) {
+      my $created_libperl = "$RootDirName/local/perlbrew/build/perl-$perl_version/libperl.so";
+      my $expected_libperl = "$RootDirName/local/perl-$perl_version/pm/lib/libperl.so";
+      if (-f $created_libperl and not -f $expected_libperl) {
+        mkdir_for_file $expected_libperl;
+        run_command ['cp', $created_libperl => $expected_libperl]
+            or info_die "Can't copy libperl.so";
+      }
+    } else {
+      if ($redo and $i < 10) {
+        info 0, "perlbuild($i): Failed to install perl-$perl_version; retrying...";
+        redo PERLBREW;
+      } else {
+        info_die "perlbuild($i): Failed to install perl-$perl_version";
+      }
+    }
+    $PerlCommand = $perl_path;
+  } # PERLBREW
+} # install_perl_by_perlbuild
+
+sub install_perl ($) {
+  return install_perl_by_perlbuild ($_[0]);
 } # install_perl
 
 sub create_perlbrew_perl_latest_symlink ($) {
