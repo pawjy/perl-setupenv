@@ -1305,7 +1305,8 @@ sub install_perl_by_perlbuild ($) {
       push @perl_option, '-D' => 'useshrplib'; # required by mod_perl
     }
     my $perl_dir_path = "$RootDirName/local/perlbrew/perls/perl-$perl_version";
-    run_command ["$RootDirName/local/perlbuild",
+    run_command ['perl',
+                 "$RootDirName/local/perlbuild",
                  $perl_version,
                  $perl_dir_path,
                  '-j' => $PerlbrewParallelCount,
