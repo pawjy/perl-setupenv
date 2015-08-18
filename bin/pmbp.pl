@@ -1317,6 +1317,8 @@ sub install_perl_by_perlbuild ($) {
     }
     my $perl_dir_path = "$RootDirName/local/perlbrew/perls/perl-$perl_version";
     my $perl_path = "$perl_dir_path/bin/perl";
+    my $perl_tar_dir_path = pmtar_dir_name () . '/perl';
+    make_path $perl_tar_dir_path;
     run_command ['perl',
                  "$RootDirName/local/perlbuild",
                  $perl_version,
@@ -1325,7 +1327,7 @@ sub install_perl_by_perlbuild ($) {
                  '-A' => 'ccflags=-fPIC',
                  '-D' => 'usethreads',
                  '--noman',
-                 '--tarball-dir' => pmtar_dir_name () . '/perl',
+                 '--tarball-dir' => $perl_tar_dir_path,
                  @perl_option,
                 ],
                 envs => get_perlbrew_envs,
