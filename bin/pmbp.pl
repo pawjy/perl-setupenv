@@ -319,7 +319,8 @@ $PMPPDirName ||= $RootDirName . '/deps/pmpp';
     close $InfoFile;
     unlink $InfoFileName;
   } # delete_info_file
-  
+
+  my $InfoLineCount = 0;
   sub info ($$) {
     unless (defined $InfoFile) {
       print STDERR $_[1], ($_[1] =~ /\n\z/ ? "" : "\n");
@@ -334,8 +335,18 @@ $PMPPDirName ||= $RootDirName . '/deps/pmpp';
       } else {
         print STDERR $_[1], ($_[1] =~ /\n\z/ ? "" : "\n");
       }
+      $InfoLineCount = 0;
     } else {
-      print STDERR ".";
+      $InfoLineCount++;
+      if ($InfoLineCount < 10) {
+        print STDERR ".";
+      } elsif ($InfoLineCount < 100 and $InfoLineCount % 10 == 0) {
+        print STDERR ":";
+      } elsif ($InfoLineCount < 1000 and $InfoLineCount % 100 == 0) {
+        print STDERR "+";
+      } elsif ($InfoLineCount % 1000 == 0) {
+        print STDERR "*";
+      }
       $InfoNeedNewline = 1;
     }
     print $InfoFile $_[1], ($_[1] =~ /\n\z/ ? "" : "\n");
