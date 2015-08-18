@@ -1325,6 +1325,7 @@ sub install_perl_by_perlbuild ($) {
                  '-A' => 'ccflags=-fPIC',
                  '-D' => 'usethreads',
                  '--noman',
+                 '--tarball-dir' => pmtar_dir_name () . '/perl',
                  @perl_option,
                 ],
                 envs => get_perlbrew_envs,
