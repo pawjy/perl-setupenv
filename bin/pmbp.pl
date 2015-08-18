@@ -1316,6 +1316,7 @@ sub install_perl_by_perlbuild ($) {
       push @perl_option, '-D' => 'useshrplib'; # required by mod_perl
     }
     my $perl_dir_path = "$RootDirName/local/perlbrew/perls/perl-$perl_version";
+    my $perl_path = "$perl_dir_path/bin/perl";
     run_command ['perl',
                  "$RootDirName/local/perlbuild",
                  $perl_version,
@@ -1328,9 +1329,9 @@ sub install_perl_by_perlbuild ($) {
                 ],
                 envs => get_perlbrew_envs,
                 prefix => "perlbuild($i): ",
-                profiler_name => 'perlbuild';
+                profiler_name => 'perlbuild'
+                    unless -f $perl_path;
     
-    my $perl_path = "$RootDirName/local/perlbrew/perls/perl-$perl_version/bin/perl";
     if (-f $perl_path) {
       my $created_libperl = "$RootDirName/local/perlbrew/build/perl-$perl_version/libperl.so";
       my $expected_libperl = "$RootDirName/local/perl-$perl_version/pm/lib/libperl.so";
