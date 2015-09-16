@@ -1298,7 +1298,16 @@ sub install_perl_by_perlbrew ($) {
 sub install_perlbuild () {
   my $perlbuild_path = "$RootDirName/local/perlbuild";
   my $perlbuild_url = q<https://raw.githubusercontent.com/tokuhirom/Perl-Build/master/perl-build>;
-  save_url $perlbuild_url => $perlbuild_path, max_age => 60*60*24*30;
+  save_url $perlbuild_url => "$perlbuild_path-orig", max_age => 60*60*24*30;
+  open my $perlbuild_file, '>', $perlbuild_path
+      or info_die "Can't write |$perlbuild_path|";
+  print $perlbuild_file q{
+    $INC{"CPAN/Perl/Releases.pm"} = 1;
+
+    my $orig = __FILE__ . '-orig';
+    do $orig;
+  };
+  close $perlbuild_file;
 } # install_perlbuild;
 
 sub install_perl_by_perlbuild ($) {
@@ -4066,7 +4075,9 @@ sub install_perl_app ($$$;%) {
       '$?' => \my $deps;
   if (($deps >> 8) == 0 or ($deps >> 8) == 1) {
     # $ make deps
-    run_command ['make', 'deps'], chdir => $dir_name
+    run_command ['make', 'deps'], chdir => $dir_name,
+        envs => {PMBP_VERBOSE => 100},
+        info_level => 5
         or info_die "|$name|: |make deps| failed";
   } elsif (-f "$dir_name/cpanfile") {
     # $ carton install
