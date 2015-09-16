@@ -4066,7 +4066,9 @@ sub install_perl_app ($$$;%) {
       '$?' => \my $deps;
   if (($deps >> 8) == 0 or ($deps >> 8) == 1) {
     # $ make deps
-    run_command ['make', 'deps'], chdir => $dir_name
+    run_command ['make', 'deps'], chdir => $dir_name,
+        envs => {PMBP_VERBOSE => 100},
+        info_level => 5
         or info_die "|$name|: |make deps| failed";
   } elsif (-f "$dir_name/cpanfile") {
     # $ carton install
