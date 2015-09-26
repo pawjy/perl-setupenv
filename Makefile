@@ -7,6 +7,10 @@ deps:
 git-submodules:
 	$(GIT) submodule update --init
 
+updatenightly:
+	perl bin/pmbp.pl --print-latest-perl-version > version/perl.txt
+	$(GIT) add version/*.txt
+
 ## ------ Build ------
 
 lib/perl58perlbrewdeps.pm: Makefile
