@@ -837,6 +837,7 @@ sub load_json_after_garbage ($) {
     my @sudo = which ($SudoCommand) ? ($SudoCommand) : ();
 
     my $cmd;
+    my $cmd2;
     my $env = '';
     if ($HasAPT) {
       $cmd = [$AptGetCommand, 'install', '-y', map { $_->{debian_name} || $_->{name} } @$packages];
@@ -845,6 +846,9 @@ sub load_json_after_garbage ($) {
       $cmd = [$YumCommand, 'install', '-y', map { $_->{redhat_name} || $_->{name} } @$packages];
     } elsif ($HasBrew) {
       $cmd = [$BrewCommand, 'install', map { $_->{homebrew_name} || $_->{name} } @$packages];
+      if (grep { 'openssl' eq ($_->{homebrew_name} || $_->{name}) } @$packages) {
+        $cmd2 = [$BrewCommand, 'link', 'openssl', '--force'];
+      }
     }
     if ($HasAPT or $HasYUM) {
       if (@sudo) {
@@ -859,6 +863,7 @@ sub load_json_after_garbage ($) {
         info 0, "Execute following command and retry:";
         info 0, '';
         info 0, '  $ ' . $env . join ' ', @$cmd;
+        info 0, '  $ ' . $env . join ' ', @$cmd2 if defined $cmd2;
         info 0, '';
         if (grep { $_->{name} eq 'libperl-devel' } @$packages) {
           info 0, '(Instead of installing libperl-devel, you can use --install-perl command)';
@@ -875,6 +880,13 @@ sub load_json_after_garbage ($) {
               # E: Unable to locate package
               run_command [$AptGetCommand, 'update'] and next;
             }
+          }
+
+          if ($return and defined $cmd2) {
+            $return = run_command $cmd2,
+                info_level => 0,
+                info_command_level => 0,
+                envs => {DEBIAN_FRONTEND => "noninteractive"};
           }
 
           return $return;
@@ -1995,9 +2007,11 @@ sub cpanm ($$) {
       if ($log =~ /Can't configure the distribution. You probably need to have 'make'/m) {
         push @required_system, {name => 'make'};
       }
-      if ($log =~ /error: openssl\/err.h: No such file or directory/m) {
+      if ($log =~ m{error: openssl/\w+.h: No such file or directory}m or
+          $log =~ m{error: 'openssl/\w+.h' file not found}m) {
         push @required_system,
-            {name => 'openssl-devel', debian_name => 'libssl-dev'};
+            {name => 'openssl-devel', debian_name => 'libssl-dev',
+             homebrew_name => 'openssl'};
       }
       if ($log =~ m{^Can't link/include (?:C library )?'gmp.h', 'gmp'}m) {
         push @required_system,
