@@ -595,19 +595,21 @@ sub info_log_file ($$$) {
   return $content;
 } # info_log_file
 
-our $HasFileTemp = 1;
-sub FileTemp () {
-  {
-    local $HasFileTemp = 0;
-    use_perl_core_module 'File::Temp';
-  }
-  return File::Temp->new (OPEN => 0);
-} # FileTemp
-
 sub create_temp_dir_name () {
   use_perl_core_module 'File::Temp';
   return File::Temp::tempdir ('PMBP-XX'.'XX'.'XX', TMPDIR => 1, CLEANUP => 1);
 } # create_temp_dir_name
+
+our $HasFileTemp = 1;
+my $CommonTempDirName;
+sub create_temp_file_name () {
+  {
+    local $HasFileTemp = 0;
+    use_perl_core_module 'File::Temp';
+  }
+  $CommonTempDirName ||= create_temp_dir_name;
+  return "$CommonTempDirName/temp-" . rand;
+} # create_temp_file_name
 
 ## ------ Commands ------
 
@@ -652,11 +654,10 @@ sub run_command ($;%) {
     info ((defined $args{info_command_level} ? $args{info_command_level} : 2),
           qq{$prefix$prefix0\$ @{[map { $_ . '="' . (_quote_dq $envs->{$_}) . '" ' } sort { $a cmp $b } keys %$envs]}@$command});
   }
-  my $stderr_file;
+  my $stderr_file_name;
   if ($args{discard_stderr}) {
     if ($HasFileTemp) {
-      $stderr_file = FileTemp;
-      $args{"2>"} = $stderr_file->filename;
+      $stderr_file_name = $args{"2>"} = create_temp_file_name;
     } else {
       $args{"2>"} = sub {};
     }
@@ -688,8 +689,8 @@ sub run_command ($;%) {
     ${$args{'$?'}} = $?;
   }
   profiler_stop ($args{profiler_name} || 'command');
-  if ($stderr_file and -f $stderr_file->filename) {
-    my $log = info_log_file 3, $stderr_file->filename => 'stderr';
+  if (defined $stderr_file_name and -f $stderr_file_name) {
+    my $log = info_log_file 3, $stderr_file_name => 'stderr';
     if ($args{onstderr}) {
       local $_ = $log;
       $args{onstderr}->();
@@ -2199,7 +2200,7 @@ sub cpanm ($$) {
                @option,
                @additional_option,
                @module_arg);
-    my $json_temp_file;
+    my $json_temp_file_name;
     my $cpanm_error = '';
     my $cpanm_ok = run_command \@cmd,
         envs => $envs,
@@ -2207,7 +2208,7 @@ sub cpanm ($$) {
         profiler_name => ($args->{scandeps} ? 'cpanm-scandeps' : $args->{info} ? 'cpanm-info' : 'cpanm'),
         prefix => "cpanm($CPANMDepth/$redo): ",
         '>' => (($args->{scandeps} || $args->{info} || $args->{version}) ? do {
-          $json_temp_file = FileTemp;
+          $json_temp_file_name = create_temp_file_name;
         } : undef),
         discard_stderr => (($args->{scandeps} || $args->{info}) ? 1 : 0),
         '$$' => \$cpanm_pid,
@@ -2226,27 +2227,29 @@ sub cpanm ($$) {
         };
     info 2, "cpanm done (exit status @{[$cpanm_error >> 8]})";
     if (not $cpanm_ok and not $failed and (($cpanm_error >> 8) == 1) and
-        $args->{scandeps} and -f $json_temp_file->filename) {
+        $args->{scandeps} and -f $json_temp_file_name) {
       ## cpanm --scandeps exits with return value 1...
       $cpanm_ok = 1;
     }
 
-    if (defined $json_temp_file and -f $json_temp_file->filename) {
-      info_log_file 3, $json_temp_file->filename => 'cpanm STDOUT';
+    if (defined $json_temp_file_name and -f $json_temp_file_name) {
+      info_log_file 3, $json_temp_file_name => 'cpanm STDOUT';
     }
-    if ($args->{info} and -f $json_temp_file->filename) {
+    if ($args->{info} and
+        defined $json_temp_file_name and -f $json_temp_file_name) {
       ## Example output:
       ## ==> Found dependencies: ExtUtils::MakeMaker, ExtUtils::Install
       ## BINGOS/ExtUtils-MakeMaker-6.72.tar.gz
       ## YVES/ExtUtils-Install-1.54.tar.gz
       ## FAYLAND/WWW-Contact-0.47.tar.gz
-      open my $file, '<', $json_temp_file->filename or info_die "$0: $!";
+      open my $file, '<', $json_temp_file_name or info_die "$0: $!";
       local $/ = undef;
       $result->{output_text} = [grep { length } split /\x0D?\x0A/, <$file>]->[-1];
-    } elsif ($args->{scandeps} and -f $json_temp_file->filename) {
+    } elsif ($args->{scandeps} and
+             defined $json_temp_file_name and -f $json_temp_file_name) {
       ## Parse JSON data, ignoring any progress before it...
       my $garbage;
-      ($garbage, $result->{output_json}) = load_json_after_garbage $json_temp_file->filename;
+      ($garbage, $result->{output_json}) = load_json_after_garbage $json_temp_file_name;
       unless (@{$result->{output_json} or []}) {
         unless ($redo++ > 10) {
           info 1, "Retrying cpanm --scandeps...";
@@ -2255,8 +2258,9 @@ sub cpanm ($$) {
         $failed = "no output json data";
       }
       $scan_errors->(1, $garbage);
-    } elsif ($args->{version} and -f $json_temp_file->filename) {
-      open my $file, '<', $json_temp_file->filename or info_die "$0: $!";
+    } elsif ($args->{version} and
+             defined $json_temp_file_name and -f $json_temp_file_name) {
+      open my $file, '<', $json_temp_file_name or info_die "$0: $!";
       local $/ = undef;
       $result->{output_text} = <$file>;
     }
