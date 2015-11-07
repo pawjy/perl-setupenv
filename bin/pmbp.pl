@@ -644,10 +644,10 @@ sub run_command ($;%) {
   my $pid = open my $cmd, "-|",
       (defined $args{chdir} ? "cd \Q$args{chdir}\E && " : "") .
       (defined $args{stdin_value} ? "echo \Q$args{stdin_value}\E" : '') .
-      (join ' ', map quotemeta, @$command) .
+      (join ' ', map { length $_ ? quotemeta $_ : '""' } @$command) .
       (defined $args{"2>"} ? ' 2> ' . quotemeta $args{"2>"} : ' 2>&1') .
       (defined $args{">"} ? ' > ' . quotemeta $args{">"} : '') .
-      (($args{accept_input} || defined $args{stdin_value}) ? '' : ' < /dev/null')
+      (($args{accept_input} || defined $args{stdin_value}) ? '' : $PlatformIsWindows ? '< NUL' : ' < /dev/null')
       or info_die "$0: $command->[0]: $!";
   if (defined $args{'$$'}) {
     ${$args{'$$'}} = $pid;
