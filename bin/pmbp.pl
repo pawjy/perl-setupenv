@@ -974,7 +974,7 @@ sub use_perl_core_module ($) {
             envs => {defined $perl_version ? (PATH => get_env_path ($perl_version)) : ()},
             discard_stderr => 1,
             onoutput => sub { $output = $_[0]; 3 }) {
-      $output =~ s/[\x0D\x0A]+\z//;
+      $output =~ s/[\x20\x0D\x0A]+\z//;
       if (defined $output and
           $output =~ m{^(.*\Q$command\E(?:\.[A-Za-z0-9]+|))$}i) {
         info 10, "Result is: |$1|";
