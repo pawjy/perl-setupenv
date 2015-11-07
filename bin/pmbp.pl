@@ -321,7 +321,8 @@ $PMPPDirName ||= $RootDirName . '/deps/pmpp';
     close $InfoFile;
     unlink $InfoFileName;
   } # delete_info_file
-  
+
+  my $InfoLineCount = 0;
   sub info ($$) {
     unless (defined $InfoFile) {
       print STDERR $_[1], ($_[1] =~ /\n\z/ ? "" : "\n");
@@ -336,8 +337,18 @@ $PMPPDirName ||= $RootDirName . '/deps/pmpp';
       } else {
         print STDERR $_[1], ($_[1] =~ /\n\z/ ? "" : "\n");
       }
+      $InfoLineCount = 0;
     } else {
-      print STDERR ".";
+      $InfoLineCount++;
+      if ($InfoLineCount < 10) {
+        print STDERR ".";
+      } elsif ($InfoLineCount < 100 and $InfoLineCount % 10 == 0) {
+        print STDERR ":";
+      } elsif ($InfoLineCount < 1000 and $InfoLineCount % 100 == 0) {
+        print STDERR "+";
+      } elsif ($InfoLineCount % 1000 == 0) {
+        print STDERR "*";
+      }
       $InfoNeedNewline = 1;
     }
     print $InfoFile $_[1], ($_[1] =~ /\n\z/ ? "" : "\n");
@@ -828,6 +839,7 @@ sub load_json_after_garbage ($) {
     my @sudo = which ($SudoCommand) ? ($SudoCommand) : ();
 
     my $cmd;
+    my $cmd2;
     my $env = '';
     if ($HasAPT) {
       $cmd = [$AptGetCommand, 'install', '-y', map { $_->{debian_name} || $_->{name} } @$packages];
@@ -836,6 +848,9 @@ sub load_json_after_garbage ($) {
       $cmd = [$YumCommand, 'install', '-y', map { $_->{redhat_name} || $_->{name} } @$packages];
     } elsif ($HasBrew) {
       $cmd = [$BrewCommand, 'install', map { $_->{homebrew_name} || $_->{name} } @$packages];
+      if (grep { 'openssl' eq ($_->{homebrew_name} || $_->{name}) } @$packages) {
+        $cmd2 = [$BrewCommand, 'link', 'openssl', '--force'];
+      }
     }
     if ($HasAPT or $HasYUM) {
       if (@sudo) {
@@ -850,6 +865,7 @@ sub load_json_after_garbage ($) {
         info 0, "Execute following command and retry:";
         info 0, '';
         info 0, '  $ ' . $env . join ' ', @$cmd;
+        info 0, '  $ ' . $env . join ' ', @$cmd2 if defined $cmd2;
         info 0, '';
         if (grep { $_->{name} eq 'libperl-devel' } @$packages) {
           info 0, '(Instead of installing libperl-devel, you can use --install-perl command)';
@@ -866,6 +882,13 @@ sub load_json_after_garbage ($) {
               # E: Unable to locate package
               run_command [$AptGetCommand, 'update'] and next;
             }
+          }
+
+          if ($return and defined $cmd2) {
+            $return = run_command $cmd2,
+                info_level => 0,
+                info_command_level => 0,
+                envs => {DEBIAN_FRONTEND => "noninteractive"};
           }
 
           return $return;
@@ -1219,7 +1242,7 @@ sub install_perlbrew () {
       or info_die "$RootDirName/local/perlbrew/pmbp-perlbrew-v2: $!";
 } # install_perlbrew
 
-sub install_perl ($) {
+sub install_perl_by_perlbrew ($) {
   my $perl_version = shift;
   install_perlbrew;
   my $i = 0;
@@ -1285,6 +1308,79 @@ sub install_perl ($) {
     }
     $PerlCommand = $perl_path;
   } # PERLBREW
+} # install_perl_by_perlbrew
+
+sub install_perlbuild () {
+  my $perlbuild_path = "$RootDirName/local/perlbuild";
+  my $perlbuild_url = q<https://raw.githubusercontent.com/tokuhirom/Perl-Build/master/perl-build>;
+  save_url $perlbuild_url => "$perlbuild_path-orig", max_age => 60*60*24*30;
+  open my $perlbuild_file, '>', $perlbuild_path
+      or info_die "Can't write |$perlbuild_path|";
+  print $perlbuild_file q{
+    $INC{"CPAN/Perl/Releases.pm"} = 1;
+
+    my $orig = __FILE__ . '-orig';
+    do $orig;
+  };
+  close $perlbuild_file;
+} # install_perlbuild;
+
+sub install_perl_by_perlbuild ($) {
+  my $perl_version = shift;
+  install_perlbuild;
+  my $i = 0;
+  PERLBREW: {
+    $i++;
+    my $log_file_name;
+    my $redo;
+    my @perl_option;
+    if ($PerlOptions->{relocatable}) {
+      push @perl_option, '-D' => 'userelocatableinc'; # can't be used with useshrplib
+    } else {
+      push @perl_option, '-D' => 'useshrplib'; # required by mod_perl
+    }
+    my $perl_dir_path = "$RootDirName/local/perlbrew/perls/perl-$perl_version";
+    my $perl_path = "$perl_dir_path/bin/perl";
+    my $perl_tar_dir_path = pmtar_dir_name () . '/perl';
+    make_path $perl_tar_dir_path;
+    run_command ['perl',
+                 "$RootDirName/local/perlbuild",
+                 $perl_version,
+                 $perl_dir_path,
+                 '-j' => $PerlbrewParallelCount,
+                 '-A' => 'ccflags=-fPIC',
+                 '-D' => 'usethreads',
+                 '--noman',
+                 '--tarball-dir' => $perl_tar_dir_path,
+                 @perl_option,
+                ],
+                envs => get_perlbrew_envs,
+                prefix => "perlbuild($i): ",
+                profiler_name => 'perlbuild'
+                    unless -f $perl_path;
+    
+    if (-f $perl_path) {
+      my $created_libperl = "$RootDirName/local/perlbrew/build/perl-$perl_version/libperl.so";
+      my $expected_libperl = "$RootDirName/local/perl-$perl_version/pm/lib/libperl.so";
+      if (-f $created_libperl and not -f $expected_libperl) {
+        mkdir_for_file $expected_libperl;
+        run_command ['cp', $created_libperl => $expected_libperl]
+            or info_die "Can't copy libperl.so";
+      }
+    } else {
+      if ($redo and $i < 10) {
+        info 0, "perlbuild($i): Failed to install perl-$perl_version; retrying...";
+        redo PERLBREW;
+      } else {
+        info_die "perlbuild($i): Failed to install perl-$perl_version";
+      }
+    }
+    $PerlCommand = $perl_path;
+  } # PERLBREW
+} # install_perl_by_perlbuild
+
+sub install_perl ($) {
+  return install_perl_by_perlbuild ($_[0]);
 } # install_perl
 
 sub create_perlbrew_perl_latest_symlink ($) {
@@ -1914,9 +2010,11 @@ sub cpanm ($$) {
       if ($log =~ /Can't configure the distribution. You probably need to have 'make'/m) {
         push @required_system, {name => 'make'};
       }
-      if ($log =~ /error: openssl\/err.h: No such file or directory/m) {
+      if ($log =~ m{error: openssl/\w+.h: No such file or directory}m or
+          $log =~ m{error: 'openssl/\w+.h' file not found}m) {
         push @required_system,
-            {name => 'openssl-devel', debian_name => 'libssl-dev'};
+            {name => 'openssl-devel', debian_name => 'libssl-dev',
+             homebrew_name => 'openssl'};
       }
       if ($log =~ m{^Can't link/include (?:C library )?'gmp.h', 'gmp'}m) {
         push @required_system,
@@ -2597,7 +2695,7 @@ sub create_perl_command_shortcut ($$$;%) {
   ($command, $arg) = @$command if defined $command and ref $command eq 'ARRAY';
   $command = resolve_path $command, $RootDirName
       if defined $command and $command =~ m{/};
-  $arg = resolve_path $arg, $RootDirName if defined $arg;
+  $arg = resolve_path $arg, $RootDirName if defined $arg and not $args{relocatable};
   mkdir_for_file $file_name;
   info_writing 1, "command shortcut", $file_name;
   my $perl_path = get_perlbrew_perl_bin_dir_name $perl_version;
@@ -3994,7 +4092,9 @@ sub install_perl_app ($$$;%) {
       '$?' => \my $deps;
   if (($deps >> 8) == 0 or ($deps >> 8) == 1) {
     # $ make deps
-    run_command ['make', 'deps'], chdir => $dir_name
+    run_command ['make', 'deps'], chdir => $dir_name,
+        envs => {PMBP_VERBOSE => 100},
+        info_level => 5
         or info_die "|$name|: |make deps| failed";
   } elsif (-f "$dir_name/cpanfile") {
     # $ carton install
