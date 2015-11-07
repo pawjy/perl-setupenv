@@ -976,7 +976,7 @@ sub use_perl_core_module ($) {
             onoutput => sub { $output = $_[0]; 3 }) {
       $output =~ s/[\x0D\x0A]+\z//;
       if (defined $output and
-          $output =~ m{^(\S*\Q$command\E(?:\.[A-Za-z0-9]+|))$}i) {
+          $output =~ m{^(.*\Q$command\E(?:\.[A-Za-z0-9]+|))$}i) {
         info 10, "Result is: |$1|";
         return $1;
       } else {
