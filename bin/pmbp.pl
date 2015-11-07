@@ -669,8 +669,8 @@ sub run_command ($;%) {
   }
   local %ENV = map { defined $_ ? $_ : '' } (%ENV, %$envs);
   my $full_command = 
-      (defined $args{chdir} ? "cd \Q$args{chdir}\E && " : "") .
-      (defined $args{stdin_value} ? "echo \Q$args{stdin_value}\E" : '') .
+      (defined $args{chdir} ? "cd @{[shellarg $args{chdir}]} && " : "") .
+      (defined $args{stdin_value} ? "echo @{[shellarg $args{stdin_value}]}" : '') .
       (join ' ',
          (@$command ? shellcommand $command->[0] : ()),
          map { shellarg $_ } @$command[1..$#$command]) .
@@ -2411,7 +2411,7 @@ sub get_default_mirror_file_name () {
   }
   if ($updated or not -f $txt_file_name) {
     info_writing 2, "decompressed module index", $txt_file_name;
-    run_command ['sh', '-c', "zcat \Q$file_name\E > \Q$txt_file_name\E"];
+    run_command ['sh', '-c', "zcat @{[shellarg $file_name]} > @{[shellarg $txt_file_name]}"];
   }
   PMBP::Module->set_module_index_file_name ($txt_file_name);
   return abs_path $file_name;
@@ -2503,7 +2503,7 @@ sub save_by_pathname ($$) {
   my $pmtar_dir_created;
   sub pmtar_dir_name () {
     unless ($pmtar_dir_created) {
-      if (not (run_command ['sh', '-c', "cd \Q$PMTarDirName\E"],
+      if (not (run_command ['sh', '-c', "cd @{[shellarg $PMTarDirName]}"],
                   chdir => $RootDirName) and
           defined $FallbackPMTarDirName and
           -d $FallbackPMTarDirName) {
@@ -2525,7 +2525,7 @@ sub save_by_pathname ($$) {
               or info_die "Can't create $PMTarDirName at $RootDirName";
         }
         run_command
-            ['sh', '-c', "cd \Q$PMTarDirName\E && pwd"],
+            ['sh', '-c', "cd @{[shellarg $PMTarDirName]} && pwd"],
             chdir => $RootDirName,
             discard_stderr => 1,
             onoutput => sub { $PMTarDirName = $_[0]; 4 }
@@ -2556,7 +2556,7 @@ sub save_by_pathname ($$) {
             or info_die "Can't create $PMPPDirName at $RootDirName";
       }
       run_command
-          ['sh', '-c', "cd \Q$PMPPDirName\E && pwd"],
+          ['sh', '-c', "cd @{[shellarg $PMPPDirName]} && pwd"],
           chdir => $RootDirName,
           discard_stderr => 1,
           onoutput => sub { $PMPPDirName = $_[0]; 4 }
@@ -2628,7 +2628,7 @@ sub rewrite_perl_shebang ($$$) {
 
 sub copy_pmpp_modules ($$) {
   my ($perl_command, $perl_version) = @_;
-  return unless run_command ['sh', '-c', "cd \Q$PMPPDirName\E"];
+  return unless run_command ['sh', '-c', "cd @{[shellarg $PMPPDirName]}"];
   hide_pmpp_arch_dir ($perl_command, $perl_version);
 
   my $ignores = [map { s{^/}{}; s{/$}{}; $_ } grep { 
@@ -3393,7 +3393,7 @@ sub scan_dependency_from_directory ($) {
 
   my @include_dir_name = qw(bin lib script t t_deps);
   my @exclude_pattern = map { "^$_" } qw(modules bin/modules t_deps/modules t_deps/projects);
-  for (split /\n/, qx{cd \Q$dir_name\E && find @{[join ' ', map { shellarg $_ } @include_dir_name]} 2> /dev/null @{[join ' ', map { "| grep -v $_" } map { shellarg $_ } @exclude_pattern]} | grep "\\.\\(pm\\|pl\\|t\\)\$" | xargs grep "\\(use\\|require\\|extends\\) " --no-filename}) {
+  for (split /\n/, qx{cd @{[shellarg $dir_name]} && find @{[join ' ', map { shellarg $_ } @include_dir_name]} 2> /dev/null @{[join ' ', map { "| grep -v $_" } map { shellarg $_ } @exclude_pattern]} | grep "\\.\\(pm\\|pl\\|t\\)\$" | xargs grep "\\(use\\|require\\|extends\\) " --no-filename}) {
     s/\#.*$//;
     while (/\b(?:(?:use|require)\s*(?:base|parent)|extends)\s*(.+)/g) {
       my $base = $1;
@@ -3409,7 +3409,7 @@ sub scan_dependency_from_directory ($) {
   }
 
   @include_dir_name = map { glob "$dir_name/$_" } qw(lib t/lib modules/*/lib bin/modules/*/lib t_deps/modules/*/lib);
-  for (split /\n/, qx{cd \Q$dir_name\E && find @{[join ' ', map { shellarg $_ } @include_dir_name]} 2> /dev/null | grep "\\.\\(pm\\|pl\\)\$" | xargs grep "package " --no-filename}) {
+  for (split /\n/, qx{cd @{[shellarg $dir_name]} && find @{[join ' ', map { shellarg $_ } @include_dir_name]} 2> /dev/null | grep "\\.\\(pm\\|pl\\)\$" | xargs grep "package " --no-filename}) {
     s/\#.*//;
     if (/package\s*([0-9A-Za-z_:]+)/) {
       delete $modules->{$1};
