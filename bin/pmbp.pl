@@ -974,8 +974,12 @@ sub use_perl_core_module ($) {
             envs => {defined $perl_version ? (PATH => get_env_path ($perl_version)) : ()},
             discard_stderr => 1,
             onoutput => sub { $output = $_[0]; 3 }) {
-      if (defined $output and $output =~ m{^(\S*\Q$command\E(?:\.[A-Za-z0-9]+|))$}) {
+      if (defined $output and
+          $output =~ m{^(\S*\Q$command\E(?:\.[A-Za-z0-9]+|))$}i) {
+        info 10, "Result is: |$1|";
         return $1;
+      } else {
+        info 10, "|which| output |$output| does not contain the result";
       }
     }
     return undef;
