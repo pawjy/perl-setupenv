@@ -544,7 +544,12 @@ sub make_path ($) {
   if (eval { require File::Path }) {
     File::Path::mkpath ($_[0]);
   } else {
-    (system 'mkdir', '-p', $_[0]) == 0 or die $!;
+    if ($PlatformIsWindows) {
+      system 'mkdir', $_[0];
+      (system 'dir', $_[0]) == 0 or die $!;
+    } else {
+      (system 'mkdir', '-p', $_[0]) == 0 or die $!;
+    }
   }
 } # make_path
 
@@ -2504,10 +2509,21 @@ sub save_by_pathname ($$) {
           -d $FallbackPMTarDirName) {
         $PMTarDirName = abs_path $FallbackPMTarDirName;
       } else {
-        run_command
-            ['mkdir', '-p', $PMTarDirName],
-            chdir => $RootDirName
-            or info_die "Can't create $PMTarDirName at $RootDirName";
+        if ($PlatformIsWindows) {
+          run_command
+              ['mkdir', $PMTarDirName],
+              chdir => $RootDirName;
+          run_command
+              ['dir', $PMTarDirName],
+              chdir => $RootDirName,
+              info_level => 10
+              or info_die "Can't create $PMTarDirName at $RootDirName";
+        } else {
+          run_command
+              ['mkdir', '-p', $PMTarDirName],
+              chdir => $RootDirName
+              or info_die "Can't create $PMTarDirName at $RootDirName";
+        }
         run_command
             ['sh', '-c', "cd \Q$PMTarDirName\E && pwd"],
             chdir => $RootDirName,
@@ -2524,10 +2540,21 @@ sub save_by_pathname ($$) {
   my $pmpp_dir_created;
   sub pmpp_dir_name () {
     unless ($pmpp_dir_created) {
-      run_command
-          ['mkdir', '-p', $PMPPDirName],
-          chdir => $RootDirName
-          or info_die "Can't create $PMPPDirName at $RootDirName";
+      if ($PlatformIsWindows) {
+        run_command
+            ['mkdir', $PMPPDirName],
+            chdir => $RootDirName;
+        run_command
+            ['dir', $PMPPDirName],
+            chdir => $RootDirName,
+            info_level => 10
+            or info_die "Can't create $PMPPDirName at $RootDirName";
+      } else {
+        run_command
+            ['mkdir', '-p', $PMPPDirName],
+            chdir => $RootDirName
+            or info_die "Can't create $PMPPDirName at $RootDirName";
+      }
       run_command
           ['sh', '-c', "cd \Q$PMPPDirName\E && pwd"],
           chdir => $RootDirName,
