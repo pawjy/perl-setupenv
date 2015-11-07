@@ -666,7 +666,7 @@ sub run_command ($;%) {
       (defined $args{chdir} ? "cd \Q$args{chdir}\E && " : "") .
       (defined $args{stdin_value} ? "echo \Q$args{stdin_value}\E" : '') .
       (join ' ',
-         (@$command ? shellcommand $command[0] : ()),
+         (@$command ? shellcommand $command->[0] : ()),
          map { shellarg $_ } @$command[1..$#$command]) .
       (defined $args{"2>"} ? ' 2> ' . shellarg $args{"2>"} : ' 2>&1') .
       (defined $args{">"} ? ' > ' . shellarg $args{">"} : '') .
