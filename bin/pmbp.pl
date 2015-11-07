@@ -1361,7 +1361,7 @@ sub install_perl_by_perlbrew ($) {
 
 sub install_perlbuild () {
   my $perlbuild_path = "$RootDirName/local/perlbuild";
-  #make_path "$RootDirName/local/perlbrew";
+  make_path "$RootDirName/local/perlbrew";
   my $perlbuild_url = q<https://raw.githubusercontent.com/tokuhirom/Perl-Build/master/perl-build>;
   save_url $perlbuild_url => "$perlbuild_path-orig", max_age => 60*60*24*30;
   open my $perlbuild_file, '>', $perlbuild_path
