@@ -660,7 +660,7 @@ sub run_command ($;%) {
           qq{$prefix$prefix0\$ @{[map { $_ . '="' . (_quote_dq $envs->{$_}) . '" ' } sort { $a cmp $b } keys %$envs]}@$command});
   }
   my $stderr_file_name;
-  if ($args{discard_stderr}) {
+  if ($args{discard_stderr} or $PlatformIsWindows) { # instead of 2>&1 on Windows
     if ($HasFileTemp) {
       $stderr_file_name = $args{"2>"} = create_temp_file_name;
     } else {
