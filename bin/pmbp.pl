@@ -1521,6 +1521,7 @@ sub install_cpanm () {
     unless (run_command ['perl', '-MExtUtils::MakeMaker', '-e', ' '], onoutput => sub { $out .= $_[0]; 3 }) {
       install_system_packages [{name => 'perl-ExtUtils-MakeMaker', debian_name => 'libextutils-makemaker-perl'}] # core 5+
           or info_die "Your perl does not have |ExtUtils::MakeMaker| (which is a core module)";
+    } else {
       if ($out =~ m{\QIt looks like you don't have either nmake.exe or dmake.exe on your PATH,\E} and
           $out =~ m{ppm install dmake}) {
         install_system_packages [{name => 'dmake', ppm_name => 'dmake'}]
