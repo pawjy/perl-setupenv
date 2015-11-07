@@ -601,7 +601,7 @@ sub FileTemp () {
     local $HasFileTemp = 0;
     use_perl_core_module 'File::Temp';
   }
-  return File::Temp->new;
+  return File::Temp->new (OPEN => 0);
 } # FileTemp
 
 sub create_temp_dir_name () {
