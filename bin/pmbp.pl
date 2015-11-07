@@ -2411,7 +2411,7 @@ sub get_default_mirror_file_name () {
   }
   if ($updated or not -f $txt_file_name) {
     info_writing 2, "decompressed module index", $txt_file_name;
-    run_command ['sh', '-c', "zcat @{[shellarg $file_name]} > @{[shellarg $txt_file_name]}"];
+    run_command ['sh', '-c', "zcat \Q$file_name\E > \Q$txt_file_name\E"];
   }
   PMBP::Module->set_module_index_file_name ($txt_file_name);
   return abs_path $file_name;
@@ -2503,7 +2503,7 @@ sub save_by_pathname ($$) {
   my $pmtar_dir_created;
   sub pmtar_dir_name () {
     unless ($pmtar_dir_created) {
-      if (not (run_command ['sh', '-c', "cd @{[shellarg $PMTarDirName]}"],
+      if (not (run_command ['sh', '-c', "cd \Q$PMTarDirName\E"],
                   chdir => $RootDirName) and
           defined $FallbackPMTarDirName and
           -d $FallbackPMTarDirName) {
@@ -2525,7 +2525,7 @@ sub save_by_pathname ($$) {
               or info_die "Can't create $PMTarDirName at $RootDirName";
         }
         run_command
-            ['sh', '-c', "cd @{[shellarg $PMTarDirName]} && pwd"],
+            ['sh', '-c', "cd \Q$PMTarDirName\E && pwd"],
             chdir => $RootDirName,
             discard_stderr => 1,
             onoutput => sub { $PMTarDirName = $_[0]; 4 }
@@ -2556,7 +2556,7 @@ sub save_by_pathname ($$) {
             or info_die "Can't create $PMPPDirName at $RootDirName";
       }
       run_command
-          ['sh', '-c', "cd @{[shellarg $PMPPDirName]} && pwd"],
+          ['sh', '-c', "cd \Q$PMPPDirName\E && pwd"],
           chdir => $RootDirName,
           discard_stderr => 1,
           onoutput => sub { $PMPPDirName = $_[0]; 4 }
@@ -2628,7 +2628,7 @@ sub rewrite_perl_shebang ($$$) {
 
 sub copy_pmpp_modules ($$) {
   my ($perl_command, $perl_version) = @_;
-  return unless run_command ['sh', '-c', "cd @{[shellarg $PMPPDirName]}"];
+  return unless run_command ['sh', '-c', "cd \Q$PMPPDirName\E"];
   hide_pmpp_arch_dir ($perl_command, $perl_version);
 
   my $ignores = [map { s{^/}{}; s{/$}{}; $_ } grep { 
