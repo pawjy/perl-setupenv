@@ -636,7 +636,7 @@ if ($PlatformIsWindows) {
     return qq{^"$s^"};
   };
 } else {
-  *shellarg = sub ($) { return quotemeta $_ };
+  *shellarg = sub ($) { return quotemeta $_[0] };
 }
 
 sub shellcommand ($) {
