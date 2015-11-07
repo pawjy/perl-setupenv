@@ -1152,6 +1152,7 @@ sub get_perl_version ($) {
   run_command [$perl_command, '-e', 'printf "%vd", $^V'],
       discard_stderr => 1,
       onoutput => sub { $perl_version = $_[0]; 2 };
+  $perl_version =~ s/^v//;
   return $perl_version;
 } # get_perl_version
 
