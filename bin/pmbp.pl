@@ -928,12 +928,21 @@ sub load_json_after_garbage ($) {
         return 0;
       }
     } else {
-      info 0, "Install following packages and retry:";
-      info 0, '';
-      info 0, "  " . join ' ', map { $_->{name} } @$packages;
-      info 0, '';
-      if (grep { $_->{name} eq 'libperl-devel' } @$packages) {
-        info 0, '(Instead of installing libperl-devel, you can use --install-perl command)';
+      if (@$packages == 1 and
+          defined $packages->[0]->{ppm_name} and
+          $ExecuteSystemPackageInstaller) {
+        my $return = run_command ['ppm', 'install', map { $_->{ppm_name} || $_->{name} } @$packages],
+            info_level => 0,
+            info_command_level => 0;
+        return $return;
+      } else {
+        info 0, "Install following packages and retry:";
+        info 0, '';
+        info 0, "  " . join ' ', map { $_->{name} } @$packages;
+        info 0, '';
+        if (grep { $_->{name} eq 'libperl-devel' } @$packages) {
+          info 0, '(Instead of installing libperl-devel, you can use --install-perl command)';
+        }
       }
     }
     return 0;
@@ -1508,9 +1517,15 @@ sub install_cpanm () {
       [stat $CPANMCommand]->[9] < [stat $0]->[9]) { # mtime
     save_url $CPANMURL => $CPANMCommand;
 
-    unless (run_command ['perl', '-MExtUtils::MakeMaker', '-e', ' ']) {
+    my $out = '';
+    unless (run_command ['perl', '-MExtUtils::MakeMaker', '-e', ' '], onstdout => sub { $out .= $_[0]; 3 }) {
       install_system_packages [{name => 'perl-ExtUtils-MakeMaker', debian_name => 'libextutils-makemaker-perl'}] # core 5+
           or info_die "Your perl does not have |ExtUtils::MakeMaker| (which is a core module)";
+      if ($out =~ m{\QIt looks like you don't have either nmake.exe or dmake.exe on your PATH,\E} and
+          $out =~ m{ppm install dmake}) {
+        install_system_packages [{name => 'dmake', ppm_name => 'dmake'}]
+            or info_die "There is no applicable make command";
+      }
     }
   }
 } # install_cpanm
