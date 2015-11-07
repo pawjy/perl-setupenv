@@ -360,6 +360,7 @@ $PMPPDirName ||= $RootDirName . '/deps/pmpp';
     my $location = "at $error_file_name line $error_line = $error_sub";
     print $InfoFile $_[0] =~ /\n\z/ ? $_[0] : "$_[0]\n";
     print $InfoFile "($location)\n";
+    print $InfoFile Carp::longmess (), "\n";
     print STDERR $_[0] =~ /\n\z/ ? $_[0] : "$_[0]\n";
     print STDERR "($location)\n";
     close $InfoFile;
