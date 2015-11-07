@@ -8,7 +8,7 @@ use strict;
 use warnings;
 use warnings FATAL => 'recursion';
 use Config;
-use Cwd qw(abs_path);
+use Cwd;
 use File::Spec ();
 use Getopt::Long;
 ## Some environment does not have this module.
@@ -284,7 +284,7 @@ if ($HelpLevel) {
 # {root}
 sub make_path ($);
 make_path ($RootDirName);
-$RootDirName = abs_path $RootDirName;
+$RootDirName = abs_path ($RootDirName);
 
 # {root}/local/cpanm
 my $CPANMDirName = "$RootDirName/local/cpanm";
@@ -360,6 +360,7 @@ $PMPPDirName ||= $RootDirName . '/deps/pmpp';
     my $location = "at $error_file_name line $error_line = $error_sub";
     print $InfoFile $_[0] =~ /\n\z/ ? $_[0] : "$_[0]\n";
     print $InfoFile "($location)\n";
+    print $InfoFile Carp::longmess (), "\n";
     print STDERR $_[0] =~ /\n\z/ ? $_[0] : "$_[0]\n";
     print STDERR "($location)\n";
     close $InfoFile;
@@ -515,6 +516,14 @@ sub exec_show_pmbp_tutorial () {
 } # exec_show_pmbp_tutorial
 
 ## ------ Files and directories ------
+
+sub abs_path ($) {
+  my $x = eval { Cwd::abs_path ($_[0]) };
+  if ($@) {
+    info_die "|abs_path| |$_[0]| failed ($@)";
+  }
+  return $x;
+} # abs_path
 
 sub use_perl_core_module ($);
 
@@ -1213,6 +1222,7 @@ sub install_perlbrew () {
             -s "$RootDirName/local/perlbrew/bin/patchperl.main" and
             -s ("$RootDirName/local/perlbrew/bin/patchperl") < (-s "$RootDirName/local/perlbrew/bin/patchperl.main") and
             -s "$RootDirName/local/perlbrew/pmbp-perlbrew-v2";
+  make_path "$RootDirName/local/perlbrew";
 
   use_perl_core_module 'PerlIO';
 
@@ -1351,6 +1361,7 @@ sub install_perl_by_perlbrew ($) {
 
 sub install_perlbuild () {
   my $perlbuild_path = "$RootDirName/local/perlbuild";
+  #make_path "$RootDirName/local/perlbrew";
   my $perlbuild_url = q<https://raw.githubusercontent.com/tokuhirom/Perl-Build/master/perl-build>;
   save_url $perlbuild_url => "$perlbuild_path-orig", max_age => 60*60*24*30;
   open my $perlbuild_file, '>', $perlbuild_path
