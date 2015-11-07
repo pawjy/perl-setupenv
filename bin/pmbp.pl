@@ -968,7 +968,8 @@ sub use_perl_core_module ($) {
     my $perl_version = shift;
     my $perl_path = get_perlbrew_perl_bin_dir_name $perl_version;
     my $pm_path = get_pm_dir_name ($perl_version) . "/bin";
-    return $EnvPath->{$perl_version} ||= "$pm_path:$perl_path:$ENV{PATH}";
+    my $sep = $PlatformIsWindows ? ';' : ':';
+    return $EnvPath->{$perl_version} ||= "$pm_path$sep$perl_path:$ENV{PATH}";
   } # get_env_path
 
   sub which ($;$);
