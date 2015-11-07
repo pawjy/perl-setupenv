@@ -618,6 +618,20 @@ sub _quote_dq ($) {
   return $s;
 } # _quote_dq
 
+sub shellarg ($);
+if ($PlatformIsWindows) {
+  *shellarg = sub ($) {
+    ## <http://d.hatena.ne.jp/thinca/20100210/1265813598>
+    my $s = $_[0];
+    $s =~ s/([&|<>()^"%])/^$1/g;
+    $s =~ s/(\\+)"/$1$1"/g;
+    $s =~ s/\\^"/\\^"/g;
+    return qq{^"$s^"};
+  };
+} else {
+  *shellarg = sub ($) { return quotemeta $_ };
+}
+
 sub run_command ($;%) {
   my ($command, %args) = @_;
   local $_;
@@ -643,9 +657,9 @@ sub run_command ($;%) {
   my $full_command = 
       (defined $args{chdir} ? "cd \Q$args{chdir}\E && " : "") .
       (defined $args{stdin_value} ? "echo \Q$args{stdin_value}\E" : '') .
-      (join ' ', map { length $_ ? quotemeta $_ : '""' } @$command) .
-      (defined $args{"2>"} ? ' 2> ' . quotemeta $args{"2>"} : ' 2>&1') .
-      (defined $args{">"} ? ' > ' . quotemeta $args{">"} : '') .
+      (join ' ', map { shellarg $_ } @$command) .
+      (defined $args{"2>"} ? ' 2> ' . shellarg $args{"2>"} : ' 2>&1') .
+      (defined $args{">"} ? ' > ' . shellarg $args{">"} : '') .
       (($args{accept_input} || defined $args{stdin_value}) ? '' : $PlatformIsWindows ? '< NUL' : ' < /dev/null');
   info 10, "Run shell command: |$full_command|";
   profiler_start ($args{profiler_name} || 'command');
@@ -858,7 +872,7 @@ sub load_json_after_garbage ($) {
       if (@sudo) {
         unshift @$cmd, @sudo, '--';
       } else {
-        $cmd = ['su', '-c', join ' ', map { length $_ ? quotemeta $_ : '""' } @$cmd];
+        $cmd = ['su', '-c', join ' ', map { shellarg $_ } @$cmd];
       }
     }
 
@@ -3332,7 +3346,7 @@ sub scan_dependency_from_directory ($) {
 
   my @include_dir_name = qw(bin lib script t t_deps);
   my @exclude_pattern = map { "^$_" } qw(modules bin/modules t_deps/modules t_deps/projects);
-  for (split /\n/, qx{cd \Q$dir_name\E && find @{[join ' ', grep quotemeta, @include_dir_name]} 2> /dev/null @{[join ' ', map { "| grep -v $_" } grep quotemeta, @exclude_pattern]} | grep "\\.\\(pm\\|pl\\|t\\)\$" | xargs grep "\\(use\\|require\\|extends\\) " --no-filename}) {
+  for (split /\n/, qx{cd \Q$dir_name\E && find @{[join ' ', map { shellarg $_ } @include_dir_name]} 2> /dev/null @{[join ' ', map { "| grep -v $_" } map { shellarg $_ } @exclude_pattern]} | grep "\\.\\(pm\\|pl\\|t\\)\$" | xargs grep "\\(use\\|require\\|extends\\) " --no-filename}) {
     s/\#.*$//;
     while (/\b(?:(?:use|require)\s*(?:base|parent)|extends)\s*(.+)/g) {
       my $base = $1;
@@ -3348,7 +3362,7 @@ sub scan_dependency_from_directory ($) {
   }
 
   @include_dir_name = map { glob "$dir_name/$_" } qw(lib t/lib modules/*/lib bin/modules/*/lib t_deps/modules/*/lib);
-  for (split /\n/, qx{cd \Q$dir_name\E && find @{[join ' ', grep quotemeta, @include_dir_name]} 2> /dev/null | grep "\\.\\(pm\\|pl\\)\$" | xargs grep "package " --no-filename}) {
+  for (split /\n/, qx{cd \Q$dir_name\E && find @{[join ' ', map { shellarg $_ } @include_dir_name]} 2> /dev/null | grep "\\.\\(pm\\|pl\\)\$" | xargs grep "package " --no-filename}) {
     s/\#.*//;
     if (/package\s*([0-9A-Za-z_:]+)/) {
       delete $modules->{$1};
