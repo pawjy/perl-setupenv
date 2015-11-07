@@ -3184,10 +3184,13 @@ sub read_pmbp_exclusions_txt ($$) {
     if (/^\s*#/) {
       #
     } elsif (/^-\s*"([^"]+)"\s*(.+)$/) {
-      my $mod_name = abs_path "$base_dir_name/$1";
-      my $components = [split /\s+/, $2];
-      if (defined $mod_name) {
-        $defs->{components}->{$mod_name}->{$_} = $file_name for @$components;
+      my $mod_name = "$base_dir_name/$1";
+      if (-d $mod_name) {
+        $mod_name = abs_path $mod_name;
+        my $components = [split /\s+/, $2];
+        if (defined $mod_name) {
+          $defs->{components}->{$mod_name}->{$_} = $file_name for @$components;
+        }
       }
     } elsif (/^-\s*([0-9A-Za-z:]+)$/) {
       $defs->{modules}->{$1} = $file_name;
