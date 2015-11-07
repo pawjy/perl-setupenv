@@ -1947,6 +1947,11 @@ sub cpanm ($$) {
 
         $failed = 1;
       }
+      if ($level == 1 and
+          $log =~ /! Can't configure the distribution. You probably need to have 'make'. See (.+?) for details./m) {
+        my $log = copy_log_file $1 => 'cpanm';
+        $scan_errors->($level + 1, $log);
+      }
       if ($log =~ m{^(\S+) \S+ is required to configure this module; please install it or upgrade your CPAN/CPANPLUS shell.}m) {
         push @required_install, PMBP::Module->new_from_package ($1);
         # Don't set $failed flag.
