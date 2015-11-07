@@ -1934,7 +1934,7 @@ sub cpanm ($$) {
         }
       }
       if ($level == 1 and
-          ($log =~ /! (?:Installing|Configuring) (\S+) failed\. See (.+?) for details\./m or
+          ($log =~ /! (?:Installing|Configuring) (\S+) failed\. .*?See (.+?) for details\./m or
            $log =~ /! Configure failed for (\S+). See (.+?) for details\.$/m)) {
         my $log = copy_log_file $2 => $1;
         $scan_errors->($level + 1, $log);
