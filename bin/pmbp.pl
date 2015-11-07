@@ -632,6 +632,14 @@ if ($PlatformIsWindows) {
   *shellarg = sub ($) { return quotemeta $_ };
 }
 
+sub shellcommand ($) {
+  if ($PlatformIsWindows and $_[0] =~ /\A[0-9A-Za-z_\\:-]+\z/) {
+    return $_[0];
+  } else {
+    return shellarg $_[0];
+  }
+} # shellcommand
+
 sub run_command ($;%) {
   my ($command, %args) = @_;
   local $_;
@@ -657,7 +665,9 @@ sub run_command ($;%) {
   my $full_command = 
       (defined $args{chdir} ? "cd \Q$args{chdir}\E && " : "") .
       (defined $args{stdin_value} ? "echo \Q$args{stdin_value}\E" : '') .
-      (join ' ', map { shellarg $_ } @$command) .
+      (join ' ',
+         (@$command ? shellcommand $command[0] : ()),
+         map { shellarg $_ } @$command[1..$#$command]) .
       (defined $args{"2>"} ? ' 2> ' . shellarg $args{"2>"} : ' 2>&1') .
       (defined $args{">"} ? ' > ' . shellarg $args{">"} : '') .
       (($args{accept_input} || defined $args{stdin_value}) ? '' : $PlatformIsWindows ? '< NUL' : ' < /dev/null');
