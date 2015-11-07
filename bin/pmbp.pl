@@ -8,7 +8,7 @@ use strict;
 use warnings;
 use warnings FATAL => 'recursion';
 use Config;
-use Cwd qw(abs_path);
+use Cwd;
 use File::Spec ();
 use Getopt::Long;
 ## Some environment does not have this module.
@@ -284,7 +284,7 @@ if ($HelpLevel) {
 # {root}
 sub make_path ($);
 make_path ($RootDirName);
-$RootDirName = abs_path $RootDirName;
+$RootDirName = abs_path ($RootDirName);
 
 # {root}/local/cpanm
 my $CPANMDirName = "$RootDirName/local/cpanm";
@@ -515,6 +515,14 @@ sub exec_show_pmbp_tutorial () {
 } # exec_show_pmbp_tutorial
 
 ## ------ Files and directories ------
+
+sub abs_path ($) {
+  my $x = eval { Cwd::abs_path ($_[0]) };
+  if ($@) {
+    info_die "|abs_path| |$_[0]| failed ($@)";
+  }
+  return $x;
+} # abs_path
 
 sub use_perl_core_module ($);
 
