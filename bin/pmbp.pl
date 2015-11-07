@@ -283,6 +283,7 @@ if ($HelpLevel) {
 
 # {root}
 sub make_path ($);
+sub abs_path ($);
 make_path ($RootDirName);
 $RootDirName = abs_path ($RootDirName);
 
@@ -1430,6 +1431,9 @@ sub install_perl_by_perlbuild ($) {
 } # install_perl_by_perlbuild
 
 sub install_perl ($) {
+  if ($PlatformIsWindows) {
+    info_die "|install-perl| is not supported on Windows";
+  }
   return install_perl_by_perlbuild ($_[0]);
 } # install_perl
 
