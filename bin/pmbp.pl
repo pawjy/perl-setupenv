@@ -14,6 +14,7 @@ use Getopt::Long;
 ## Some environment does not have this module.
 BEGIN { eval q{ use Time::HiRes qw(time); 1 } or warn $@ };
 
+my $PlatformIsWindows = $^O eq 'MSWin32';
 my $PerlCommand = 'perl';
 my $SpecifiedPerlVersion = $ENV{PMBP_PERL_VERSION};
 my $PerlOptions = {};
@@ -27,6 +28,7 @@ my $SudoCommand = 'sudo';
 my $AptGetCommand = 'apt-get';
 my $YumCommand = 'yum';
 my $BrewCommand = 'brew';
+my $WhichCommand = $PlatformIsWindows ? 'where' : 'which';
 my $DownloadRetryCount = 2;
 my $PerlbrewInstallerURL = q<https://raw.githubusercontent.com/gugod/App-perlbrew/develop/perlbrew-install>; # q<http://install.perlbrew.pl/>;
 my $PerlbrewParallelCount = $ENV{PMBP_PARALLEL_COUNT} || ($ENV{CI} ? 4 : 1);
@@ -542,7 +544,12 @@ sub make_path ($) {
   if (eval { require File::Path }) {
     File::Path::mkpath ($_[0]);
   } else {
-    (system 'mkdir', '-p', $_[0]) == 0 or die $!;
+    if ($PlatformIsWindows) {
+      system 'mkdir', $_[0];
+      (system 'dir', $_[0]) == 0 or die $!;
+    } else {
+      (system 'mkdir', '-p', $_[0]) == 0 or die $!;
+    }
   }
 } # make_path
 
@@ -593,19 +600,21 @@ sub info_log_file ($$$) {
   return $content;
 } # info_log_file
 
-our $HasFileTemp = 1;
-sub FileTemp () {
-  {
-    local $HasFileTemp = 0;
-    use_perl_core_module 'File::Temp';
-  }
-  return File::Temp->new;
-} # FileTemp
-
 sub create_temp_dir_name () {
   use_perl_core_module 'File::Temp';
   return File::Temp::tempdir ('PMBP-XX'.'XX'.'XX', TMPDIR => 1, CLEANUP => 1);
 } # create_temp_dir_name
+
+our $HasFileTemp = 1;
+my $CommonTempDirName;
+sub create_temp_file_name () {
+  {
+    local $HasFileTemp = 0;
+    use_perl_core_module 'File::Temp';
+  }
+  $CommonTempDirName ||= create_temp_dir_name;
+  return "$CommonTempDirName/temp-" . rand;
+} # create_temp_file_name
 
 ## ------ Commands ------
 
@@ -615,6 +624,28 @@ sub _quote_dq ($) {
   $s =~ s/\"/\\\"/g;
   return $s;
 } # _quote_dq
+
+sub shellarg ($);
+if ($PlatformIsWindows) {
+  *shellarg = sub ($) {
+    ## <http://d.hatena.ne.jp/thinca/20100210/1265813598>
+    my $s = $_[0];
+    $s =~ s/([&|<>()^"%])/^$1/g;
+    $s =~ s/(\\+)"/$1$1"/g;
+    $s =~ s/\\^"/\\^"/g;
+    return qq{^"$s^"};
+  };
+} else {
+  *shellarg = sub ($) { return quotemeta $_[0] };
+}
+
+sub shellcommand ($) {
+  if ($PlatformIsWindows and $_[0] =~ /\A[0-9A-Za-z_\\:-]+\z/) {
+    return $_[0];
+  } else {
+    return shellarg $_[0];
+  }
+} # shellcommand
 
 sub run_command ($;%) {
   my ($command, %args) = @_;
@@ -628,24 +659,27 @@ sub run_command ($;%) {
     info ((defined $args{info_command_level} ? $args{info_command_level} : 2),
           qq{$prefix$prefix0\$ @{[map { $_ . '="' . (_quote_dq $envs->{$_}) . '" ' } sort { $a cmp $b } keys %$envs]}@$command});
   }
-  my $stderr_file;
-  if ($args{discard_stderr}) {
+  my $stderr_file_name;
+  if ($args{discard_stderr} or $PlatformIsWindows) { # instead of 2>&1 on Windows
     if ($HasFileTemp) {
-      $stderr_file = FileTemp;
-      $args{"2>"} = $stderr_file->filename;
+      $stderr_file_name = $args{"2>"} = create_temp_file_name;
     } else {
       $args{"2>"} = sub {};
     }
   }
   local %ENV = map { defined $_ ? $_ : '' } (%ENV, %$envs);
+  my $full_command = 
+      (defined $args{chdir} ? "cd @{[shellarg $args{chdir}]} && " : "") .
+      (defined $args{stdin_value} ? "echo @{[shellarg $args{stdin_value}]}" : '') .
+      (join ' ',
+         (@$command ? shellcommand $command->[0] : ()),
+         map { shellarg $_ } @$command[1..$#$command]) .
+      (defined $args{"2>"} ? ' 2> ' . shellarg $args{"2>"} : ' 2>&1') .
+      (defined $args{">"} ? ' > ' . shellarg $args{">"} : '') .
+      (($args{accept_input} || defined $args{stdin_value}) ? '' : $PlatformIsWindows ? '< NUL' : ' < /dev/null');
+  info 10, "Run shell command: |$full_command|";
   profiler_start ($args{profiler_name} || 'command');
-  my $pid = open my $cmd, "-|",
-      (defined $args{chdir} ? "cd \Q$args{chdir}\E && " : "") .
-      (defined $args{stdin_value} ? "echo \Q$args{stdin_value}\E" : '') .
-      (join ' ', map quotemeta, @$command) .
-      (defined $args{"2>"} ? ' 2> ' . quotemeta $args{"2>"} : ' 2>&1') .
-      (defined $args{">"} ? ' > ' . quotemeta $args{">"} : '') .
-      (($args{accept_input} || defined $args{stdin_value}) ? '' : ' < /dev/null')
+  my $pid = open my $cmd, "-|", $full_command
       or info_die "$0: $command->[0]: $!";
   if (defined $args{'$$'}) {
     ${$args{'$$'}} = $pid;
@@ -660,8 +694,8 @@ sub run_command ($;%) {
     ${$args{'$?'}} = $?;
   }
   profiler_stop ($args{profiler_name} || 'command');
-  if ($stderr_file and -f $stderr_file->filename) {
-    my $log = info_log_file 3, $stderr_file->filename => 'stderr';
+  if (defined $stderr_file_name and -f $stderr_file_name) {
+    my $log = info_log_file 3, $stderr_file_name => 'stderr';
     if ($args{onstderr}) {
       local $_ = $log;
       $args{onstderr}->();
@@ -854,7 +888,7 @@ sub load_json_after_garbage ($) {
       if (@sudo) {
         unshift @$cmd, @sudo, '--';
       } else {
-        $cmd = ['su', '-c', join ' ', map { length $_ ? quotemeta $_ : '""' } @$cmd];
+        $cmd = ['su', '-c', join ' ', map { shellarg $_ } @$cmd];
       }
     }
 
@@ -934,18 +968,25 @@ sub use_perl_core_module ($) {
     my $perl_version = shift;
     my $perl_path = get_perlbrew_perl_bin_dir_name $perl_version;
     my $pm_path = get_pm_dir_name ($perl_version) . "/bin";
-    return $EnvPath->{$perl_version} ||= "$pm_path:$perl_path:$ENV{PATH}";
+    my $sep = $PlatformIsWindows ? ';' : ':';
+    return $EnvPath->{$perl_version} ||= "$pm_path$sep$perl_path$sep$ENV{PATH}";
   } # get_env_path
 
+  sub which ($;$);
   sub which ($;$) {
     my ($command, $perl_version) = @_;
     my $output;
-    if (run_command ['which', $command],
+    if (run_command [$WhichCommand, $command],
             envs => {defined $perl_version ? (PATH => get_env_path ($perl_version)) : ()},
             discard_stderr => 1,
             onoutput => sub { $output = $_[0]; 3 }) {
-      if (defined $output and $output =~ m{^(\S*\Q$command\E)$}) {
+      $output =~ s/[\x20\x0D\x0A]+\z//;
+      if (defined $output and
+          $output =~ m{^(.*\Q$command\E(?:\.[A-Za-z0-9]+|))$}i) {
+        info 10, "Result is: |$1|";
         return $1;
+      } else {
+        info 10, "|which| output |$output| does not contain the result";
       }
     }
     return undef;
@@ -1117,6 +1158,7 @@ sub get_perl_version ($) {
   run_command [$perl_command, '-e', 'printf "%vd", $^V'],
       discard_stderr => 1,
       onoutput => sub { $perl_version = $_[0]; 2 };
+  $perl_version =~ s/^v//;
   return $perl_version;
 } # get_perl_version
 
@@ -1467,6 +1509,7 @@ sub install_cpanm () {
       [stat $CPANMCommand]->[9] < [stat $0]->[9]) { # mtime
     save_url $CPANMURL => $CPANMCommand;
 
+    my $out = '';
     unless (run_command ['perl', '-MExtUtils::MakeMaker', '-e', ' ']) {
       install_system_packages [{name => 'perl-ExtUtils-MakeMaker', debian_name => 'libextutils-makemaker-perl'}] # core 5+
           or info_die "Your perl does not have |ExtUtils::MakeMaker| (which is a core module)";
@@ -1561,7 +1604,7 @@ sub install_cpanm_wrapper () {
       return undef;
     }; # search_mirror_index_file
 
-    setpgrp 0, 0;
+    setpgrp 0, 0 unless $^O eq 'MSWin32';
     
     my $app = App::cpanminus::script->new;
     $app->parse_options (@ARGV);
@@ -2170,7 +2213,7 @@ sub cpanm ($$) {
                @option,
                @additional_option,
                @module_arg);
-    my $json_temp_file;
+    my $json_temp_file_name;
     my $cpanm_error = '';
     my $cpanm_ok = run_command \@cmd,
         envs => $envs,
@@ -2178,7 +2221,7 @@ sub cpanm ($$) {
         profiler_name => ($args->{scandeps} ? 'cpanm-scandeps' : $args->{info} ? 'cpanm-info' : 'cpanm'),
         prefix => "cpanm($CPANMDepth/$redo): ",
         '>' => (($args->{scandeps} || $args->{info} || $args->{version}) ? do {
-          $json_temp_file = FileTemp;
+          $json_temp_file_name = create_temp_file_name;
         } : undef),
         discard_stderr => (($args->{scandeps} || $args->{info}) ? 1 : 0),
         '$$' => \$cpanm_pid,
@@ -2197,27 +2240,29 @@ sub cpanm ($$) {
         };
     info 2, "cpanm done (exit status @{[$cpanm_error >> 8]})";
     if (not $cpanm_ok and not $failed and (($cpanm_error >> 8) == 1) and
-        $args->{scandeps} and -f $json_temp_file->filename) {
+        $args->{scandeps} and -f $json_temp_file_name) {
       ## cpanm --scandeps exits with return value 1...
       $cpanm_ok = 1;
     }
 
-    if (defined $json_temp_file and -f $json_temp_file->filename) {
-      info_log_file 3, $json_temp_file->filename => 'cpanm STDOUT';
+    if (defined $json_temp_file_name and -f $json_temp_file_name) {
+      info_log_file 3, $json_temp_file_name => 'cpanm STDOUT';
     }
-    if ($args->{info} and -f $json_temp_file->filename) {
+    if ($args->{info} and
+        defined $json_temp_file_name and -f $json_temp_file_name) {
       ## Example output:
       ## ==> Found dependencies: ExtUtils::MakeMaker, ExtUtils::Install
       ## BINGOS/ExtUtils-MakeMaker-6.72.tar.gz
       ## YVES/ExtUtils-Install-1.54.tar.gz
       ## FAYLAND/WWW-Contact-0.47.tar.gz
-      open my $file, '<', $json_temp_file->filename or info_die "$0: $!";
+      open my $file, '<', $json_temp_file_name or info_die "$0: $!";
       local $/ = undef;
       $result->{output_text} = [grep { length } split /\x0D?\x0A/, <$file>]->[-1];
-    } elsif ($args->{scandeps} and -f $json_temp_file->filename) {
+    } elsif ($args->{scandeps} and
+             defined $json_temp_file_name and -f $json_temp_file_name) {
       ## Parse JSON data, ignoring any progress before it...
       my $garbage;
-      ($garbage, $result->{output_json}) = load_json_after_garbage $json_temp_file->filename;
+      ($garbage, $result->{output_json}) = load_json_after_garbage $json_temp_file_name;
       unless (@{$result->{output_json} or []}) {
         unless ($redo++ > 10) {
           info 1, "Retrying cpanm --scandeps...";
@@ -2226,8 +2271,9 @@ sub cpanm ($$) {
         $failed = "no output json data";
       }
       $scan_errors->(1, $garbage);
-    } elsif ($args->{version} and -f $json_temp_file->filename) {
-      open my $file, '<', $json_temp_file->filename or info_die "$0: $!";
+    } elsif ($args->{version} and
+             defined $json_temp_file_name and -f $json_temp_file_name) {
+      open my $file, '<', $json_temp_file_name or info_die "$0: $!";
       local $/ = undef;
       $result->{output_text} = <$file>;
     }
@@ -2465,10 +2511,21 @@ sub save_by_pathname ($$) {
           -d $FallbackPMTarDirName) {
         $PMTarDirName = abs_path $FallbackPMTarDirName;
       } else {
-        run_command
-            ['mkdir', '-p', $PMTarDirName],
-            chdir => $RootDirName
-            or info_die "Can't create $PMTarDirName at $RootDirName";
+        if ($PlatformIsWindows) {
+          run_command
+              ['mkdir', $PMTarDirName],
+              chdir => $RootDirName;
+          run_command
+              ['dir', $PMTarDirName],
+              chdir => $RootDirName,
+              info_level => 10
+              or info_die "Can't create $PMTarDirName at $RootDirName";
+        } else {
+          run_command
+              ['mkdir', '-p', $PMTarDirName],
+              chdir => $RootDirName
+              or info_die "Can't create $PMTarDirName at $RootDirName";
+        }
         run_command
             ['sh', '-c', "cd \Q$PMTarDirName\E && pwd"],
             chdir => $RootDirName,
@@ -2485,10 +2542,21 @@ sub save_by_pathname ($$) {
   my $pmpp_dir_created;
   sub pmpp_dir_name () {
     unless ($pmpp_dir_created) {
-      run_command
-          ['mkdir', '-p', $PMPPDirName],
-          chdir => $RootDirName
-          or info_die "Can't create $PMPPDirName at $RootDirName";
+      if ($PlatformIsWindows) {
+        run_command
+            ['mkdir', $PMPPDirName],
+            chdir => $RootDirName;
+        run_command
+            ['dir', $PMPPDirName],
+            chdir => $RootDirName,
+            info_level => 10
+            or info_die "Can't create $PMPPDirName at $RootDirName";
+      } else {
+        run_command
+            ['mkdir', '-p', $PMPPDirName],
+            chdir => $RootDirName
+            or info_die "Can't create $PMPPDirName at $RootDirName";
+      }
       run_command
           ['sh', '-c', "cd \Q$PMPPDirName\E && pwd"],
           chdir => $RootDirName,
@@ -3327,7 +3395,7 @@ sub scan_dependency_from_directory ($) {
 
   my @include_dir_name = qw(bin lib script t t_deps);
   my @exclude_pattern = map { "^$_" } qw(modules bin/modules t_deps/modules t_deps/projects);
-  for (split /\n/, qx{cd \Q$dir_name\E && find @{[join ' ', grep quotemeta, @include_dir_name]} 2> /dev/null @{[join ' ', map { "| grep -v $_" } grep quotemeta, @exclude_pattern]} | grep "\\.\\(pm\\|pl\\|t\\)\$" | xargs grep "\\(use\\|require\\|extends\\) " --no-filename}) {
+  for (split /\n/, qx{cd @{[shellarg $dir_name]} && find @{[join ' ', map { shellarg $_ } @include_dir_name]} 2> /dev/null @{[join ' ', map { "| grep -v $_" } map { shellarg $_ } @exclude_pattern]} | grep "\\.\\(pm\\|pl\\|t\\)\$" | xargs grep "\\(use\\|require\\|extends\\) " --no-filename}) {
     s/\#.*$//;
     while (/\b(?:(?:use|require)\s*(?:base|parent)|extends)\s*(.+)/g) {
       my $base = $1;
@@ -3343,7 +3411,7 @@ sub scan_dependency_from_directory ($) {
   }
 
   @include_dir_name = map { glob "$dir_name/$_" } qw(lib t/lib modules/*/lib bin/modules/*/lib t_deps/modules/*/lib);
-  for (split /\n/, qx{cd \Q$dir_name\E && find @{[join ' ', grep quotemeta, @include_dir_name]} 2> /dev/null | grep "\\.\\(pm\\|pl\\)\$" | xargs grep "package " --no-filename}) {
+  for (split /\n/, qx{cd @{[shellarg $dir_name]} && find @{[join ' ', map { shellarg $_ } @include_dir_name]} 2> /dev/null | grep "\\.\\(pm\\|pl\\)\$" | xargs grep "package " --no-filename}) {
     s/\#.*//;
     if (/package\s*([0-9A-Za-z_:]+)/) {
       delete $modules->{$1};
