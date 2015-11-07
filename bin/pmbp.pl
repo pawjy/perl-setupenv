@@ -640,14 +640,16 @@ sub run_command ($;%) {
     }
   }
   local %ENV = map { defined $_ ? $_ : '' } (%ENV, %$envs);
-  profiler_start ($args{profiler_name} || 'command');
-  my $pid = open my $cmd, "-|",
+  my $full_command = 
       (defined $args{chdir} ? "cd \Q$args{chdir}\E && " : "") .
       (defined $args{stdin_value} ? "echo \Q$args{stdin_value}\E" : '') .
       (join ' ', map { length $_ ? quotemeta $_ : '""' } @$command) .
       (defined $args{"2>"} ? ' 2> ' . quotemeta $args{"2>"} : ' 2>&1') .
       (defined $args{">"} ? ' > ' . quotemeta $args{">"} : '') .
-      (($args{accept_input} || defined $args{stdin_value}) ? '' : $PlatformIsWindows ? '< NUL' : ' < /dev/null')
+      (($args{accept_input} || defined $args{stdin_value}) ? '' : $PlatformIsWindows ? '< NUL' : ' < /dev/null');
+  info 10, "Run shell command: |$full_command|";
+  profiler_start ($args{profiler_name} || 'command');
+  my $pid = open my $cmd, "-|", $full_command
       or info_die "$0: $command->[0]: $!";
   if (defined $args{'$$'}) {
     ${$args{'$$'}} = $pid;
