@@ -14,6 +14,7 @@ use Getopt::Long;
 ## Some environment does not have this module.
 BEGIN { eval q{ use Time::HiRes qw(time); 1 } or warn $@ };
 
+my $PlatformIsWindows = $^O eq 'MSWin32';
 my $PerlCommand = 'perl';
 my $SpecifiedPerlVersion = $ENV{PMBP_PERL_VERSION};
 my $PerlOptions = {};
@@ -27,6 +28,7 @@ my $SudoCommand = 'sudo';
 my $AptGetCommand = 'apt-get';
 my $YumCommand = 'yum';
 my $BrewCommand = 'brew';
+my $WhichCommand = $PlatformIsWindows ? 'where' : 'which';
 my $DownloadRetryCount = 2;
 my $PerlbrewInstallerURL = q<https://raw.githubusercontent.com/gugod/App-perlbrew/develop/perlbrew-install>; # q<http://install.perlbrew.pl/>;
 my $PerlbrewParallelCount = $ENV{PMBP_PARALLEL_COUNT} || ($ENV{CI} ? 4 : 1);
@@ -914,10 +916,11 @@ sub use_perl_core_module ($) {
     return $EnvPath->{$perl_version} ||= "$pm_path:$perl_path:$ENV{PATH}";
   } # get_env_path
 
+  sub which ($;$);
   sub which ($;$) {
     my ($command, $perl_version) = @_;
     my $output;
-    if (run_command ['which', $command],
+    if (run_command [$WhichCommand, $command],
             envs => {defined $perl_version ? (PATH => get_env_path ($perl_version)) : ()},
             discard_stderr => 1,
             onoutput => sub { $output = $_[0]; 3 }) {
