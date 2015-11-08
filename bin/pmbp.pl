@@ -283,6 +283,7 @@ if ($HelpLevel) {
 
 # {root}
 sub make_path ($);
+sub abs_path ($);
 make_path ($RootDirName);
 $RootDirName = abs_path ($RootDirName);
 
@@ -1361,7 +1362,7 @@ sub install_perl_by_perlbrew ($) {
 
 sub install_perlbuild () {
   my $perlbuild_path = "$RootDirName/local/perlbuild";
-  #make_path "$RootDirName/local/perlbrew";
+  make_path "$RootDirName/local/perlbrew";
   my $perlbuild_url = q<https://raw.githubusercontent.com/tokuhirom/Perl-Build/master/perl-build>;
   save_url $perlbuild_url => "$perlbuild_path-orig", max_age => 60*60*24*30;
   open my $perlbuild_file, '>', $perlbuild_path
@@ -1430,6 +1431,9 @@ sub install_perl_by_perlbuild ($) {
 } # install_perl_by_perlbuild
 
 sub install_perl ($) {
+  if ($PlatformIsWindows) {
+    info_die "|install-perl| is not supported on Windows";
+  }
   return install_perl_by_perlbuild ($_[0]);
 } # install_perl
 
@@ -3180,10 +3184,13 @@ sub read_pmbp_exclusions_txt ($$) {
     if (/^\s*#/) {
       #
     } elsif (/^-\s*"([^"]+)"\s*(.+)$/) {
-      my $mod_name = abs_path "$base_dir_name/$1";
-      my $components = [split /\s+/, $2];
-      if (defined $mod_name) {
-        $defs->{components}->{$mod_name}->{$_} = $file_name for @$components;
+      my $mod_name = "$base_dir_name/$1";
+      if (-d $mod_name) {
+        $mod_name = abs_path $mod_name;
+        my $components = [split /\s+/, $2];
+        if (defined $mod_name) {
+          $defs->{components}->{$mod_name}->{$_} = $file_name for @$components;
+        }
       }
     } elsif (/^-\s*([0-9A-Za-z:]+)$/) {
       $defs->{modules}->{$1} = $file_name;
