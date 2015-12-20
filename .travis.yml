@@ -22,6 +22,9 @@ env:
     - TARGET=update
     - TARGET=install-1
     - TARGET=normal
+matrix:
+  allow_failures:
+    - os: osx
 before_install: git submodule update --init
 install: "make test-deps-travis"
 script: "make test"
