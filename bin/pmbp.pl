@@ -919,7 +919,7 @@ sub load_json_after_garbage ($) {
               info_command_level => 0,
               envs => {DEBIAN_FRONTEND => "noninteractive"};
 
-          if (not $return and $args{update_unless_found}) {
+          if (not $return) {
             if ($HasAPT) {
               # E: Unable to locate package
               run_command [$AptGetCommand, 'update'] and next;
@@ -962,7 +962,7 @@ sub use_perl_core_module ($) {
     'PerlIO' => {name => 'perl-PerlIO', redhat_name => 'perl(PerlIO)', debian_name => 'perl-modules'}, # core 5.7.3+
   }->{$package} or die "Package info for |$package| not defined";
 
-  install_system_packages [$sys], update_unless_found => 1; # or die at require
+  install_system_packages [$sys]; # or die at require
 
   eval qq{ require $package } or die $@; # not info_die
 } # use_perl_core_module
