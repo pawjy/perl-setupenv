@@ -14,7 +14,7 @@ use Getopt::Long;
 ## Some environment does not have this module.
 BEGIN { eval q{ use Time::HiRes qw(time); 1 } or warn $@ };
 
-my $PlatformIsWindows = $^O eq 'MSWin32';l
+my $PlatformIsWindows = $^O eq 'MSWin32';
 my $PerlCommand = 'perl';
 my $SpecifiedPerlVersion = $ENV{PMBP_PERL_VERSION};
 my $PerlOptions = {};
@@ -2088,7 +2088,7 @@ sub cpanm ($$) {
       }
       if ($log =~ /^Could not find gdlib-config in the search path. Please install libgd /m) {
         push @required_system,
-            {name => 'gd-devel', debian_name => 'libgd-dev'};
+            {name => 'gd-devel', debian_name => 'libgd2-xpm-dev'};
         $failed = 1;
       }
       if ($log =~ /fatal error: mpfr.h: No such file or directory/m) {
