@@ -922,7 +922,7 @@ sub load_json_after_garbage ($) {
           if (not $return) {
             if ($HasAPT) {
               # E: Unable to locate package
-              run_command [$AptGetCommand, 'update'] and next;
+              run_command [@sudo, '--', $AptGetCommand, 'update'] and next;
             }
           }
 
