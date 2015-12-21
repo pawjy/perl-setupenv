@@ -2100,7 +2100,8 @@ sub cpanm ($$) {
         push @required_system,
             {name => 'mysql-server-devel',
              redhat_name => 'MySQL-devel',
-             debian_name => 'libmysqld-dev'};
+             debian_name => 'libmysqld-dev',
+             homebrew_name => 'mysql'};
         $failed = 1;
       }
       if ($log =~ /^The value of POSTGRES_INCLUDE points to a non-existent directory/m) {
@@ -2117,7 +2118,8 @@ sub cpanm ($$) {
         push @required_system,
             {name => 'mysql-client-devel',
              redhat_name => 'MySQL-devel',
-             debian_name => 'libmysqlclient-dev'};
+             debian_name => 'libmysqlclient-dev',
+             homebrew_name => 'mysql'};
         $failed = 1;
       }
       if ($log =~ /^version.c:.+?: error: db.h: No such file or directory/m and

@@ -5,6 +5,7 @@ pmbp=$basedir/bin/pmbp.pl
 tempdir=`perl -MFile::Temp=tempdir -e 'print tempdir'`/testapp
 
 mkdir -p "$tempdir"
+tempdir=`readlink -f "$tempdir" || (brew install coreutils && greadlink -f "$tempdir")`
 
 perl $pmbp --root-dir-name="$tempdir" \
     --print-pmtar-dir-name --print "
