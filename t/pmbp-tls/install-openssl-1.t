@@ -16,6 +16,8 @@ which perl
              --create-perl-command-shortcut which \
              --create-perl-command-shortcut perl && echo "ok 1") || echo "not ok 1")
 
+cat perl
+
 # XXX
 which perl
 ./which perl
