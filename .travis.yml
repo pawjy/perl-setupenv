@@ -11,6 +11,7 @@ env:
   matrix:
     - TARGET=imagemagick
     - TARGET=modperl
+    - TARGET=tls
     - TARGET=svn
     - TARGET=scan
     - TARGET=lists
@@ -20,7 +21,6 @@ env:
     - TARGET=mecab
     - TARGET=env
     - TARGET=git
-    - TARGET=tls
     - TARGET=update
     - TARGET=install-1
     - TARGET=normal
