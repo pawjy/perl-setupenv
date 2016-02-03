@@ -7,7 +7,11 @@ tempdir=`perl -MFile::Temp=tempdir -e 'print tempdir'`/testapp
 mkdir -p $tempdir/foo
 cd $tempdir/foo
 
-((perl $pmbp --install-openssl \
+# XXX
+which perl
+
+((perl $pmbp --install-perl
+             --install-openssl \
              --install-module Net::SSLeay \
              --create-perl-command-shortcut which \
              --create-perl-command-shortcut perl && echo "ok 1") || echo "not ok 1")
