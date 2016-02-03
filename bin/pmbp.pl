@@ -733,11 +733,11 @@ sub _save_url {
   for (0..1) {
     $HasWget = which ($WgetCommand) ? 1 : 0 if not defined $HasWget;
     $HasCurl = which ($CurlCommand) ? 1 : 0 if not defined $HasCurl;
-    if ($HasWget) {
-      $fetcher = 'wget';
-      last;
-    } elsif ($HasCurl) {
+    if ($HasCurl) {
       $fetcher = 'curl';
+      last;
+    } elsif ($HasWget) {
+      $fetcher = 'wget';
       last;
     } else {
       install_system_packages [{name => 'curl'}]
