@@ -270,7 +270,7 @@ GetOptions (
     print-pmtar-dir-name print-pmpp-dir-name print-perl-path
     print-submodule-components
     install-mecab install-svn install-git install-curl install-wget
-    install-make install-gcc
+    install-make install-gcc install-openssl
     help-tutorial
   )),
 ) or do {
@@ -1825,6 +1825,10 @@ sub cpanm ($$) {
                 HOME => get_cpanm_dummy_home_dir_name ($perl_lib_dir_name),
                 PERL_CPANM_HOME => $CPANMHomeDirName,
                 MAKEFLAGS => ''};
+
+    if (-x "$RootDirName/local/common/bin/openssl") {
+      $envs->{OPENSSL_PREFIX} = "$RootDirName/local/common";
+    }
     
     ## --- Error message sniffer ---
     if (@module_arg and $module_arg[0] eq 'GD' and
@@ -3604,6 +3608,45 @@ sub has_module ($$$$) {
   return 0;
 } # has_module
 
+sub install_openssl () {
+  my $url = q<https://github.com/openssl/openssl>;
+  make_path "$PMBPDirName/tmp";
+  my $repo_dir_name = "$PMBPDirName/tmp/openssl";
+  unless (-d "$repo_dir_name/.git") {
+    run_command [git, 'clone', $url, $repo_dir_name, '--depth', 1]
+        or info_die "|git clone| failed";
+  } else {
+    #run_command [git, 'pull'],
+    #    chdir => $repo_dir_name
+    #    or info_die "|git pull| failed";
+  }
+
+  unless (which ('make')) {
+    install_system_packages [{name => 'make'}]
+        or info_die "Can't install make";
+  }
+  unless (which ('gcc')) {
+    install_system_packages [{name => 'gcc'}]
+        or info_die "Can't install gcc";
+  }
+  install_system_packages [{name => 'zlib-devel', debian_name => 'zlib1g-dev'}]
+      or info_die "Can't install zlib-devel";
+
+  my $common_dir_name = "$RootDirName/local/common";
+  run_command ['./config',
+               "--prefix=$common_dir_name",
+               "--openssldir=$common_dir_name/openssl",
+               'shared'],
+      chdir => $repo_dir_name
+      or info_die "Can't build the package";
+  run_command ['make'],
+      chdir => $repo_dir_name
+      or info_die "Can't build the package";
+  run_command ['make', 'install_sw'],
+      chdir => $repo_dir_name
+      or info_die "Can't install the package";
+} # install_openssl
+
 ## ------ ImageMagick ------
 
 sub download_imagemagick () {
@@ -4376,6 +4419,8 @@ while (@Command) {
   } elsif ($command->{type} eq 'install-gcc') {
     install_system_packages [{name => 'gcc'}]
         or info_die "Can't install gcc";
+  } elsif ($command->{type} eq 'install-openssl') {
+    install_openssl;
 
   } elsif ($command->{type} eq 'print-cpan-top-url') {
     print get_cpan_top_url;
@@ -5831,6 +5876,10 @@ Install GNU Make, if necessary.
 =item --install-gcc
 
 Install GCC, if necessary.
+
+=item --install-openssl
+
+Install OpenSSL into C<local/common>.
 
 =item --install-apache="VERSION"
 
