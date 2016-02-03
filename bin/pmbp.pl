@@ -3661,8 +3661,13 @@ sub install_openssl () {
   close $temp_c_file;
   unless (run_command ['gcc', '-lz', $temp_c_file_name],
               chdir => $temp_dir_name) {
-    install_system_packages [{name => 'zlib-devel', debian_name => 'zlib1g-dev'}]
-        or info_die "Can't install zlib-devel";
+    if ($PlatformIsMacOSX) {
+      run_command ['xcode-select', '--install']
+          or info_die "xcode-select failed";
+    } else {
+      install_system_packages [{name => 'zlib-devel', debian_name => 'zlib1g-dev'}]
+          or info_die "Can't install zlib-devel";
+    }
   }
 
   my $common_dir_name = "$RootDirName/local/common";
