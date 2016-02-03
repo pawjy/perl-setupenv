@@ -272,6 +272,7 @@ GetOptions (
     print-submodule-components
     install-mecab install-svn install-git install-curl install-wget
     install-make install-gcc install-openssl install-openssl-if-mac
+    print-openssl-stable-branch
     help-tutorial
   )),
 ) or do {
@@ -3609,7 +3610,7 @@ sub has_module ($$$$) {
   return 0;
 } # has_module
 
-sub get_openssl_branches () {
+sub get_openssl_branches_by_api () {
   my $json_file_name = "$PMBPDirName/tmp/openssl-branches.json";
   save_url q<https://api.github.com/repos/openssl/openssl/branches> => $json_file_name,
       max_age => 60*60*24*100;
@@ -3631,16 +3632,27 @@ sub get_openssl_branches () {
   } @branch;
   unshift @branch, 'master'; # unstable
   return [reverse @branch];
-} # get_openssl_branches
+} # get_openssl_branches_by_api
+
+sub get_openssl_branch () {
+  my $branch_file_name = "$PMBPDirName/tmp/openssl-branch.txt";
+  save_url q<https://raw.githubusercontent.com/wakaba/perl-setupenv/master/version/openssl-stable-branch.txt> => $branch_file_name,
+      max_age => 60*60*24*100;
+  open my $branch_file, '<', $branch_file_name
+      or info_die "Can't open file |$branch_file_name|";
+  my $branch = <$branch_file>;
+  info_die "Bad branch file |$branch|" unless $branch;
+  return $branch;
+} # get_openssl_branch
 
 sub install_openssl () {
   my $url = q<https://github.com/openssl/openssl>;
   make_path "$PMBPDirName/tmp";
   my $repo_dir_name = "$PMBPDirName/tmp/openssl";
   unless (-d "$repo_dir_name/.git") {
-    my $branches = get_openssl_branches;
+    my $branch = get_openssl_branch;
     run_command [git, 'clone', $url, $repo_dir_name, '--depth', 1,
-                 '-b', $branches->[0]]
+                 '-b', $branch]
         or info_die "|git clone| failed";
   } else {
     #run_command [git, 'pull'],
@@ -4465,6 +4477,9 @@ while (@Command) {
     install_openssl;
   } elsif ($command->{type} eq 'install-openssl-if-mac') {
     install_openssl if $PlatformIsMacOSX;
+  } elsif ($command->{type} eq 'print-openssl-stable-branch') {
+    my $branches = get_openssl_branches_by_api;
+    print $branches->[0];
 
   } elsif ($command->{type} eq 'print-cpan-top-url') {
     print get_cpan_top_url;
@@ -5929,6 +5944,10 @@ Install OpenSSL into C<local/common>.
 
 Same as C<--install-openssl> but has no effect unless the platform is
 Mac OS X.
+
+=item --print-openssl-stable-branch
+
+Print the GitHub branch name for the latest OpenSSL stable version.
 
 =item --install-apache="VERSION"
 

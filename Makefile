@@ -9,6 +9,7 @@ git-submodules:
 
 updatenightly:
 	perl bin/pmbp.pl --print-latest-perl-version > version/perl.txt
+	perl bin/pmbp.pl --print-openssl-stable-branch > version/openssl-stable-branch.txt
 	$(GIT) add version/*.txt
 
 ## ------ Build ------
