@@ -3614,6 +3614,7 @@ sub get_openssl_branches () {
   save_url q<https://api.github.com/repos/openssl/openssl/branches> => $json_file_name,
       max_age => 60*60*24*100;
   my $json = load_json $json_file_name;
+  info_die "Bad JSON data" unless defined $json and ref $json eq 'ARRAY';
   my @branch;
   for (@$json) {
     if ($_->{name} =~ /^OpenSSL_(\d+)_(\d+)_(\d+)-stable$/) {
