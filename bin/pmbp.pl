@@ -270,6 +270,7 @@ GetOptions (
     print-pmtar-dir-name print-pmpp-dir-name print-perl-path
     print-submodule-components
     install-mecab install-svn install-git install-curl install-wget
+    install-make install-gcc
     help-tutorial
   )),
 ) or do {
@@ -4369,6 +4370,12 @@ while (@Command) {
   } elsif ($command->{type} eq 'install-wget') {
     install_system_packages [{name => 'wget'}]
         or info_die "Can't install wget";
+  } elsif ($command->{type} eq 'install-make') {
+    install_system_packages [{name => 'make'}]
+        or info_die "Can't install make";
+  } elsif ($command->{type} eq 'install-gcc') {
+    install_system_packages [{name => 'gcc'}]
+        or info_die "Can't install gcc";
 
   } elsif ($command->{type} eq 'print-cpan-top-url') {
     print get_cpan_top_url;
@@ -5816,6 +5823,14 @@ Install curl, if necessary.
 =item --install-wget
 
 Install wget, if necessary.
+
+=item --install-make
+
+Install GNU Make, if necessary.
+
+=item --install-gcc
+
+Install GCC, if necessary.
 
 =item --install-apache="VERSION"
 
