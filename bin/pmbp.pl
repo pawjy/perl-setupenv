@@ -3797,10 +3797,10 @@ sub get_latest_svn_versions () {
     $html =~ s/\s+/ /g;
   }
 
-  my $versions = {subversion => '1.8.11',
+  my $versions = {subversion => '1.9.3',
                   _mirror => 'https://www.apache.org/dist/'};
 
-  if ($html =~ /The best available version of Apache Subversion is:\s*([0-9.]+)/) {
+  if ($html =~ m{The best available version of Apache Subversion is:\s*(?:<a [^<>]*>|)([0-9.]+)(?:</a>|)}) {
     $versions->{subversion} = $1;
   }
   if ($html =~ m{The currently selected mirror is <a\s*href=[^>]+>\s*<b>(https?://[^<]+)</b>\s*</a>.}) {
