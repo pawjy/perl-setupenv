@@ -6,7 +6,7 @@ tempdir=`perl -MFile::Temp=tempdir -e 'print tempdir'`/testapp
 
 mkdir -p "$tempdir"
 
-((perl $pmbp --root-dir-name "$tempdir" \
+((PMBP_VERBOSE=10 perl $pmbp --root-dir-name "$tempdir" \
              --install-openssl \
              --install-module Net::SSLeay \
              --create-perl-command-shortcut which \
