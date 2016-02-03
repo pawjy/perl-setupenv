@@ -269,7 +269,7 @@ GetOptions (
     print-perl-archname print-libs
     print-pmtar-dir-name print-pmpp-dir-name print-perl-path
     print-submodule-components
-    install-mecab install-svn
+    install-mecab install-svn install-git install-curl install-wget
     help-tutorial
   )),
 ) or do {
@@ -638,7 +638,7 @@ sub _quote_dq ($) {
 sub shellarg ($);
 if ($PlatformIsWindows) {
   *shellarg = sub ($) {
-    ## <http://d.hatena.ne.jp/thinca/20100210/1265813598>
+    ## <https://d.hatena.ne.jp/thinca/20100210/1265813598>
     my $s = $_[0];
     $s =~ s/([&|<>()^"%])/^$1/g;
     $s =~ s/(\\+)"/$1$1"/g;
@@ -922,7 +922,13 @@ sub load_json_after_garbage ($) {
           if (not $return) {
             if ($HasAPT) {
               # E: Unable to locate package
-              run_command [@sudo, '--', $AptGetCommand, 'update'] and next;
+              my $cmd = [$AptGetCommand, 'update'];
+              if (@sudo) {
+                unshift @$cmd, @sudo, '--';
+              } else {
+                $cmd = ['su', '-c', join ' ', map { shellarg $_ } @$cmd];
+              }
+              run_command $cmd and next;
             }
           }
 
@@ -1142,6 +1148,13 @@ sub add_git_submodule ($$;%) {
   return "$parent/$dir_name";
 } # add_git_submodule
 
+sub git_version () {
+  my $out = '';
+  run_command [git, 'version'],
+      onoutput => sub { $out .= $_[0]; 4 };
+  return $out;
+} # git_version
+
 ## ------ Perl ------
 
 {
@@ -1150,7 +1163,7 @@ sub add_git_submodule ($$;%) {
     return $LatestPerlVersion if $LatestPerlVersion;
 
     my $file_name = qq<$PMBPDirName/latest-perl.json>;
-    save_url q<http://api.metacpan.org/release/perl> => $file_name,
+    save_url q<https://api.metacpan.org/release/perl> => $file_name,
         max_age => 24*60*60;
     my $json = load_json $file_name;
     if (ref $json eq 'HASH' and $json->{name} and
@@ -1815,7 +1828,7 @@ sub cpanm ($$) {
     ## --- Error message sniffer ---
     if (@module_arg and $module_arg[0] eq 'GD' and
         not $args->{info} and not $args->{scandeps}) {
-      ## <http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=636649>
+      ## <https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=636649>
       install_makeinstaller 'gd', q{CCFLAGS="$PMBP__CCFLAGS"},
           module_build => 1;
       ## Though it has both Makefile.PL and Build.PL, Makefile.PL does
@@ -1829,7 +1842,7 @@ sub cpanm ($$) {
              defined $modules->[0]->distvname and
              $modules->[0]->distvname =~ /^mod_perl-2\./) {
       install_apache_httpd ('2.2');
-      ## <http://perl.apache.org/docs/2.0/user/install/install.html#Dynamic_mod_perl>
+      ## <https://perl.apache.org/docs/2.0/user/install/install.html#Dynamic_mod_perl>
       install_makeinstaller 'modperl2',
           qq{MP_APXS="$RootDirName/local/apache/httpd-2.2/bin/apxs" } .
           qq{MP_APR_CONFIG="$RootDirName/local/apache/httpd-2.2/bin/apr-1-config"};
@@ -1840,7 +1853,7 @@ sub cpanm ($$) {
              defined $modules->[0]->distvname and
              $modules->[0]->distvname =~ /^mod_perl-1\./) {
       install_apache1 ();
-      ## <http://perl.apache.org/docs/1.0/guide/getwet.html>
+      ## <https://perl.apache.org/docs/1.0/guide/getwet.html>
       install_makeinstaller 'modperl1',
           qq{USE_APXS=1 WITH_APXS="$RootDirName/local/apache/httpd-1.3/bin/apxs" EVERYTHING=1};
       $envs->{SHELL} = "$MakeInstaller.modperl1";
@@ -3468,7 +3481,7 @@ sub write_dep_graph ($$;%) {
     print $file q{
       <!DOCTYPE html>
       <title>Dependency</title>
-      <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.3.2/jquery.min.js"></script>
+      <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.3.2/jquery.min.js"></script>
       <script src="http://getspringy.com/springy.js"></script>
       <script src="http://getspringy.com/springyui.js"></script>
       <script>
@@ -3702,7 +3715,7 @@ sub build_imagemagick ($$$;%) {
 
 sub get_latest_apr_versions () {
   my $file_name = qq<$PMBPDirName/apr.html>;
-  save_url q<http://apr.apache.org/download.cgi> => $file_name
+  save_url q<https://apr.apache.org/download.cgi> => $file_name
       if not -f $file_name or
          [stat $file_name]->[9] + 24 * 60 * 60 < time;
 
@@ -3715,7 +3728,7 @@ sub get_latest_apr_versions () {
 
   my $versions = {'apr' => '1.4.6',
                   'apr-util' => '1.5.1',
-                  _mirror => 'http://www.apache.org/dist/'};
+                  _mirror => 'https://www.apache.org/dist/'};
 
   if ($html =~ /APR ([0-9.]+) is the best available version/) {
     $versions->{apr} = $1;
@@ -3723,7 +3736,7 @@ sub get_latest_apr_versions () {
   if ($html =~ /APR-util ([0-9.]+) is the best available version/) {
     $versions->{'apr-util'} = $1;
   }
-  if ($html =~ m{The currently selected mirror is <b>(http://[^<]+)</b>.}) {
+  if ($html =~ m{The currently selected mirror is <b>(https?://[^<]+)</b>.}) {
     $versions->{_mirror} = $1;
   }
   
@@ -3732,7 +3745,7 @@ sub get_latest_apr_versions () {
 
 sub get_latest_apache_httpd_versions () {
   my $file_name = qq<$PMBPDirName/apache-httpd.html>;
-  save_url q<http://httpd.apache.org/download.cgi> => $file_name
+  save_url q<https://httpd.apache.org/download.cgi> => $file_name
       if not -f $file_name or
          [stat $file_name]->[9] + 24 * 60 * 60 < time;
 
@@ -3747,7 +3760,7 @@ sub get_latest_apache_httpd_versions () {
                   'httpd-2.4' => '2.4.3',
                   'httpd-2.2' => '2.2.29',
                   'httpd-2.0' => '2.0.64',
-                  _mirror => 'http://www.apache.org/dist/'};
+                  _mirror => 'https://www.apache.org/dist/'};
 
   if ($html =~ /: ([0-9.]+) is the best available version/) {
     $versions->{httpd} = $1;
@@ -3761,7 +3774,7 @@ sub get_latest_apache_httpd_versions () {
   if ($html =~ /Apache HTTP Server (2.0.[0-9]+) /) {
     $versions->{'httpd-2.0'} = $1;
   }
-  if ($html =~ m{The currently selected mirror is <b>(http://[^<]+)</b>.}) {
+  if ($html =~ m{The currently selected mirror is <b>(https?://[^<]+)</b>.}) {
     $versions->{_mirror} = $1;
   }
   
@@ -3770,7 +3783,7 @@ sub get_latest_apache_httpd_versions () {
 
 sub get_latest_svn_versions () {
   my $file_name = qq<$PMBPDirName/svn.html>;
-  save_url q<http://subversion.apache.org/download/> => $file_name
+  save_url q<https://subversion.apache.org/download/> => $file_name
       if not -f $file_name or
          [stat $file_name]->[9] + 24 * 60 * 60 < time;
 
@@ -3784,12 +3797,12 @@ sub get_latest_svn_versions () {
   }
 
   my $versions = {subversion => '1.8.11',
-                  _mirror => 'http://www.apache.org/dist/'};
+                  _mirror => 'https://www.apache.org/dist/'};
 
   if ($html =~ /The best available version of Apache Subversion is:\s*([0-9.]+)/) {
     $versions->{subversion} = $1;
   }
-  if ($html =~ m{The currently selected mirror is <a\s*href=[^>]+>\s*<b>(http://[^<]+)</b>\s*</a>.}) {
+  if ($html =~ m{The currently selected mirror is <a\s*href=[^>]+>\s*<b>(https?://[^<]+)</b>\s*</a>.}) {
     $versions->{_mirror} = $1;
   }
   
@@ -3802,8 +3815,8 @@ sub save_apache_package ($$$) {
   
   my $url_dir_name = {'apr-util' => 'apr'}->{$package_name} || $package_name;
   for my $mirror ($mirror_url,
-                  "http://www.apache.org/dist/",
-                  "http://archive.apache.org/dist/") {
+                  "https://www.apache.org/dist/",
+                  "https://archive.apache.org/dist/") {
     next unless defined $mirror;
     if (-s $file_name) {
       info 7, "|$file_name| found";
@@ -3923,7 +3936,7 @@ sub install_apache1 () {
 
   my $version = '1.3.42';
   my $tar_file_name = pmtar_dir_name . "/packages/apache/apache_$version.tar.gz";
-  my $url = "http://archive.apache.org/dist/httpd/apache_$version.tar.gz";
+  my $url = "https://archive.apache.org/dist/httpd/apache_$version.tar.gz";
   save_url $url => $tar_file_name;
 
   my $container_dir_name = "$PMBPDirName/tmp/" . int rand 100000;
@@ -3990,7 +4003,7 @@ sub install_svn () {
   my $apu_tarball = pmtar_dir_name . "/packages/apache/apr-util-$apr_versions->{'apr-util'}.tar.gz";
   my $sqlite_name = qq<sqlite-amalgamation-3071501>;
   my $sqlite_zip = pmtar_dir_name . "/packages/$sqlite_name.zip";
-  save_url qq<http://www.sqlite.org/$sqlite_name.zip> => $sqlite_zip;
+  save_url qq<https://www.sqlite.org/$sqlite_name.zip> => $sqlite_zip;
 
   my $container_dir_name = "$PMBPDirName/tmp/" . int rand 100000;
   make_path $container_dir_name;
@@ -4109,14 +4122,14 @@ sub install_mecab () {
   my $mecab_version = '0.994';
   my $dest_dir_name = "$RootDirName/local/mecab-@{[mecab_version]}-@{[mecab_charset]}";
   return 0 unless install_tarball
-      qq<http://mecab.googlecode.com/files/mecab-$mecab_version.tar.gz>
+      qq<https://mecab.googlecode.com/files/mecab-$mecab_version.tar.gz>
       => 'mecab' => $dest_dir_name,
       configure_args => [
         '--with-charset=' . $mecab_charset,
       ],
       check => sub { -x "@{[mecab_bin_dir_name]}/mecab-config" };
   return install_tarball
-      'http://mecab.googlecode.com/files/mecab-ipadic-2.7.0-20070801.tar.gz'
+      'https://mecab.googlecode.com/files/mecab-ipadic-2.7.0-20070801.tar.gz'
       => 'mecab' => $dest_dir_name,
       configure_args => [
         #  --with-dicdir=DIR  set dicdir location
@@ -4347,6 +4360,15 @@ while (@Command) {
         parent_dir_name => $command->{parent_dir_name},
         recursive => $command->{recursive},
         top_level => 1;
+
+  } elsif ($command->{type} eq 'install-git') {
+    git_version or info_die "Can't install git";
+  } elsif ($command->{type} eq 'install-curl') {
+    install_system_packages [{name => 'curl'}]
+        or info_die "Can't install curl";
+  } elsif ($command->{type} eq 'install-wget') {
+    install_system_packages [{name => 'wget'}]
+        or info_die "Can't install wget";
 
   } elsif ($command->{type} eq 'print-cpan-top-url') {
     print get_cpan_top_url;
@@ -5779,9 +5801,21 @@ modules.
 
 =back
 
-=head2 Installing relevant applications
+=head2 Installing applications
 
 =over 4
+
+=item --install-git
+
+Install Git, if necessary.
+
+=item --install-curl
+
+Install curl, if necessary.
+
+=item --install-wget
+
+Install wget, if necessary.
 
 =item --install-apache="VERSION"
 
@@ -6111,9 +6145,9 @@ Wakaba <wakaba@suikawiki.org>.
 
 =head1 LICENSE
 
-Copyright 2012-2015 Wakaba <wakaba@suikawiki.org>.
+Copyright 2012-2016 Wakaba <wakaba@suikawiki.org>.
 
-Copyright 2012-2013 Hatena <http://www.hatena.ne.jp/company/>.
+Copyright 2012-2013 Hatena <https://www.hatena.ne.jp/company/>.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
