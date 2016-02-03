@@ -9,7 +9,6 @@ mkdir -p "$tempdir"
 ((PMBP_VERBOSE=10 perl $pmbp --root-dir-name "$tempdir" \
              --install-openssl \
              --install-module Net::SSLeay \
-             --create-perl-command-shortcut which \
              --create-perl-command-shortcut perl && echo "ok 1") || echo "not ok 1")
 
 ($tempdir/perl -MNet::SSLeay -e '+Net::SSLeay::SSLeay_version ()' && echo "ok 2") || echo "not ok 2"
