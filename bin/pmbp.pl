@@ -3609,12 +3609,34 @@ sub has_module ($$$$) {
   return 0;
 } # has_module
 
+sub get_openssl_branches () {
+  my $json_file_name = "$PMBPDirName/tmp/openssl-branches.json";
+  save_url q<https://api.github.com/repos/openssl/openssl/branches> => $json_file_name,
+      max_age => 60*60*24*100;
+  my $json = load_json $json_file_name;
+  my @branch;
+  for (@$json) {
+    if ($_->{name} =~ /^OpenSSL_(\d+)_(\d+)_(\d+)-stable$/) {
+      push @branch, [$_->{name}, $1, $2, $3];
+    }
+  }
+  @branch = map { $_->[0] } sort {
+    $a->[1] <=> $b->[1] ||
+    $a->[2] <=> $b->[2] ||
+    $a->[3] <=> $b->[3];
+  } @branch;
+  unshift @branch, 'master'; # unstable
+  return [reverse @branch];
+} # get_openssl_branches
+
 sub install_openssl () {
   my $url = q<https://github.com/openssl/openssl>;
   make_path "$PMBPDirName/tmp";
   my $repo_dir_name = "$PMBPDirName/tmp/openssl";
   unless (-d "$repo_dir_name/.git") {
-    run_command [git, 'clone', $url, $repo_dir_name, '--depth', 1]
+    my $branches = get_openssl_branches;
+    run_command [git, 'clone', $url, $repo_dir_name, '--depth', 1,
+                 '-b', $branches->[0]]
         or info_die "|git clone| failed";
   } else {
     #run_command [git, 'pull'],
