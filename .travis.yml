@@ -2,7 +2,8 @@ os:
   - linux
   - osx
 perl:
-  - "5.18"
+  - "5.22"
+#  - "5.14"
 #  - "5.8"
 env:
   global:
@@ -19,6 +20,7 @@ env:
     - TARGET=mecab
     - TARGET=env
     - TARGET=git
+    - TARGET=tls
     - TARGET=update
     - TARGET=install-1
     - TARGET=normal
@@ -35,5 +37,5 @@ notifications:
     - wakaba@suikawiki.org
   irc:
     channels:
-      - "irc.suikawiki.org#mechanize"
+      - "ircs://irc.suikawiki.org:6697#mechanize"
     use_notice: true

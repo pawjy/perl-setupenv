@@ -15,6 +15,7 @@ use Getopt::Long;
 BEGIN { eval q{ use Time::HiRes qw(time); 1 } or warn $@ };
 
 my $PlatformIsWindows = $^O eq 'MSWin32';
+my $PlatformIsMacOSX = $^O eq 'darwin';
 my $PerlCommand = 'perl';
 my $SpecifiedPerlVersion = $ENV{PMBP_PERL_VERSION};
 my $PerlOptions = {};
@@ -270,7 +271,7 @@ GetOptions (
     print-pmtar-dir-name print-pmpp-dir-name print-perl-path
     print-submodule-components
     install-mecab install-svn install-git install-curl install-wget
-    install-make install-gcc install-openssl
+    install-make install-gcc install-openssl install-openssl-if-mac
     help-tutorial
   )),
 ) or do {
@@ -3629,8 +3630,18 @@ sub install_openssl () {
     install_system_packages [{name => 'gcc'}]
         or info_die "Can't install gcc";
   }
-  install_system_packages [{name => 'zlib-devel', debian_name => 'zlib1g-dev'}]
-      or info_die "Can't install zlib-devel";
+
+  my $temp_dir_name = create_temp_dir_name;
+  my $temp_c_file_name = "$temp_dir_name/a.c";
+  open my $temp_c_file, '>', $temp_c_file_name
+      or info_die "Can't write |$temp_c_file_name|: $!";
+  print $temp_c_file q{int main () { }};
+  close $temp_c_file;
+  unless (run_command ['gcc', '-lz', $temp_c_file_name],
+              chdir => $temp_dir_name) {
+    install_system_packages [{name => 'zlib-devel', debian_name => 'zlib1g-dev'}]
+        or info_die "Can't install zlib-devel";
+  }
 
   my $common_dir_name = "$RootDirName/local/common";
   run_command ['./config',
@@ -4299,7 +4310,7 @@ for my $env (qw(PATH PERL5LIB PERL5OPT)) {
   info 6, $env . '=' . (defined $ENV{$env} ? $ENV{$env} : '');
 }
 info 6, '$ ' . join ' ', $0, @Argument;
-info 6, sprintf '%s %vd (%s)', $^X, $^V, $Config{archname};
+info 6, sprintf '%s %vd (%s / %s)', $^X, $^V, $Config{archname}, $^O;
 info 6, '@INC = ' . join ' ', @INC;
 my $perl_version;
 my $get_perl_version = sub {
@@ -4421,6 +4432,8 @@ while (@Command) {
         or info_die "Can't install gcc";
   } elsif ($command->{type} eq 'install-openssl') {
     install_openssl;
+  } elsif ($command->{type} eq 'install-openssl-if-mac') {
+    install_openssl if $PlatformIsMacOSX;
 
   } elsif ($command->{type} eq 'print-cpan-top-url') {
     print get_cpan_top_url;
@@ -5880,6 +5893,11 @@ Install GCC, if necessary.
 =item --install-openssl
 
 Install OpenSSL into C<local/common>.
+
+=item --install-openssl-if-mac
+
+Same as C<--install-openssl> but has no effect unless the platform is
+Mac OS X.
 
 =item --install-apache="VERSION"
 

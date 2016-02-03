@@ -82,3 +82,6 @@ endif
 ifeq "$(TARGET)" "svn"
 	$(PROVE) --verbose t/pmbp-svn/*.t
 endif
+ifeq "$(TARGET)" "tls"
+	$(PROVE) --verbose t/pmbp-tls/*.t
+endif
