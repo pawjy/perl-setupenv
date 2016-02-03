@@ -4,26 +4,24 @@ basedir=$(cd `dirname $0`/../.. && pwd)
 pmbp=$basedir/bin/pmbp.pl
 tempdir=`perl -MFile::Temp=tempdir -e 'print tempdir'`/testapp
 
-mkdir -p $tempdir/foo
-cd $tempdir/foo
+mkdir -p "$tempdir"
 
 # XXX
 which perl
 
-((perl $pmbp --install-perl
+((perl $pmbp --root-dir-name "$tempdir" \
              --install-openssl \
              --install-module Net::SSLeay \
              --create-perl-command-shortcut which \
              --create-perl-command-shortcut perl && echo "ok 1") || echo "not ok 1")
 
-cat perl
+cat $tempdir/perl
 
 # XXX
 which perl
-./which perl
-./perl -v
+$tempdir/which perl
+$tempdir/perl -v
 
-(./perl -MNet::SSLeay -e '+Net::SSLeay::SSLeay_version ()' && echo "ok 2") || echo "not ok 2"
+($tempdir/perl -MNet::SSLeay -e '+Net::SSLeay::SSLeay_version ()' && echo "ok 2") || echo "not ok 2"
 
-cd
-rm -fr $tempdir
+rm -fr "$tempdir"
