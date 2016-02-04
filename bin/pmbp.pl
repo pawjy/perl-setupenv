@@ -2808,6 +2808,7 @@ sub create_perl_command_shortcut ($$$;%) {
   my $perl_path = get_perlbrew_perl_bin_dir_name $perl_version;
   my $pm_path = get_pm_dir_name ($perl_version) . "/bin";
   my $lib_path = get_pm_dir_name ($perl_version) . "/lib";
+  my $common_lib_path = resolve_path "local/common/lib", $RootDirName;
   open my $file, '>', $file_name or info_die "$0: $file_name: $!";
   if ($args{relocatable}) {
     my $file_path = resolve_path '..', $file_name;
@@ -2817,6 +2818,7 @@ sub create_perl_command_shortcut ($$$;%) {
     $pm_path = File::Spec->abs2rel ($pm_path);
     $perl_path = File::Spec->abs2rel ($perl_path);
     $lib_path = File::Spec->abs2rel ($lib_path);
+    $common_lib_path = File::Spec->abs2rel ($common_lib_path);
     printf $file qq{\#!/bin/sh
 rootpath="\$(cd %s && pwd)"
 libpaths=`cat \$rootpath/%s 2> /dev/null | perl -MCwd=abs_path -e '\\\$p = abs_path shift; local \\\$/ = undef; print join q{:}, map { \\\$p . q{/} . \\\$_ } split /:/, <>' "\$rootpath"`
@@ -2825,7 +2827,7 @@ PMBP_ORIG_PATH="%s" PATH="%s" PERL5LIB="\$libpaths" LD_LIBRARY_PATH="%s" exec %s
         _quote_dq +File::Spec->abs2rel (get_relative_libs_txt_file_name ($perl_version), $RootDirName),
         _quote_dq '${PMBP_ORIG_PATH:-$PATH}',
         _quote_dq "\$rootpath/$pm_path:\$rootpath/$perl_path:" . '${PMBP_ORIG_PATH:-$PATH}',
-        _quote_dq '$rootpath/' . $lib_path . ':$LD_LIBRARY_PATH',
+        _quote_dq '$rootpath/' . $lib_path . ':$rootpath/' . $common_lib_path . ':$LD_LIBRARY_PATH',
         (defined $command ? '"' . $command . '" ' : '') .
         (defined $arg ? '"' . $arg . '" ' : '');
   } else {
@@ -2833,7 +2835,7 @@ PMBP_ORIG_PATH="%s" PATH="%s" PERL5LIB="\$libpaths" LD_LIBRARY_PATH="%s" exec %s
         _quote_dq '${PMBP_ORIG_PATH:-$PATH}',
         _quote_dq "$pm_path:$perl_path:" . '${PMBP_ORIG_PATH:-$PATH}',
         _quote_dq get_libs_txt_file_name ($perl_version),
-        _quote_dq $lib_path . ':$LD_LIBRARY_PATH',
+        _quote_dq $lib_path . ':' . $common_lib_path . ':$LD_LIBRARY_PATH',
         (defined $command ? '"' . $command . '" ' : '') .
         (defined $arg ? '"' . $arg . '" ' : '');
   }
