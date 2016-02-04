@@ -1245,7 +1245,9 @@ sub install_perlbrew () {
 
   my @install;
   push @install, {name => 'bzip2'} unless which ('bzip2');
-  push @install, {name => 'make'} unless which ('make');
+  push @install, {name => 'make',
+                  homebrew_name => 'homebrew/dupes/make'}
+      unless which ('make');
   push @install, {name => 'gcc'} unless which ('gcc');
   if (@install) {
     install_system_packages \@install
@@ -2088,7 +2090,8 @@ sub cpanm ($$) {
         push @additional_option, '--skip-satisfied';
       }
       if ($log =~ /Can't configure the distribution. You probably need to have 'make'/m) {
-        push @required_system, {name => 'make'};
+        push @required_system, {name => 'make',
+                                homebrew_name => 'homebrew/dupes/make'};
       }
       if ($log =~ m{error: openssl/\w+.h: No such file or directory}m or
           $log =~ m{error: 'openssl/\w+.h' file not found}m) {
@@ -2232,7 +2235,8 @@ sub cpanm ($$) {
         }
       }
       if ($log =~ /^! Can't configure the distribution\. You probably need to have 'make'\./m) {
-        push @required_system, {name => 'make'};
+        push @required_system, {name => 'make',
+                                homebrew_name => 'homebrew/dupes/make'};
       }
       if ($log =~ /^!!! MakeInstaller failed !!!$/m) {
         $failed = 1;
@@ -3663,7 +3667,8 @@ sub install_openssl () {
   }
 
   unless (which ('make')) {
-    install_system_packages [{name => 'make'}]
+    install_system_packages [{name => 'make',
+                              homebrew_name => 'homebrew/dupes/make'}]
         or info_die "Can't install make";
   }
   unless (which ('gcc')) {
@@ -4470,7 +4475,8 @@ while (@Command) {
     install_system_packages [{name => 'wget'}]
         or info_die "Can't install wget";
   } elsif ($command->{type} eq 'install-make') {
-    install_system_packages [{name => 'make'}]
+    install_system_packages [{name => 'make',
+                              homebrew_name => 'homebrew/dupes/make'}]
         or info_die "Can't install make";
   } elsif ($command->{type} eq 'install-gcc') {
     install_system_packages [{name => 'gcc'}]
