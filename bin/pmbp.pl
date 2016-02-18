@@ -273,6 +273,7 @@ GetOptions (
     install-mecab install-svn install-git install-curl install-wget
     install-make install-gcc install-openssl install-openssl-if-mac
     print-openssl-stable-branch
+    init-git-repository
     help-tutorial
   )),
 ) or do {
@@ -1031,6 +1032,16 @@ sub use_perl_core_module ($) {
     return $git_command;
   } # git
 }
+
+sub init_git_repository ($) {
+  my $repo_dir_name = $_[0];
+  make_path $repo_dir_name;
+  unless (-f "$repo_dir_name/.git/config") {
+    run_command [git, 'init'],
+        chdir => $repo_dir_name
+            or info_die "Can't run |git init|";
+  }
+} # init_git_repository
 
 sub read_gitignore ($) {
   my $file_name = shift;
@@ -4459,6 +4470,8 @@ while (@Command) {
     update_gitignore;
   } elsif ($command->{type} eq 'add-to-gitignore') {
     add_to_gitignore [$command->{value}] => "$RootDirName/.gitignore";
+  } elsif ($command->{type} eq 'init-git-repository') {
+    init_git_repository $RootDirName;
 
   } elsif ($command->{type} eq 'add-git-submodule') {
     add_git_submodule $RootDirName, $command->{url},
@@ -6025,14 +6038,14 @@ module and the application is ready to execute.
 
 =back
 
-=head2 Other commands
+=head2 Commands for git repositories
 
 =over 4
 
-=item --print="string"
+=item --init-git-repository
 
-Print the string.  Any string can be specified as the argument.  This
-command might be useful to combine multiple C<--print-*> commands.
+Initialize the root directory of the application as a Git repository,
+using C<git init>, if it is not yet a Git repository.
 
 =item --add-to-gitignore="path"
 
@@ -6086,6 +6099,17 @@ the C<modules> directory.
 
 =back
 
+=head2 Other command
+
+=over 4
+
+=item --print="string"
+
+Print the string.  Any string can be specified as the argument.  This
+command might be useful to combine multiple C<--print-*> commands.
+
+=back
+
 =head1 ENVIRONMENT VARIABLES
 
 =over 4
@@ -6134,7 +6158,7 @@ Set the default verbosity level.  See C<--verbose> option for details.
 =item TRAVIS
 
 The C<TRAVIS> environment variable is set by Travis CI
-<http://about.travis-ci.org/docs/user/ci-environment/#Environment-variables>.
+<https://about.travis-ci.org/docs/user/ci-environment/#Environment-variables>.
 
 The C<TRAVIS> environment variable affects log level.  Additionally,
 the C<TRAVIS> environment variable enables automatical installation of
