@@ -1154,6 +1154,30 @@ sub add_git_submodule ($$;%) {
       ['git', 'submodule', 'add', $url, "$parent/$dir_name"],
       chdir => $git_dir_name
           or info_die "git submodule failed";
+  my $extra_file_name = "$git_dir_name/$parent/$dir_name/config/perl/pmbp-extra-modules.txt";
+  if (-f $extra_file_name) {
+    open my $extra_file, '<', $extra_file_name
+        or info_die "Can't open |$extra_file_name|: $!";
+    local $/ = undef;
+    my @modules;
+    for (split /\x0D?\x0A/, <$extra_file>) {
+      if (/^\s*#/) {
+        #
+      } elsif (/^(\S+)$/) {
+        push @modules, $1;
+      }
+    }
+    if (@modules) {
+      my $excluded_file_name = "$git_dir_name/config/perl/pmbp-exclusions.txt";
+      my $rel_module_name = File::Spec->abs2rel
+          ("$git_dir_name/$parent/$dir_name", "$git_dir_name/config/perl");
+      make_path "$git_dir_name/config/perl";
+      open my $excluded_file, '>>', $excluded_file_name
+          or info_die "Can't append to |$excluded_file_name|: $!";
+      print $excluded_file qq{\n- "$rel_module_name" @modules};
+      close $excluded_file;
+    }
+  }
   if ($args{recursive}) {
     for my $submodule (grep { $_->{dir_name} =~ m{^modules/} } @{git_submodules "$git_dir_name/$parent/$dir_name"}) {
       add_git_submodule $git_dir_name, $submodule->{url}, recursive => $args{recursive};
@@ -6089,6 +6113,11 @@ For example,
 ... will add the Git repository as a submodule C<t_deps/modules/app1>,
 even when there is C<modules/app1>.
 
+If the submodule added contains a file
+C<config/perl/pmbp-extra-modules.txt>, its content is merged into the
+C<config/perl/pmbp-exclusions.txt> of the repository of the
+application.  See the L</FILES> section.
+
 =item --add-git-submodule-recursively="url"
 
 =item --add-git-submodule-recursively="parent-path url"
@@ -6155,15 +6184,19 @@ connection is ignored.
 
 Set the default verbosity level.  See C<--verbose> option for details.
 
+=item CI
+
 =item TRAVIS
+
+The C<CI> environment variable is set by various CI platforms.
 
 The C<TRAVIS> environment variable is set by Travis CI
 <https://about.travis-ci.org/docs/user/ci-environment/#Environment-variables>.
 
-The C<TRAVIS> environment variable affects log level.  Additionally,
-the C<TRAVIS> environment variable enables automatical installation of
-Debian apt packages, if required.  See description for related options
-for more information.
+These environment variables affect log level.  Additionally, these
+environment variables enable automatical installation of Debian apt
+packages, if necessary.  See description for related options for more
+information.
 
 =back
 
@@ -6224,6 +6257,22 @@ from the list of installed modules, if any.
 
 This file is read by the C<--update> command.  See also the
 C<--read-pmbp-exclusions-txt> command.
+
+=head2 config/perl/pmbp-extra-modules.txt
+
+The list of extra sets of modules, which should not be required by
+default when the Git repository is incorporated as a submodule.
+
+Each line in the file can be either a module name, a comment line,
+i.e. a line started by a C<#> character, or an empty line.  A module
+name is a sequence of ASCII alphanumeric characters, as used in the
+C<*> portion of the file name C<config/perl/modules.*.txt> as
+described in the earlier section.
+
+The file is used to append a line to the
+C<config/perl/pmbp-exclusions.txt> by the C<--add-git-submodule> and
+C<--add-git-submodule-recursively> commands, when the repository is
+added as a submodule.  It is not used otherwise.
 
 =head2 config/perl/pmbp-shortcuts.txt
 
