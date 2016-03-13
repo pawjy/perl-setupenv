@@ -3687,11 +3687,16 @@ sub get_openssl_branch () {
 } # get_openssl_branch
 
 sub install_openssl () {
-  my $url = q<https://github.com/openssl/openssl>;
+  my $common_dir_name = "$RootDirName/local/common";
+
+  # XXX check version
+  return if -x "$common_dir_name/bin/openssl";
+
+  my $url = q<https://github.com/libressl-portable/portable>;
   make_path "$PMBPDirName/tmp";
   my $repo_dir_name = "$PMBPDirName/tmp/openssl";
   unless (-d "$repo_dir_name/.git") {
-    my $branch = get_openssl_branch;
+    my $branch = 'master';
     run_command [git, 'clone', $url, $repo_dir_name, '--depth', 1,
                  '-b', $branch]
         or info_die "|git clone| failed";
@@ -3728,19 +3733,27 @@ sub install_openssl () {
     }
   }
 
-  my $common_dir_name = "$RootDirName/local/common";
-  run_command ['./config',
-               "--prefix=$common_dir_name",
-               "--openssldir=$common_dir_name/openssl",
-               'shared'],
+  run_command ['./autogen.sh'],
+      chdir => $repo_dir_name
+      or info_die "Failed autogen";
+  run_command ['./configure',
+               "--help"],
+      chdir => $repo_dir_name
+      or info_die "Can't build the package";
+  run_command ['./configure',
+               "--prefix=$common_dir_name"],
       chdir => $repo_dir_name
       or info_die "Can't build the package";
   run_command ['make'],
       chdir => $repo_dir_name
       or info_die "Can't build the package";
-  run_command ['make', 'install_sw'],
+  run_command ['make', 'install'],
       chdir => $repo_dir_name
       or info_die "Can't install the package";
+
+  ## Now, |Net::SSLeay| can be compiled and the command:
+  ##   $ ./perl -MNet::SSLeay -e 'print +Net::SSLeay::SSLeay_version,"\n"'
+  ## ... will output the same value as |./local/common/bin/openssl version|.
 } # install_openssl
 
 ## ------ ImageMagick ------
@@ -5983,7 +5996,7 @@ Install GCC, if necessary.
 
 =item --install-openssl
 
-Install OpenSSL into C<local/common>.
+Install LibreSSL into C<local/common>.
 
 =item --install-openssl-if-mac
 
@@ -5992,6 +6005,7 @@ Mac OS X.
 
 =item --print-openssl-stable-branch
 
+[AT RISK]
 Print the GitHub branch name for the latest OpenSSL stable version.
 
 =item --install-apache="VERSION"
