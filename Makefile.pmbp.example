@@ -7,7 +7,7 @@ CURL = curl
 GIT = git
 
 updatenightly: local/bin/pmbp.pl
-	$(CURL) -s -S -L https://gist.githubusercontent.com/wakaba/34a71d3137a52abb562d/raw/gistfile1.txt | sh
+	$(CURL) -s -S -L -f https://gist.githubusercontent.com/wakaba/34a71d3137a52abb562d/raw/gistfile1.txt | sh
 	$(GIT) add modules t_deps/modules
 	perl local/bin/pmbp.pl --update
 	$(GIT) add config
@@ -23,7 +23,7 @@ PMBP_OPTIONS=
 
 local/bin/pmbp.pl:
 	mkdir -p local/bin
-	$(CURL) -s -S -L https://raw.githubusercontent.com/wakaba/perl-setupenv/master/bin/pmbp.pl > $@
+	$(CURL) -s -S -L -f https://raw.githubusercontent.com/wakaba/perl-setupenv/master/bin/pmbp.pl > $@
 pmbp-upgrade: local/bin/pmbp.pl
 	perl local/bin/pmbp.pl $(PMBP_OPTIONS) --update-pmbp-pl
 pmbp-update: git-submodules pmbp-upgrade
