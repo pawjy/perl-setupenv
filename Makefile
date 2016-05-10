@@ -7,10 +7,15 @@ deps:
 git-submodules:
 	$(GIT) submodule update --init
 
-updatenightly:
-	perl bin/pmbp.pl --print-latest-perl-version > version/perl.txt
+updatenightly: version/perl.txt version/perl-cpan-path.txt
 	perl bin/pmbp.pl --print-openssl-stable-branch > version/openssl-stable-branch.txt
 	$(GIT) add version/*.txt
+
+local/cpan-perl.html:
+	curl -f -L http://search.cpan.org/dist/perl/ > $@
+version/perl.txt: bin/extract-latest-perl-version.pl local/cpan-perl.html
+	perl bin/extract-latest-perl-version.pl < local/cpan-perl.html
+version/perl-cpan-path.txt: version/perl.txt
 
 ## ------ Build ------
 

@@ -1200,16 +1200,11 @@ sub git_version () {
   sub get_latest_perl_version () {
     return $LatestPerlVersion if $LatestPerlVersion;
 
-    my $file_name = qq<$PMBPDirName/latest-perl.json>;
-    save_url q<https://api.metacpan.org/release/perl> => $file_name,
+    my $file_name = qq<$PMBPDirName/latest-perl-version.txt>;
+    save_url q<https://raw.githubusercontent.com/wakaba/perl-setupenv/master/version/perl.txt> => $file_name,
         max_age => 24*60*60;
-    my $json = load_json $file_name;
-    if (ref $json eq 'HASH' and $json->{name} and
-        $json->{name} =~ /^perl-([0-9A-Za-z._-]+)$/) {
-      return $LatestPerlVersion = $1;
-    } else {
-      return $LatestPerlVersion = '5.16.1';
-    }
+    open my $file, '<', $file_name or info_die "Failed to open |$file_name|";
+    $LatestPerlVersion = <$file>;
   } # get_latest_perl_version
 }
 
