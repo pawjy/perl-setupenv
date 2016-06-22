@@ -1488,15 +1488,9 @@ sub install_perl ($) {
 sub create_perlbrew_perl_latest_symlink ($) {
   my $perl_version = shift;
   return unless -d "$RootDirName/local/perlbrew/perls/perl-$perl_version";
-  install_perlbrew;
-  if (-e "$RootDirName/local/perlbrew/perls/perl-latest") {
-    run_command ["$RootDirName/local/perlbrew/bin/perlbrew",
-                 'alias', 'delete', 'perl-latest'],
-                envs => get_perlbrew_envs;
-  }
-  run_command ["$RootDirName/local/perlbrew/bin/perlbrew",
-               'alias', 'create', "perl-$perl_version" => 'perl-latest'],
-              envs => get_perlbrew_envs;
+  run_command ['rm', '-f', "$RootDir/local/perl-latest"];
+  run_command ['ln', '-s', "perl-$perl_version", "perl-latest"],
+      chdir => "$RootDir/local";
 } # create_perlbrew_perl_latest_symlink
 
 sub get_perl_path ($) {
