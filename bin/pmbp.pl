@@ -4362,6 +4362,9 @@ sub install_perl_app ($$$;%) {
     run_command [$carton_command, 'install'], chdir => $dir_name,
         envs => {PERL5LIB => ''},
         onoutput => sub {
+          if ($_[0] =~ m{Installing Coro failed. See (\S+) for details. Retry with --force to force install it.}) {
+            copy_log_file $1 => 'carton';
+          }
           return $_[0] =~ /^! / ? 0 : 1;
         },
         or info_die "|$name|: |carton install| failed";
