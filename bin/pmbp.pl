@@ -2170,7 +2170,7 @@ sub cpanm ($$) {
              homebrew_name => 'mysql'};
         $failed = 1;
       }
-      if ($log =~ /^version.c:.+?: error: db.h: No such file or directory/m and
+      if ($log =~ /^version.c:.+?: (?:fatal |)error: db.h: No such file or directory/m and
           $log =~ /^-> FAIL Installing DB_File failed/m) {
         push @required_system,
             {name => 'bdb-devel', redhat_name => 'db-devel',
