@@ -2076,6 +2076,9 @@ sub cpanm ($$) {
         push @required_install, PMBP::Module->new_from_package ($module_name)
             if $module_name;
       }
+      if ($log =~ m{\Qsyntax error at inc/Module/Install/AutoInstall.pm - /Library/Perl/5.8.1/Module/Install/AutoInstall.pm line 26, near "m/--(?:default|skip|testonly)/and-t "\E}) {
+        push @required_install, PMBP::Module->new_from_package ('Module::Install::AutoInstall');
+      }
       if ($log =~ m{^(Devel::CheckLib) not found in inc/ nor \@INC at inc/Module/Install/XSUtil.pm}m) {
         push @required_cpanm, PMBP::Module->new_from_package ($1);
       }
