@@ -2151,7 +2151,8 @@ sub cpanm ($$) {
              homebrew_name => 'mysql'};
         $failed = 1;
       }
-      if ($log =~ /^The value of POSTGRES_INCLUDE points to a non-existent directory/m) {
+      if ($log =~ /^The value of POSTGRES_INCLUDE points to a non-existent directory/m or
+          $log =~ /^You need to install postgresql-server-dev-X.Y for building a server-side extension or libpq-dev for building a client-side application./) {
         push @required_system, {name => 'postgresql-devel',
                                 debian_name => 'libpq-dev'};
       }
