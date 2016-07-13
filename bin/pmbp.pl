@@ -5432,8 +5432,8 @@ If the application, specified by the C<--root-dir-name> option,
 contains the C<config/perl/pmb-install.txt>, required Perl modules
 listed in the file are installed into the C<local/perl-{version}/pm>
 directory.  Otherwise, required modules are scanned from various
-sources, including C<carton.lock>, C<Makefile.PL>, C<cpanfile>, Perl
-modules, and Perl scripts within the directory and then installed.
+sources, including C<Makefile.PL>, C<cpanfile>, Perl modules, and Perl
+scripts within the directory and then installed.
 
 If the application specifies the version of the Perl by
 C<config/perl/version.txt>, that version of Perl is installed int o
@@ -5471,7 +5471,7 @@ C<--install>.
 The command generates C<config/perl/pmb-install.txt>, which contains
 full list of required Perl modules.  The file is generated from
 various kinds of dependency descriptions, including C<Makfile.PL> and
-C<carton.lock> of the application itself and some submodules.  It is
+C<Cpanfile> of the application itself and some submodules.  It is
 encouraged to list the direct dependnecy of the application in the
 "pmb install list" format; it is simply the newline-separated list of
 Perl module names, saved as C<config/perl/modules.txt>, though this is
@@ -5795,7 +5795,7 @@ See also C<--set-module-index> command.
 =item --read-carton-lock="path/to/carton.lock"
 
 Read the index of Perl modules, in the "carton.lock" format generated
-by L<Carton>.
+by L<Carton>.  Use of this command is deprecated.
 
 =item --read-pmbp-exclusions-txt="path/to/pmbp-exclusions.txt"
 
