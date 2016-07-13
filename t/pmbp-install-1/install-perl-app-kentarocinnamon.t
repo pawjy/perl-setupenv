@@ -7,7 +7,7 @@ tempdir=`perl -MFile::Temp=tempdir -e 'print tempdir'`/testapp
 mkdir -p "$tempdir"
 
 perl $pmbp --root-dir-name "$tempdir" \
-    --perl-version 5.20 \
+    --perl-version 5.20.0 \
     --install-perl \
     --install-perl-app https://github.com/kentaro/cinnamon
 
