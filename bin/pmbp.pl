@@ -4537,6 +4537,8 @@ while (@Command) {
   } elsif ($command->{type} eq 'install-openssl') {
     install_openssl;
   } elsif ($command->{type} eq 'install-openssl-if-mac') {
+    info 5, sprintf "Platform %s (is Mac OS X? %s)",
+        $^O, $PlatformIsMacOSX ? 'true' : 'false';
     install_openssl if $PlatformIsMacOSX;
   } elsif ($command->{type} eq 'print-openssl-stable-branch') {
     my $branches = get_openssl_branches_by_api;
