@@ -3681,6 +3681,7 @@ sub install_openssl () {
   # XXX check version
   return if -x "$common_dir_name/bin/openssl";
 
+  info 0, "Installing openssl...";
   my $url = q<https://github.com/libressl-portable/portable>;
   make_path "$PMBPDirName/tmp";
   my $repo_dir_name = "$PMBPDirName/tmp/openssl";
