@@ -1488,9 +1488,15 @@ sub install_perl ($) {
 sub create_perlbrew_perl_latest_symlink ($) {
   my $perl_version = shift;
   return unless -d "$RootDirName/local/perlbrew/perls/perl-$perl_version";
-  run_command ['rm', '-f', "$RootDir/local/perl-latest"];
+
+  run_command ['rm', '-f', "$RootDirName/local/perl-latest"];
   run_command ['ln', '-s', "perl-$perl_version", "perl-latest"],
-      chdir => "$RootDir/local";
+      chdir => "$RootDirName/local";
+
+  make_path "$RootDirName/local/perlbrew/perls";
+  run_command ['rm', '-f', "$RootDirName/local/perlbrew/perls/perl-latest"];
+  run_command ['ln', '-s', "perl-$perl_version", "perl-latest"],
+      chdir => "$RootDirName/local/perlbrew/perls";
 } # create_perlbrew_perl_latest_symlink
 
 sub get_perl_path ($) {
@@ -2076,6 +2082,9 @@ sub cpanm ($$) {
         push @required_install, PMBP::Module->new_from_package ($module_name)
             if $module_name;
       }
+      if ($log =~ m{\Qsyntax error at inc/Module/Install/AutoInstall.pm - /Library/Perl/5.8.1/Module/Install/AutoInstall.pm line 26, near "m/--(?:default|skip|testonly)/and-t "\E}) {
+        push @required_install, PMBP::Module->new_from_package ('Module::Install::AutoInstall');
+      }
       if ($log =~ m{^(Devel::CheckLib) not found in inc/ nor \@INC at inc/Module/Install/XSUtil.pm}m) {
         push @required_cpanm, PMBP::Module->new_from_package ($1);
       }
@@ -2151,7 +2160,8 @@ sub cpanm ($$) {
              homebrew_name => 'mysql'};
         $failed = 1;
       }
-      if ($log =~ /^The value of POSTGRES_INCLUDE points to a non-existent directory/m) {
+      if ($log =~ /^The value of POSTGRES_INCLUDE points to a non-existent directory/m or
+          $log =~ /^You need to install postgresql-server-dev-X.Y for building a server-side extension or libpq-dev for building a client-side application./) {
         push @required_system, {name => 'postgresql-devel',
                                 debian_name => 'libpq-dev'};
       }
@@ -2169,7 +2179,7 @@ sub cpanm ($$) {
              homebrew_name => 'mysql'};
         $failed = 1;
       }
-      if ($log =~ /^version.c:.+?: error: db.h: No such file or directory/m and
+      if ($log =~ /^version.c:.+?: (?:fatal |)error: db.h: No such file or directory/m and
           $log =~ /^-> FAIL Installing DB_File failed/m) {
         push @required_system,
             {name => 'bdb-devel', redhat_name => 'db-devel',
@@ -4362,6 +4372,9 @@ sub install_perl_app ($$$;%) {
     run_command [$carton_command, 'install'], chdir => $dir_name,
         envs => {PERL5LIB => ''},
         onoutput => sub {
+          if ($_[0] =~ m{Installing Coro failed. See (\S+) for details. Retry with --force to force install it.}) {
+            copy_log_file $1 => 'carton';
+          }
           return $_[0] =~ /^! / ? 0 : 1;
         },
         or info_die "|$name|: |carton install| failed";
@@ -5426,8 +5439,8 @@ If the application, specified by the C<--root-dir-name> option,
 contains the C<config/perl/pmb-install.txt>, required Perl modules
 listed in the file are installed into the C<local/perl-{version}/pm>
 directory.  Otherwise, required modules are scanned from various
-sources, including C<carton.lock>, C<Makefile.PL>, C<cpanfile>, Perl
-modules, and Perl scripts within the directory and then installed.
+sources, including C<Makefile.PL>, C<cpanfile>, Perl modules, and Perl
+scripts within the directory and then installed.
 
 If the application specifies the version of the Perl by
 C<config/perl/version.txt>, that version of Perl is installed int o
@@ -5465,7 +5478,7 @@ C<--install>.
 The command generates C<config/perl/pmb-install.txt>, which contains
 full list of required Perl modules.  The file is generated from
 various kinds of dependency descriptions, including C<Makfile.PL> and
-C<carton.lock> of the application itself and some submodules.  It is
+C<Cpanfile> of the application itself and some submodules.  It is
 encouraged to list the direct dependnecy of the application in the
 "pmb install list" format; it is simply the newline-separated list of
 Perl module names, saved as C<config/perl/modules.txt>, though this is
@@ -5789,7 +5802,7 @@ See also C<--set-module-index> command.
 =item --read-carton-lock="path/to/carton.lock"
 
 Read the index of Perl modules, in the "carton.lock" format generated
-by L<Carton>.
+by L<Carton>.  Use of this command is deprecated.
 
 =item --read-pmbp-exclusions-txt="path/to/pmbp-exclusions.txt"
 
