@@ -272,7 +272,7 @@ GetOptions (
     print-submodule-components
     install-mecab install-svn install-git install-curl install-wget
     install-make install-gcc install-openssl install-openssl-if-mac
-    print-openssl-stable-branch
+    print-openssl-stable-branch print-openssl-version
     init-git-repository
     help-tutorial
   )),
@@ -3685,6 +3685,17 @@ sub get_openssl_branch () {
   return $branch;
 } # get_openssl_branch
 
+sub get_openssl_version ($) {
+  my ($perl_version) = @_;
+  my $version;
+  run_command
+      ['openssl', 'version'],
+      envs => {PATH => get_env_path ($perl_version)},
+      onoutput => sub { $version = $_[0]; 2 };
+  $version =~ s/[\x0D\x0A]+\z// if defined $version;
+  return $version;
+} # get_openssl_version
+
 sub install_openssl () {
   my $common_dir_name = "$RootDirName/local/common";
 
@@ -4540,6 +4551,10 @@ while (@Command) {
     info 5, sprintf "Platform %s (is Mac OS X? %s)",
         $^O, $PlatformIsMacOSX ? 'true' : 'false';
     install_openssl if $PlatformIsMacOSX;
+  } elsif ($command->{type} eq 'print-openssl-version') {
+    $get_perl_version->() unless defined $perl_version;
+    my $ver = get_openssl_version ($perl_version);
+    print $ver if defined $ver;
   } elsif ($command->{type} eq 'print-openssl-stable-branch') {
     my $branches = get_openssl_branches_by_api;
     print $branches->[0];
@@ -6007,6 +6022,10 @@ Install LibreSSL into C<local/common>.
 
 Same as C<--install-openssl> but has no effect unless the platform is
 Mac OS X.
+
+=item --print-openssl-version
+
+Print the OpenSSL version, if installed.
 
 =item --print-openssl-stable-branch
 
