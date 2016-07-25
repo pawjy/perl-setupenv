@@ -960,6 +960,16 @@ sub load_json_after_garbage ($) {
   } # install_system_packages
 }
 
+sub get_make_system_packages () {
+  return [
+    ($PlatformIsMacOSX ? (
+      {name => 'homebrew/dupes/xar'},
+    ) : ()),
+    {name => 'make',
+     homebrew_name => 'homebrew/dupes/make'},
+  ];
+} # get_make_system_packages
+
 sub use_perl_core_module ($) {
   my $package = $_[0];
   eval qq{ require $package } and return;
@@ -1275,8 +1285,7 @@ sub install_perlbrew () {
 
   my @install;
   push @install, {name => 'bzip2'} unless which ('bzip2');
-  push @install, {name => 'make',
-                  homebrew_name => 'homebrew/dupes/make'}
+  push @install, @{+get_make_system_packages}
       unless which ('make');
   push @install, {name => 'gcc'} unless which ('gcc');
   if (@install) {
@@ -2123,8 +2132,7 @@ sub cpanm ($$) {
         push @additional_option, '--skip-satisfied';
       }
       if ($log =~ /Can't configure the distribution. You probably need to have 'make'/m) {
-        push @required_system, {name => 'make',
-                                homebrew_name => 'homebrew/dupes/make'};
+        push @required_system, @{+get_make_system_packages};
       }
       if ($log =~ m{error: openssl/\w+.h: No such file or directory}m or
           $log =~ m{error: 'openssl/\w+.h' file not found}m) {
@@ -2269,8 +2277,7 @@ sub cpanm ($$) {
         }
       }
       if ($log =~ /^! Can't configure the distribution\. You probably need to have 'make'\./m) {
-        push @required_system, {name => 'make',
-                                homebrew_name => 'homebrew/dupes/make'};
+        push @required_system, @{+get_make_system_packages};
       }
       if ($log =~ /^!!! MakeInstaller failed !!!$/m) {
         $failed = 1;
@@ -3718,8 +3725,7 @@ sub install_openssl () {
   }
 
   unless (which ('make')) {
-    install_system_packages [{name => 'make',
-                              homebrew_name => 'homebrew/dupes/make'}]
+    install_system_packages get_make_system_packages
         or info_die "Can't install make";
   }
   unless (which ('gcc')) {
@@ -4539,8 +4545,7 @@ while (@Command) {
     install_system_packages [{name => 'wget'}]
         or info_die "Can't install wget";
   } elsif ($command->{type} eq 'install-make') {
-    install_system_packages [{name => 'make',
-                              homebrew_name => 'homebrew/dupes/make'}]
+    install_system_packages get_make_system_packages
         or info_die "Can't install make";
   } elsif ($command->{type} eq 'install-gcc') {
     install_system_packages [{name => 'gcc'}]
