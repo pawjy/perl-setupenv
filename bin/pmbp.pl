@@ -3707,7 +3707,10 @@ sub install_openssl () {
   my $common_dir_name = "$RootDirName/local/common";
 
   # XXX check version
-  return if -x "$common_dir_name/bin/openssl";
+  if (-x "$common_dir_name/bin/openssl") {
+    info 0, "There is |$common_dir_name/bin/openssl|.  Don't install openssl.";
+    return;
+  }
 
   info 0, "Installing openssl...";
   my $url = q<https://github.com/libressl-portable/portable>;
