@@ -3703,12 +3703,14 @@ sub get_openssl_version ($) {
   return $version;
 } # get_openssl_version
 
-sub install_openssl () {
+sub install_openssl ($) {
+  my ($perl_version) = @_;
   my $common_dir_name = "$RootDirName/local/common";
 
   # XXX check version
   if (-x "$common_dir_name/bin/openssl") {
-    info 0, "There is |$common_dir_name/bin/openssl|.  Don't install openssl.";
+    info 0, sprintf "There is |$common_dir_name/bin/openssl| (%s)",
+        get_openssl_version ($perl_version);
     return;
   }
 
@@ -4554,11 +4556,15 @@ while (@Command) {
     install_system_packages [{name => 'gcc'}]
         or info_die "Can't install gcc";
   } elsif ($command->{type} eq 'install-openssl') {
-    install_openssl;
+    $get_perl_version->() unless defined $perl_version;
+    install_openssl ($perl_version);
   } elsif ($command->{type} eq 'install-openssl-if-mac') {
     info 5, sprintf "Platform %s (is Mac OS X? %s)",
         $^O, $PlatformIsMacOSX ? 'true' : 'false';
-    install_openssl if $PlatformIsMacOSX;
+    if ($PlatformIsMacOSX) {
+      $get_perl_version->() unless defined $perl_version;
+      install_openssl ($perl_version);
+    }
   } elsif ($command->{type} eq 'print-openssl-version') {
     $get_perl_version->() unless defined $perl_version;
     my $ver = get_openssl_version ($perl_version);
