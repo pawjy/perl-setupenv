@@ -2873,7 +2873,7 @@ PMBP_ORIG_PATH="%s" PATH="%s" PERL5LIB="\$libpaths" LD_LIBRARY_PATH="%s" exec %s
         ($root_path eq '.' ? '`dirname $0`' : '`dirname $0`/'._quote_dq $root_path),
         _quote_dq +File::Spec->abs2rel (get_relative_libs_txt_file_name ($perl_version), $RootDirName),
         _quote_dq '${PMBP_ORIG_PATH:-$PATH}',
-        _quote_dq "\$rootpath/$pm_path:\$rootpath/$perl_path:\$rootpath/$common_bin_path" . '${PMBP_ORIG_PATH:-$PATH}',
+        _quote_dq "\$rootpath/$pm_path:\$rootpath/$perl_path:\$rootpath/$common_bin_path:" . '${PMBP_ORIG_PATH:-$PATH}',
         _quote_dq '$rootpath/' . $lib_path . ':$rootpath/' . $common_lib_path . ':$LD_LIBRARY_PATH',
         (defined $command ? '"' . $command . '" ' : '') .
         (defined $arg ? '"' . $arg . '" ' : '');
