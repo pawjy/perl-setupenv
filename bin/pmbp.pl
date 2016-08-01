@@ -3213,7 +3213,7 @@ sub write_pmb_install_list ($$) {
   mkdir_for_file $file_name;
   open my $file, '>', $file_name or info_die "$0: $file_name: $!";
   my $found = {};
-  for (@$result) {
+  for (sort { $a->[0] cmp $b->[0] } @$result) {
     my $v = (defined $_->[0] ? $_->[0] : '') . (defined $_->[1] ? '~' . $_->[1] : '');
     next if $found->{$v}++;
     print $file $v . "\n";
