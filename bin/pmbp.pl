@@ -272,6 +272,7 @@ GetOptions (
     print-submodule-components
     install-mecab install-svn install-git install-curl install-wget
     install-make install-gcc install-openssl install-openssl-if-mac
+    install-openssl-if-old
     print-openssl-stable-branch print-openssl-version
     init-git-repository
     help-tutorial
@@ -3694,23 +3695,36 @@ sub get_openssl_branch () {
   return $branch;
 } # get_openssl_branch
 
+my $_OpenSSLVersion = undef;
 sub get_openssl_version ($) {
   my ($perl_version) = @_;
+  return $_OpenSSLVersion if defined $_OpenSSLVersion;
   my $version;
   run_command
       ['openssl', 'version'],
       envs => {PATH => get_env_path ($perl_version)},
       onoutput => sub { $version = $_[0]; 2 };
   $version =~ s/[\x0D\x0A]+\z// if defined $version;
-  return $version;
+  return $_OpenSSLVersion = $version;
 } # get_openssl_version
+
+sub is_openssl_too_old ($) {
+  my ($perl_version) = @_;
+  my $version = get_openssl_version ($perl_version);
+  return 1 if not defined $version;
+  if ($version =~ /^OpenSSL 0\./) {
+    return 1;
+  }
+  return 0;
+} # is_openssl_too_old
 
 sub install_openssl ($) {
   my ($perl_version) = @_;
   my $common_dir_name = "$RootDirName/local/common";
 
-  # XXX check version
-  if (-x "$common_dir_name/bin/openssl") {
+  if (is_openssl_too_old ($perl_version)) {
+    #
+  } elsif (-x "$common_dir_name/bin/openssl") {
     info 0, sprintf "There is |$common_dir_name/bin/openssl| (%s)",
         get_openssl_version ($perl_version);
     return;
@@ -3774,6 +3788,7 @@ sub install_openssl ($) {
   run_command ['make', 'install'],
       chdir => $repo_dir_name
       or info_die "Can't install the package";
+  $_OpenSSLVersion = undef;
 
   ## Now, |Net::SSLeay| can be compiled and the command:
   ##   $ ./perl -MNet::SSLeay -e 'print +Net::SSLeay::SSLeay_version,"\n"'
@@ -4565,6 +4580,17 @@ while (@Command) {
         $^O, $PlatformIsMacOSX ? 'true' : 'false';
     if ($PlatformIsMacOSX) {
       $get_perl_version->() unless defined $perl_version;
+      install_openssl ($perl_version);
+    }
+  } elsif ($command->{type} eq 'install-openssl-if-old') {
+    $get_perl_version->() unless defined $perl_version;
+    if (is_openssl_too_old ($perl_version)) {
+      my $openssl_version = get_openssl_version ($perl_version);
+      if (defined $openssl_version) {
+        info 0, "Your OpenSSL is too old ($openssl_version)";
+      } else {
+        info 0, "You don't have OpenSSL";
+      }
       install_openssl ($perl_version);
     }
   } elsif ($command->{type} eq 'print-openssl-version') {
@@ -6038,6 +6064,11 @@ Install LibreSSL into C<local/common>.
 
 Same as C<--install-openssl> but has no effect unless the platform is
 Mac OS X.
+
+=item --install-openssl-if-old
+
+Same as C<--install-openssl> but has no effect unless an OpenSSL is
+installed and it is not too old.
 
 =item --print-openssl-version
 
