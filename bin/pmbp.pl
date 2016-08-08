@@ -2170,7 +2170,8 @@ sub cpanm ($$) {
         $failed = 1;
       }
       if ($log =~ /^The value of POSTGRES_INCLUDE points to a non-existent directory/m or
-          $log =~ /^You need to install postgresql-server-dev-X.Y for building a server-side extension or libpq-dev for building a client-side application./) {
+          $log =~ /^You need to install postgresql-server-dev-X.Y for building a server-side extension or libpq-dev for building a client-side application./m or
+          $log =~ /No POSTGRES_HOME defined, cannot find automatically/m) {
         push @required_system, {name => 'postgresql-devel',
                                 debian_name => 'libpq-dev'};
       }
