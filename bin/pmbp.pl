@@ -1767,10 +1767,16 @@ sub cpanm ($$) {
       return {};
     }
     my $package = $modules->[0]->package;
-    if (defined $package and $package eq 'Image::Magick') {
-      return build_imagemagick
-          ($perl_command, $perl_version, $perl_lib_dir_name,
-           module_index_file_name => $args->{module_index_file_name});
+    if (defined $package) {
+      if ($package eq 'Net::SSLeay') {
+        info 1, "Net::SSLeay requires OpenSSL (or equivalent)";
+        install_openssl_if_too_old ($perl_version);
+      } elsif ($package eq 'Image::Magick') {
+        info 1, "Image::Magick requires ImageMagick";
+        return build_imagemagick
+            ($perl_command, $perl_version, $perl_lib_dir_name,
+             module_index_file_name => $args->{module_index_file_name});
+      }
     }
   }
 
@@ -1805,6 +1811,7 @@ sub cpanm ($$) {
                   ($args->{skip_satisfied} ? '--skip-satisfied' : ()),
                   qw(--notest --cascade-search),
                   ($args->{scandeps} ? ('--scandeps', '--format=json', '--force') : ()));
+    push @option, '--force' if $args->{force};
     push @option, '--info' if $args->{info};
     push @option, '--verbose' if $Verbose > 1 and
         not ($args->{scandeps} or $args->{info});
@@ -3582,13 +3589,20 @@ sub install_module ($$$;%) {
   get_local_copy_if_necessary $module;
   my $lib_dir_name = $args{pmpp}
       ? pmpp_dir_name : get_pm_dir_name ($perl_version);
+  my $force;
   if (has_module ($perl_command, $perl_version, $module, $lib_dir_name)) {
-    info 1, "Module @{[$module->as_short]} is already installed; skipped";
-    return;
+    if ($module->package eq 'Net::SSLeay' and
+        is_net_ssleay_openssl_too_old ($perl_version)) {
+      $force = 1;
+    } else {
+      info 1, "Module @{[$module->as_short]} is already installed; skipped";
+      return;
+    }
   }
   cpanm {perl_version => $perl_version,
          perl_lib_dir_name => $lib_dir_name,
-         module_index_file_name => $args{module_index_file_name}},
+         module_index_file_name => $args{module_index_file_name},
+         force => 1},
         [$module];
 } # install_module
 
@@ -3709,6 +3723,16 @@ sub get_openssl_version ($) {
   return $_OpenSSLVersion = $version;
 } # get_openssl_version
 
+sub get_net_ssleay_openssl_version ($) {
+  my ($perl_version) = @_;
+  my $version;
+  run_command
+      ['perl', '-MNet::SSLeay', '-e', 'print +Net::SSLeay::SSLeay_version'],
+      envs => {PATH => get_env_path ($perl_version)},
+      onoutput => sub { $version = $_[0]; 2 };
+  return $version;
+} # get_net_ssleay_openssl_version
+
 sub is_openssl_too_old ($) {
   my ($perl_version) = @_;
   my $version = get_openssl_version ($perl_version);
@@ -3718,6 +3742,16 @@ sub is_openssl_too_old ($) {
   }
   return 0;
 } # is_openssl_too_old
+
+sub is_net_ssleay_openssl_too_old ($) {
+  my ($perl_version) = @_;
+  my $version = get_net_ssleay_openssl_version ($perl_version);
+  return 1 if not defined $version;
+  if ($version =~ /^OpenSSL 0\./) {
+    return 1;
+  }
+  return 0;
+} # is_net_ssleay_openssl_too_old
 
 sub install_openssl ($) {
   my ($perl_version) = @_;
@@ -3795,6 +3829,19 @@ sub install_openssl ($) {
   ##   $ ./perl -MNet::SSLeay -e 'print +Net::SSLeay::SSLeay_version,"\n"'
   ## ... will output the same value as |./local/common/bin/openssl version|.
 } # install_openssl
+
+sub install_openssl_if_too_old ($) {
+  my ($perl_version) = @_;
+  if (is_openssl_too_old ($perl_version)) {
+    my $openssl_version = get_openssl_version ($perl_version);
+    if (defined $openssl_version) {
+      info 0, "Your OpenSSL is too old ($openssl_version)";
+    } else {
+      info 0, "You don't have OpenSSL";
+    }
+    install_openssl ($perl_version);
+  }
+} # install_openssl_if_too_old
 
 ## ------ ImageMagick ------
 
@@ -4585,15 +4632,7 @@ while (@Command) {
     }
   } elsif ($command->{type} eq 'install-openssl-if-old') {
     $get_perl_version->() unless defined $perl_version;
-    if (is_openssl_too_old ($perl_version)) {
-      my $openssl_version = get_openssl_version ($perl_version);
-      if (defined $openssl_version) {
-        info 0, "Your OpenSSL is too old ($openssl_version)";
-      } else {
-        info 0, "You don't have OpenSSL";
-      }
-      install_openssl ($perl_version);
-    }
+    install_openssl_if_too_old ($perl_version);
   } elsif ($command->{type} eq 'print-openssl-version') {
     $get_perl_version->() unless defined $perl_version;
     my $ver = get_openssl_version ($perl_version);
