@@ -17,7 +17,7 @@ perl $pmbp --root-dir-name "$tempdir" \
     --print-openssl-version > $tempdir/version.txt
 touch $tempdir/empty.txt
 (diff -u $tempdir/version.txt $tempdir/empty.txt && echo "not ok 3") || echo "ok 3"
-(diff -u $tempdir/version2.txt $tempdir/version.txt && echo "not ok 4") || echo "ok 4"
+(diff -u $tempdir/version2.txt $tempdir/version.txt && echo "ok 4") || echo "not ok 4"
 
 perl -e ' print (<> =~ /OpenSSL 0\./ ? "not ok 5\n" : "ok 5\n") ' < $tempdir/version.txt
 
