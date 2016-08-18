@@ -3843,6 +3843,9 @@ sub install_openssl_if_too_old ($) {
       info 0, "You don't have OpenSSL";
     }
     install_openssl ($perl_version);
+  } else {
+    my $openssl_version = get_openssl_version ($perl_version);
+    info 0, "You have OpenSSL |$openssl_version|";
   }
 } # install_openssl_if_too_old
 
