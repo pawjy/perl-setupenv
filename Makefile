@@ -12,8 +12,10 @@ updatenightly: version/perl.txt version/perl-cpan-path.txt
 	$(GIT) add version/*.txt
 
 local/cpan-perl.html:
+	mkdir -p local
 	curl -f -L http://search.cpan.org/dist/perl/ > $@
 version/perl.txt: bin/extract-latest-perl-version.pl local/cpan-perl.html
+	mkdir -p version
 	perl bin/extract-latest-perl-version.pl < local/cpan-perl.html
 version/perl-cpan-path.txt: version/perl.txt
 
