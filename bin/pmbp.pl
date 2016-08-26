@@ -4365,17 +4365,16 @@ sub mecab_config_file_name () {
 
 sub install_mecab () {
   my $mecab_charset = mecab_charset;
-  my $mecab_version = '0.994';
-  my $dest_dir_name = "$RootDirName/local/mecab-@{[mecab_version]}-@{[mecab_charset]}";
+  my $dest_dir_name = "$RootDirName/local/mecab-@{[mecab_charset]}";
   return 0 unless install_tarball
-      qq<https://mecab.googlecode.com/files/mecab-$mecab_version.tar.gz>
+      q<https://drive.google.com/uc?export=download&id=0B4y35FiV1wh7cENtOXlicTFaRUE>
       => 'mecab' => $dest_dir_name,
       configure_args => [
         '--with-charset=' . $mecab_charset,
       ],
       check => sub { -x "@{[mecab_bin_dir_name]}/mecab-config" };
   return install_tarball
-      'https://mecab.googlecode.com/files/mecab-ipadic-2.7.0-20070801.tar.gz'
+      q<https://drive.google.com/uc?export=download&id=0B4y35FiV1wh7MWVlSDBCSXZMTXM>
       => 'mecab' => $dest_dir_name,
       configure_args => [
         #  --with-dicdir=DIR  set dicdir location
