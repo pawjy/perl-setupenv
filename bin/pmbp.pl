@@ -4365,7 +4365,7 @@ sub mecab_config_file_name () {
 
 sub install_mecab () {
   my $mecab_charset = mecab_charset;
-  my $dest_dir_name = "$RootDirName/local/mecab-@{[mecab_charset]}";
+  my $dest_dir_name = "$RootDirName/local/mecab-@{[mecab_version]}-@{[mecab_charset]}";
   return 0 unless install_tarball
       q<https://drive.google.com/uc?export=download&id=0B4y35FiV1wh7cENtOXlicTFaRUE>
       => 'mecab' => $dest_dir_name,
