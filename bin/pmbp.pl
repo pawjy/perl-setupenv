@@ -4339,7 +4339,7 @@ sub install_tarball ($$$;%) {
 ## ------ MeCab ------
 
 sub mecab_version () {
-  return '0.994';
+  return '0.996';
 } # mecab_version
 
 sub mecab_charset () {
@@ -4369,7 +4369,7 @@ sub install_mecab () {
   return 0 unless install_tarball
       q<https://drive.google.com/uc?export=download&id=0B4y35FiV1wh7cENtOXlicTFaRUE>
       => 'mecab' => $dest_dir_name,
-      name => 'mecab-0.996',
+      name => 'mecab-' . mecab_version,
       configure_args => [
         '--with-charset=' . $mecab_charset,
       ],
