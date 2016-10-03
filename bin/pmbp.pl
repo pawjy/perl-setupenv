@@ -3809,9 +3809,25 @@ sub install_openssl ($) {
     }
   }
 
-  run_command ['./autogen.sh'],
-      chdir => $repo_dir_name
-      or info_die "Failed autogen";
+  my $autogen_sed_failed = 0;
+  {
+    my $ok = run_command ['./autogen.sh'],
+        chdir => $repo_dir_name,
+        onoutput => sub {
+          if ($_[0] =~ m{/usr/local/Library/ENV/[^/]+/sed: No such file or directory}) {
+            $autogen_sed_failed ||= 1;
+          }
+          return 6;
+        };
+    if (not $ok and $autogen_sed_failed == 1) {
+      ## <https://github.com/Homebrew/legacy-homebrew/issues/43874>
+      run_command ['brew', 'uninstall', 'libtool'] or info 1, "brew failed";
+      run_command ['brew', 'install', 'libtool'] or info_die "brew failed";
+      $autogen_sed_failed++;
+      redo;
+    }
+    info_die "Failed autogen" unless $ok;
+  }
   run_command ['./configure',
                "--help"],
       chdir => $repo_dir_name
