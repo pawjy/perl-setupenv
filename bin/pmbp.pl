@@ -3771,7 +3771,8 @@ sub install_openssl ($) {
   info 0, "Installing openssl...";
   my $url = q<https://github.com/libressl-portable/portable>;
   make_path "$PMBPDirName/tmp";
-  my $repo_dir_name = "$PMBPDirName/tmp/openssl";
+  #my $repo_dir_name = "$PMBPDirName/tmp/openssl";
+  my $repo_dir_name = create_temp_dir_name;
   unless (-d "$repo_dir_name/.git") {
     my $branch = 'master';
     run_command [git, 'clone', $url, $repo_dir_name, '--depth', 1,
