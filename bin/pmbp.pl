@@ -2145,6 +2145,10 @@ sub cpanm ($$) {
       if ($log =~ /Can't configure the distribution. You probably need to have 'make'/m) {
         push @required_system, @{+get_make_system_packages};
       }
+      if ($log =~ /cannot find -lz/m) {
+        push @required_system,
+            {name => 'zlib-devel', debian_name => 'zlib1g-dev'};
+      }
       if ($log =~ m{error: openssl/\w+.h: No such file or directory}m or
           $log =~ m{error: 'openssl/\w+.h' file not found}m) {
         push @required_system,
