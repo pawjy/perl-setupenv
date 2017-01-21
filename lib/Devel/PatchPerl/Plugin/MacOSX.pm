@@ -27,6 +27,8 @@ our @patch = (
   },
 );
 
+## macOS Sierra is broken
+## <https://rt.perl.org/Public/Bug/Display.html?id=128972>
 sub _time_hires {
   _patch(<<'END');
 --- dist/Time-HiRes/HiRes.xs

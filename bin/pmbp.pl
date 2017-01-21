@@ -1458,7 +1458,8 @@ sub install_perl_by_perlbuild ($) {
 
     if ($PlatformIsMacOSX) {
       make_path "$RootDirName/local/perlbrew-lib/Devel/PatchPerl/Plugin";
-      save_url "https://raw.githubusercontent.com/wakaba/perl-setupenv/staging/lib/Devel/PatchPerl/Plugin/MacOSX.pm" => "$RootDirName/local/perlbrew-lib/Devel/PatchPerl/Plugin/MacOSX.pm"; # XXX staging -> master
+      save_url "https://raw.githubusercontent.com/wakaba/perl-setupenv/staging/lib/Devel/PatchPerl/Plugin/MacOSX.pm" => "$RootDirName/local/perlbrew-lib/Devel/PatchPerl/Plugin/MacOSX.pm", # XXX staging -> master
+          max_age => 10*24*60*60;
       push @patch, qw(MacOSX);
     }
 
@@ -1470,7 +1471,7 @@ sub install_perl_by_perlbuild ($) {
                  '-j' => $PerlbrewParallelCount,
                  '-A' => 'ccflags=-fPIC',
                  '-D' => 'usethreads',
-                 (map { '--patches' => $_ } @patch),
+                 (map { ('--patches' => $_) } @patch),
                  '--noman',
                  '--tarball-dir' => $perl_tar_dir_path,
                  @perl_option,
