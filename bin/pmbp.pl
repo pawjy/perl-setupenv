@@ -1474,6 +1474,7 @@ sub install_perl_by_perlbuild ($) {
                  '-j' => $PerlbrewParallelCount,
                  '-A' => 'ccflags=-fPIC',
                  '-D' => 'usethreads',
+                 '-D' => 'usedevel',
                  '--noman',
                  '--tarball-dir' => $perl_tar_dir_path,
                  @perl_option,
