@@ -1219,18 +1219,6 @@ sub git_version () {
         max_age => 24*60*60;
     open my $file, '<', $file_name or info_die "Failed to open |$file_name|";
     $LatestPerlVersion = <$file>;
-
-    if ($PlatformIsMacOSX) {
-      $LatestPerlVersion = {
-        ## macOS 10.12 Sierra is incompatible with Perl 5.24.0's
-        ## Time::HiRes (which is a core module compiled during Perl's
-        ## build):-<  Perl 5.25.2+ has newer version of Time::HiRes.
-        '5.24.0' => '5.25.9',
-        '5.24.1' => '5.25.9',
-      }->{$LatestPerlVersion} || $LatestPerlVersion;
-    }
-
-    return $LatestPerlVersion;
   } # get_latest_perl_version
 }
 
