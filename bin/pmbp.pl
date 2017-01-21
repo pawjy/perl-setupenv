@@ -1274,7 +1274,7 @@ sub init_perl_version_by_file_name ($) {
 sub get_perlbrew_envs () {
   return {PERLBREW_ROOT => (abs_path "$RootDirName/local/perlbrew"),
           PERLBREW_CPAN_MIRROR => get_cpan_top_url,
-          PERL5LIB => ''}
+          PERL5LIB => (abs_path "$RootDirName/local/perlbrew-lib")}
 } # get_perlbrew_envs
 
 sub install_perlbrew () {
@@ -1454,6 +1454,14 @@ sub install_perl_by_perlbuild ($) {
     my $perl_dir_path = "$RootDirName/local/perlbrew/perls/perl-$perl_version";
     my $perl_path = "$perl_dir_path/bin/perl";
     my $perl_tar_dir_path = pmtar_dir_name () . '/perl';
+    my @patch;
+
+    if ($PlatformIsMacOSX) {
+      make_path "$RootDirName/local/perlbrew-lib/Devel/PatchPerl/Plugin";
+      save_url "https://raw.githubusercontent.com/wakaba/perl-setupenv/staging/lib/Devel/PatchPerl/Plugin/MacOSX.pm" => "$RootDirName/local/perlbrew-lib/Devel/PatchPerl/Plugin/MacOSX.pm"; # XXX staging -> master
+      push @patch, qw(MacOSX);
+    }
+
     make_path $perl_tar_dir_path;
     run_command ['perl',
                  "$RootDirName/local/perlbuild",
@@ -1462,6 +1470,7 @@ sub install_perl_by_perlbuild ($) {
                  '-j' => $PerlbrewParallelCount,
                  '-A' => 'ccflags=-fPIC',
                  '-D' => 'usethreads',
+                 (map { '--patches' => $_ } @patch),
                  '--noman',
                  '--tarball-dir' => $perl_tar_dir_path,
                  @perl_option,
