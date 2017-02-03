@@ -16,6 +16,14 @@ Install the pmbp.pl into ./local/bin:
 
   $ curl https://wakaba.github.io/packages/pmbp | sh
 
+Then, prepare a Makefile by, e.g.:
+
+  $ curl https://raw.githubusercontent.com/wakaba/perl-setupenv/master/Makefile.pmbp.example > Makefile
+
+Now, you can run the pmbp script to install your application's dependencies into ./local/ by:
+
+  $ make deps
+
 * Makefile.setupenv (deprecated)
 
   Makefile.setupenv
