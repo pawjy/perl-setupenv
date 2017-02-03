@@ -20,9 +20,11 @@ Then, prepare a Makefile by, e.g.:
 
   $ curl https://raw.githubusercontent.com/wakaba/perl-setupenv/master/Makefile.pmbp.example > Makefile
 
-Now, you can run the pmbp script to install your application's dependencies into ./local/ by:
+Now, you can run the pmbp.pl script to install your application's dependencies into ./local/ by:
 
   $ make deps
+
+If you want to run a Perl application on Heroku, see also <https://github.com/wakaba/heroku-buildpack-perl-pmbp>.
 
 * Makefile.setupenv (deprecated)
 
