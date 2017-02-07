@@ -3833,20 +3833,22 @@ sub install_openssl ($) {
   }
 
   my $autogen_sed_failed = 0;
-  my $autogen_hunk_failed = 0;
+  my $autogen_failed = 0;
   {
     info 0, "Installing LibreSSL revision:";
     run_command ['git', 'rev-parse', 'HEAD'],
         chdir => $repo_dir_name,
         onoutput => sub { 0 };
 
+    my $openbsd_failed = 0;
     my $ok = run_command ['./autogen.sh'],
         chdir => $repo_dir_name,
         onoutput => sub {
           if ($_[0] =~ m{/usr/local/Library/ENV/[^/]+/sed: No such file or directory}) {
             $autogen_sed_failed ||= 1;
-          } elsif ($_[0] =~ m{\d+ out of \d+ hunks FAILED}) {
-            $autogen_hunk_failed ||= 1;
+          } elsif ($_[0] =~ m{/openbsd/src/.+?': No such file or directory}) {
+            $openbsd_failed = 1;
+          #} elsif ($_[0] =~ m{\d+ out of \d+ hunks FAILED}) {
           }
           return 6;
         };
@@ -3856,16 +3858,33 @@ sub install_openssl ($) {
       run_command ['brew', 'install', 'libtool'] or info_die "brew failed";
       $autogen_sed_failed++;
       redo;
-    } elsif (not $ok and $autogen_hunk_failed and
-             $autogen_hunk_failed < $max_retry) {
+    } elsif (not $ok and $openbsd_failed) {
+      run_command ['git', 'add', '.'],
+          chdir => "$repo_dir_name/openbsd";
+      run_command ['git', 'reset', '--hard'],
+          chdir => "$repo_dir_name/openbsd";
+      run_command ['git', 'checkout', 'HEAD~1'],
+          chdir => "$repo_dir_name/openbsd"
+          or info_die "Failed autogen and openbsd git checkout ($autogen_failed)";
+      my $rev = '';
+      run_command ['git', 'rev-parse', 'HEAD'],
+          chdir => "$repo_dir_name/openbsd"
+          onoutput => sub { $rev .= $_[0]; 3 };
+      $rev =~ s/\S//g;
+      open my $file, '>', "$repo_dir_name/OPENBSD_BRANCH"
+          or info_die "$repo_dir_name/OPENBSD_BRANCH";
+      print $file $rev;
+      $autogen_failed++;
+      redo;
+    } elsif (not $ok and $autogen_failed < $max_retry) {
       run_command ['git', 'add', '.'],
           chdir => $repo_dir_name;
       run_command ['git', 'reset', '--hard'],
           chdir => $repo_dir_name;
       run_command ['git', 'checkout', 'HEAD~1'],
           chdir => $repo_dir_name
-          or info_die "Failed autogen and git checkout ($autogen_hunk_failed)";
-      $autogen_hunk_failed++;
+          or info_die "Failed autogen and git checkout ($autogen_failed)";
+      $autogen_failed++;
       redo;
     }
     info_die "Failed autogen" unless $ok;
