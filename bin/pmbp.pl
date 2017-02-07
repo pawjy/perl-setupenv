@@ -3802,7 +3802,7 @@ sub install_openssl ($) {
     }
   }
   @branch = sort { $b->[0] <=> $a->[0] || $b->[1] <=> $a->[1] } @branch;
-  $branch = $branch[0] || $branch;
+  $branch = @branch ? $branch->[0]->[2] : $branch;
 
   my $url = q<https://github.com/libressl-portable/portable>;
   my $max_retry = 100;
