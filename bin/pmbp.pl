@@ -3789,7 +3789,7 @@ sub install_openssl ($) {
   my $repo_dir_name = create_temp_dir_name;
   unless (-d "$repo_dir_name/.git") {
     my $branch = 'master';
-    run_command [git, 'clone', $url, $repo_dir_name, '--depth', 1,
+    run_command [git, 'clone', $url, $repo_dir_name, '--depth', 22,
                  '-b', $branch]
         or info_die "|git clone| failed";
   } else {
@@ -3825,12 +3825,15 @@ sub install_openssl ($) {
   }
 
   my $autogen_sed_failed = 0;
+  my $autogen_hunk_failed = 0;
   {
     my $ok = run_command ['./autogen.sh'],
         chdir => $repo_dir_name,
         onoutput => sub {
           if ($_[0] =~ m{/usr/local/Library/ENV/[^/]+/sed: No such file or directory}) {
             $autogen_sed_failed ||= 1;
+          } elsif ($_[0] =~ m{\d+ out of \d+ hunks FAILED}) {
+            $autogen_hunk_failed ||= 1;
           }
           return 6;
         };
@@ -3839,6 +3842,12 @@ sub install_openssl ($) {
       run_command ['brew', 'uninstall', 'libtool'] or info 1, "brew failed";
       run_command ['brew', 'install', 'libtool'] or info_die "brew failed";
       $autogen_sed_failed++;
+      redo;
+    } elsif (not $ok and $autogen_hunk_failed and
+             $autogen_hunk_failed < 20) {
+      run_command ['git', 'checkout', 'HEAD~1']
+          or info_die "Failed autogen and git checkout ($autogen_hunk_failed)";
+      $autogen_hunk_failed++;
       redo;
     }
     info_die "Failed autogen" unless $ok;
