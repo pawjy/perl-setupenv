@@ -3794,8 +3794,10 @@ sub install_openssl ($) {
   my $branches_url = q<https://api.github.com/repos/libressl-portable/portable/branches>;
   save_url $branches_url => "$PMBPDirName/tmp/libressl-branches.json";
   my $branch_list = load_json "$PMBPDirName/tmp/libressl-branches.json";
+  copy_log_file "$PMBPDirName/tmp/libressl-branches.json" => "libressl-branches";
   my $branch = 'master';
   my @branch;
+  info_die "Broken branch list" unless ref $branch_list eq 'ARRAY';
   for (@$branch_list) {
     if ($_->{name} =~ m{^OPENBSD_([0-9]+)_([0-9]+)$}) {
       push @branch, [$1, $2, $_->{name}];
