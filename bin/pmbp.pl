@@ -3805,7 +3805,7 @@ sub install_openssl ($) {
   $branch = @branch ? $branch[0]->[2] : $branch;
 
   my $url = q<https://github.com/libressl-portable/portable>;
-  my $max_retry = 100;
+  my $max_retry = 10;
   make_path "$PMBPDirName/tmp";
   #my $repo_dir_name = "$PMBPDirName/tmp/openssl";
   my $repo_dir_name = create_temp_dir_name;
@@ -3862,6 +3862,8 @@ sub install_openssl ($) {
             $autogen_sed_failed ||= 1;
           } elsif ($_[0] =~ m{patch: command not found}) {
             $needs->{patch} = 1;
+          } elsif ($_[0] =~ m{autoreconf: command not found}) {
+            $needs->{autoconf} = 1;
           #} elsif ($_[0] =~ m{/openbsd/src/.+?': No such file or directory}) {
           #} elsif ($_[0] =~ m{\d+ out of \d+ hunks FAILED}) {
           }
@@ -3877,6 +3879,7 @@ sub install_openssl ($) {
       install_system_packages [map {
         {
           patch => {name => 'patch'}, # apt, yum
+          autoconf => {name => 'autoconf'},
         }->{$_} // info_die "Unknown needs key |$_|";
       } keys %$needs]
           or info_die "Can't install openssl";
