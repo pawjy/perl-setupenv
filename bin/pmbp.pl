@@ -3834,10 +3834,10 @@ sub install_openssl ($) {
   my $autogen_sed_failed = 0;
   my $autogen_hunk_failed = 0;
   {
-    info 1, "Installing LibreSSL revision:";
+    info 0, "Installing LibreSSL revision:";
     run_command ['git', 'rev-parse', 'HEAD'],
         chdir => $repo_dir_name,
-        onoutput => sub { 1 };
+        onoutput => sub { 0 };
 
     my $ok = run_command ['./autogen.sh'],
         chdir => $repo_dir_name,
@@ -3857,7 +3857,9 @@ sub install_openssl ($) {
       redo;
     } elsif (not $ok and $autogen_hunk_failed and
              $autogen_hunk_failed < 20) {
-      run_command ['make', 'clean'],
+      run_command ['git', 'add', '.'],
+          chdir => $repo_dir_name;
+      run_command ['git', 'reset', '--hard'],
           chdir => $repo_dir_name;
       run_command ['git', 'checkout', 'HEAD~1'],
           chdir => $repo_dir_name
