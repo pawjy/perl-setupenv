@@ -3883,10 +3883,11 @@ sub install_openssl ($) {
       run_command ['git', 'rev-parse', 'HEAD'],
           chdir => "$repo_dir_name/openbsd",
           onoutput => sub { $rev .= $_[0]; 3 };
-      $rev =~ s/\S//g;
+      $rev =~ s/\s+//g;
       open my $file, '>', "$repo_dir_name/OPENBSD_BRANCH"
           or info_die "$repo_dir_name/OPENBSD_BRANCH";
       print $file $rev;
+      close $file;
       $autogen_failed++;
       redo;
     } elsif (not $ok and $autogen_failed < $max_retry) {
