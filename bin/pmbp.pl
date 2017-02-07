@@ -3864,9 +3864,14 @@ sub install_openssl ($) {
             $needs->{patch} = 1;
           } elsif ($_[0] =~ m{autoreconf: command not found}) {
             $needs->{autoconf} = 1;
-            $needs->{automake} = 1; # requires this anyway
+            $needs->{automake} = 1; # requires these anyway
+            $needs->{libtool} = 1;
           } elsif ($_[0] =~ m{Can't exec "aclocal": No such file or directory}) {
             $needs->{automake} = 1;
+          } elsif ($_[0] =~ m{error: possibly undefined macro: AC_PROG_LIBTOOL}) {
+#      If this token and others are legitimate, please use m4_pattern_allow.
+#      See the Autoconf documentation.
+            $needs->{libtool} = 1;
           #} elsif ($_[0] =~ m{/openbsd/src/.+?': No such file or directory}) {
           #} elsif ($_[0] =~ m{\d+ out of \d+ hunks FAILED}) {
           }
@@ -3884,6 +3889,7 @@ sub install_openssl ($) {
           patch => {name => 'patch'}, # apt, yum
           autoconf => {name => 'autoconf'},
           automake => {name => 'automake'},
+          libtool => {name => 'libtool'},
         }->{$_} // info_die "Unknown needs key |$_|";
       } keys %$needs]
           or info_die "Can't install openssl";
