@@ -3790,13 +3790,26 @@ sub install_openssl ($) {
   }
 
   info 0, "Installing openssl...";
+
+  my $branches_url = q<https://api.github.com/repos/libressl-portable/portable/branches>;
+  save_url $branches_url => "$PMBPDirName/tmp/libressl-branches.json";
+  my $branch_list = load_json "$PMBPDirName/tmp/libressl-branches.json";
+  my $branch = 'master';
+  my @branch;
+  for (@$branch_list) {
+    if ($_->{name} =~ m{^OPENBSD_([0-9]+)_([0-9]+)$}) {
+      push @branch, [$1, $2, $_->{name}];
+    }
+  }
+  @branch = sort { $b->[0] <=> $a->[0] || $b->[1] <=> $a->[1] } @branch;
+  $branch = @branch ? $branch[0]->[2] : $branch;
+
   my $url = q<https://github.com/libressl-portable/portable>;
-  my $max_retry = 100;
+  my $max_retry = 10;
   make_path "$PMBPDirName/tmp";
   #my $repo_dir_name = "$PMBPDirName/tmp/openssl";
   my $repo_dir_name = create_temp_dir_name;
   unless (-d "$repo_dir_name/.git") {
-    my $branch = 'master';
     run_command [git, 'clone', $url, $repo_dir_name, '--depth', $max_retry + 2,
                  '-b', $branch]
         or info_die "|git clone| failed";
@@ -3840,7 +3853,6 @@ sub install_openssl ($) {
         chdir => $repo_dir_name,
         onoutput => sub { 0 };
 
-    my $openbsd_failed = 0;
     my $needs = {};
     my $ok = run_command ['./autogen.sh'],
         chdir => $repo_dir_name,
@@ -3850,8 +3862,17 @@ sub install_openssl ($) {
             $autogen_sed_failed ||= 1;
           } elsif ($_[0] =~ m{patch: command not found}) {
             $needs->{patch} = 1;
-          } elsif ($_[0] =~ m{/openbsd/src/.+?': No such file or directory}) {
-            $openbsd_failed = 1;
+          } elsif ($_[0] =~ m{autoreconf: command not found}) {
+            $needs->{autoconf} = 1;
+            $needs->{automake} = 1; # requires these anyway
+            $needs->{libtool} = 1;
+          } elsif ($_[0] =~ m{Can't exec "aclocal": No such file or directory}) {
+            $needs->{automake} = 1;
+          } elsif ($_[0] =~ m{error: possibly undefined macro: AC_PROG_LIBTOOL}) {
+#      If this token and others are legitimate, please use m4_pattern_allow.
+#      See the Autoconf documentation.
+            $needs->{libtool} = 1;
+          #} elsif ($_[0] =~ m{/openbsd/src/.+?': No such file or directory}) {
           #} elsif ($_[0] =~ m{\d+ out of \d+ hunks FAILED}) {
           }
           return 6;
@@ -3866,39 +3887,12 @@ sub install_openssl ($) {
       install_system_packages [map {
         {
           patch => {name => 'patch'}, # apt, yum
+          autoconf => {name => 'autoconf'},
+          automake => {name => 'automake'},
+          libtool => {name => 'libtool'},
         }->{$_} // info_die "Unknown needs key |$_|";
       } keys %$needs]
           or info_die "Can't install openssl";
-      $autogen_failed++;
-      redo;
-    } elsif (not $ok and $openbsd_failed) {
-      run_command ['git', 'add', '.'],
-          chdir => "$repo_dir_name/openbsd";
-      run_command ['git', 'reset', '--hard'],
-          chdir => "$repo_dir_name/openbsd";
-      run_command ['git', 'checkout', 'HEAD~1'],
-          chdir => "$repo_dir_name/openbsd"
-          or info_die "Failed autogen and openbsd git checkout ($autogen_failed)";
-      my $branch = 'temp/' . rand;
-      run_command ['git', 'checkout', '-b', $branch],
-          chdir => "$repo_dir_name/openbsd"
-          or info_die "Failed to create a branch";
-      open my $file, '>', "$repo_dir_name/OPENBSD_BRANCH"
-          or info_die "$repo_dir_name/OPENBSD_BRANCH";
-      print $file $branch;
-      close $file;
-
-      if ($autogen_failed == 1) {
-        local $/ = undef;
-        open my $file, '<', "$repo_dir_name/update.sh";
-        my $data = <$file>;
-        close $file;
-        $data =~ s{git pull --rebase}{echo 1};
-        open my $file2, '>', "$repo_dir_name/update.sh";
-        print $file2 $data;
-        close $file2;
-      }
-
       $autogen_failed++;
       redo;
     } elsif (not $ok and $autogen_failed < $max_retry) {
