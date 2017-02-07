@@ -3791,12 +3791,13 @@ sub install_openssl ($) {
 
   info 0, "Installing openssl...";
   my $url = q<https://github.com/libressl-portable/portable>;
+  my $max_retry = 100;
   make_path "$PMBPDirName/tmp";
   #my $repo_dir_name = "$PMBPDirName/tmp/openssl";
   my $repo_dir_name = create_temp_dir_name;
   unless (-d "$repo_dir_name/.git") {
     my $branch = 'master';
-    run_command [git, 'clone', $url, $repo_dir_name, '--depth', 22,
+    run_command [git, 'clone', $url, $repo_dir_name, '--depth', $max_retry + 2,
                  '-b', $branch]
         or info_die "|git clone| failed";
   } else {
@@ -3856,7 +3857,7 @@ sub install_openssl ($) {
       $autogen_sed_failed++;
       redo;
     } elsif (not $ok and $autogen_hunk_failed and
-             $autogen_hunk_failed < 20) {
+             $autogen_hunk_failed < $max_retry) {
       run_command ['git', 'add', '.'],
           chdir => $repo_dir_name;
       run_command ['git', 'reset', '--hard'],
