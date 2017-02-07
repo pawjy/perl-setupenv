@@ -3868,7 +3868,7 @@ sub install_openssl ($) {
           or info_die "Failed autogen and openbsd git checkout ($autogen_failed)";
       my $rev = '';
       run_command ['git', 'rev-parse', 'HEAD'],
-          chdir => "$repo_dir_name/openbsd"
+          chdir => "$repo_dir_name/openbsd",
           onoutput => sub { $rev .= $_[0]; 3 };
       $rev =~ s/\S//g;
       open my $file, '>', "$repo_dir_name/OPENBSD_BRANCH"
