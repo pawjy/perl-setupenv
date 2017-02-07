@@ -3879,15 +3879,26 @@ sub install_openssl ($) {
       run_command ['git', 'checkout', 'HEAD~1'],
           chdir => "$repo_dir_name/openbsd"
           or info_die "Failed autogen and openbsd git checkout ($autogen_failed)";
-      my $rev = '';
-      run_command ['git', 'rev-parse', 'HEAD'],
-          chdir => "$repo_dir_name/openbsd",
-          onoutput => sub { $rev .= $_[0]; 3 };
-      $rev =~ s/\s+//g;
+      my $branch = 'temp/' . rand;
+      run_command ['git', 'checkout', '-b', $branch],
+          chdir => "$repo_dir_name/openbsd"
+          or info_die "Failed to create a branch";
       open my $file, '>', "$repo_dir_name/OPENBSD_BRANCH"
           or info_die "$repo_dir_name/OPENBSD_BRANCH";
-      print $file $rev;
+      print $file $branch;
       close $file;
+
+      if ($autogen_failed == 1) {
+        local $/ = undef;
+        open my $file, '<', "$repo_dir_name/update.sh";
+        my $data = <$file>;
+        close $file;
+        $data =~ s{git pull --rebase}{echo 1};
+        open my $file2, '>', "$repo_dir_name/update.sh";
+        print $file2 $data;
+        close $file2;
+      }
+
       $autogen_failed++;
       redo;
     } elsif (not $ok and $autogen_failed < $max_retry) {
