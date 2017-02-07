@@ -3852,6 +3852,8 @@ sub install_openssl ($) {
       redo;
     } elsif (not $ok and $autogen_hunk_failed and
              $autogen_hunk_failed < 20) {
+      run_command ['make', 'clean'],
+          chdir => $repo_dir_name;
       run_command ['git', 'checkout', 'HEAD~1'],
           chdir => $repo_dir_name
           or info_die "Failed autogen and git checkout ($autogen_hunk_failed)";
