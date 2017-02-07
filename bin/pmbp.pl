@@ -3865,7 +3865,7 @@ sub install_openssl ($) {
     } elsif (not $ok and keys %$needs) {
       install_system_packages [map {
         {
-          patch => {name => 'patchutils'},
+          patch => {name => 'patch'}, # apt, yum
         }->{$_} // info_die "Unknown needs key |$_|";
       } keys %$needs]
           or info_die "Can't install openssl";
