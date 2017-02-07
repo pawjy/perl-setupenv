@@ -3834,6 +3834,11 @@ sub install_openssl ($) {
   my $autogen_sed_failed = 0;
   my $autogen_hunk_failed = 0;
   {
+    info 1, "Installing LibreSSL revision:";
+    run_command ['git', 'rev-parse', 'HEAD'],
+        chdir => $repo_dir_name,
+        onoutput => sub { 1 };
+
     my $ok = run_command ['./autogen.sh'],
         chdir => $repo_dir_name,
         onoutput => sub {
