@@ -3841,11 +3841,15 @@ sub install_openssl ($) {
         onoutput => sub { 0 };
 
     my $openbsd_failed = 0;
+    my $needs = {};
     my $ok = run_command ['./autogen.sh'],
         chdir => $repo_dir_name,
+        envs => {LANG => 'C'},
         onoutput => sub {
           if ($_[0] =~ m{/usr/local/Library/ENV/[^/]+/sed: No such file or directory}) {
             $autogen_sed_failed ||= 1;
+          } elsif ($_[0] =~ m{patch: command not found}) {
+            $needs->{patch} = 1;
           } elsif ($_[0] =~ m{/openbsd/src/.+?': No such file or directory}) {
             $openbsd_failed = 1;
           #} elsif ($_[0] =~ m{\d+ out of \d+ hunks FAILED}) {
@@ -3857,6 +3861,15 @@ sub install_openssl ($) {
       run_command ['brew', 'uninstall', 'libtool'] or info 1, "brew failed";
       run_command ['brew', 'install', 'libtool'] or info_die "brew failed";
       $autogen_sed_failed++;
+      redo;
+    } elsif (not $ok and keys %$needs) {
+      install_system_packages [map {
+        {
+          patch => {name => 'patchutils'},
+        }->{$_} // info_die "Unknown needs key |$_|";
+      } keys %$needs]
+          or info_die "Can't install openssl";
+      $autogen_failed++;
       redo;
     } elsif (not $ok and $openbsd_failed) {
       run_command ['git', 'add', '.'],
