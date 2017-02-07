@@ -35,7 +35,6 @@ my $PerlbrewInstallerURL = q<https://raw.githubusercontent.com/gugod/App-perlbre
 my $PerlbrewParallelCount = $ENV{PMBP_PARALLEL_COUNT} || ($ENV{CI} ? 4 : 1);
 my $SavePerlbrewLog = not $ENV{CI};
 my $CPANMURL = q<https://raw.githubusercontent.com/miyagawa/cpanminus/master/cpanm>; # q<http://cpanmin.us/>;
-my $PMBPURL = q<https://raw.githubusercontent.com/wakaba/perl-setupenv/master/bin/pmbp.pl>;
 my $MakefileURL = q<https://raw.githubusercontent.com/wakaba/perl-setupenv/master/Makefile.pmbp.example>;
 my $ImageMagickURL = q<http://www.imagemagick.org/download/ImageMagick.tar.gz>;
 my $RootDirName = '.';
@@ -235,6 +234,12 @@ GetOptions (
       push @Command, {type => 'install-perl-app', url => $_[1]};
     }
   },
+  '--update-pmbp-pl' => sub {
+    push @Command, {type => 'update-pmbp-pl', branch => 'master'};
+  },
+  '--update-pmbp-pl-staging' => sub {
+    push @Command, {type => 'update-pmbp-pl', branch => 'staging'};
+  },
   (map {
     my $n = $_;
     ("--$n=s" => sub {
@@ -265,7 +270,7 @@ GetOptions (
     });
   } qw(
     update install
-    update-pmbp-pl print-pmbp-pl-etag print-cpan-top-url
+    print-pmbp-pl-etag print-cpan-top-url
     install-perl print-latest-perl-version print-selected-perl-version
     print-perl-archname print-libs
     print-pmtar-dir-name print-pmpp-dir-name print-perl-path
@@ -476,7 +481,8 @@ sub get_pmbp_pl_etag () {
   return $etag;
 } # get_pmbp_pl_etag
 
-sub update_pmbp_pl () {
+sub update_pmbp_pl ($) {
+  my $branch = shift;
   my $pmbp_pl_file_name = "$RootDirName/local/bin/pmbp.pl";
   my $etag;
   if (-f $pmbp_pl_file_name) {
@@ -486,8 +492,9 @@ sub update_pmbp_pl () {
          onoutput => sub { $etag = $_[0]; 5 }) or undef $etag;
   }
 
+  my $pmbp_url = qq<https://raw.githubusercontent.com/wakaba/perl-setupenv/$branch/bin/pmbp.pl>;
   my $temp_file_name = "$PMBPDirName/tmp/pmbp.pl.http";
-  _save_url ($PMBPURL => $temp_file_name,
+  _save_url ($pmbp_url => $temp_file_name,
              save_response_headers => 1,
              ($etag ? (request_headers => [['If-None-Match' => $etag]]) : ()))
       or return;
@@ -506,7 +513,7 @@ sub update_pmbp_pl () {
     return;
   };
 
-  info_writing 0, 'latest version of pmbp.pl', $pmbp_pl_file_name;
+  info_writing 0, "latest version of pmbp.pl (branch $branch)", $pmbp_pl_file_name;
   mkdir_for_file ($pmbp_pl_file_name);
   copy_file $temp2_file_name => $pmbp_pl_file_name
       or info_die "$0: $pmbp_pl_file_name: $!";
@@ -3784,12 +3791,13 @@ sub install_openssl ($) {
 
   info 0, "Installing openssl...";
   my $url = q<https://github.com/libressl-portable/portable>;
+  my $max_retry = 100;
   make_path "$PMBPDirName/tmp";
   #my $repo_dir_name = "$PMBPDirName/tmp/openssl";
   my $repo_dir_name = create_temp_dir_name;
   unless (-d "$repo_dir_name/.git") {
     my $branch = 'master';
-    run_command [git, 'clone', $url, $repo_dir_name, '--depth', 1,
+    run_command [git, 'clone', $url, $repo_dir_name, '--depth', $max_retry + 2,
                  '-b', $branch]
         or info_die "|git clone| failed";
   } else {
@@ -3825,12 +3833,26 @@ sub install_openssl ($) {
   }
 
   my $autogen_sed_failed = 0;
+  my $autogen_failed = 0;
   {
+    info 0, "Installing LibreSSL revision:";
+    run_command ['git', 'rev-parse', 'HEAD'],
+        chdir => $repo_dir_name,
+        onoutput => sub { 0 };
+
+    my $openbsd_failed = 0;
+    my $needs = {};
     my $ok = run_command ['./autogen.sh'],
         chdir => $repo_dir_name,
+        envs => {LANG => 'C'},
         onoutput => sub {
           if ($_[0] =~ m{/usr/local/Library/ENV/[^/]+/sed: No such file or directory}) {
             $autogen_sed_failed ||= 1;
+          } elsif ($_[0] =~ m{patch: command not found}) {
+            $needs->{patch} = 1;
+          } elsif ($_[0] =~ m{/openbsd/src/.+?': No such file or directory}) {
+            $openbsd_failed = 1;
+          #} elsif ($_[0] =~ m{\d+ out of \d+ hunks FAILED}) {
           }
           return 6;
         };
@@ -3839,6 +3861,55 @@ sub install_openssl ($) {
       run_command ['brew', 'uninstall', 'libtool'] or info 1, "brew failed";
       run_command ['brew', 'install', 'libtool'] or info_die "brew failed";
       $autogen_sed_failed++;
+      redo;
+    } elsif (not $ok and keys %$needs) {
+      install_system_packages [map {
+        {
+          patch => {name => 'patch'}, # apt, yum
+        }->{$_} // info_die "Unknown needs key |$_|";
+      } keys %$needs]
+          or info_die "Can't install openssl";
+      $autogen_failed++;
+      redo;
+    } elsif (not $ok and $openbsd_failed) {
+      run_command ['git', 'add', '.'],
+          chdir => "$repo_dir_name/openbsd";
+      run_command ['git', 'reset', '--hard'],
+          chdir => "$repo_dir_name/openbsd";
+      run_command ['git', 'checkout', 'HEAD~1'],
+          chdir => "$repo_dir_name/openbsd"
+          or info_die "Failed autogen and openbsd git checkout ($autogen_failed)";
+      my $branch = 'temp/' . rand;
+      run_command ['git', 'checkout', '-b', $branch],
+          chdir => "$repo_dir_name/openbsd"
+          or info_die "Failed to create a branch";
+      open my $file, '>', "$repo_dir_name/OPENBSD_BRANCH"
+          or info_die "$repo_dir_name/OPENBSD_BRANCH";
+      print $file $branch;
+      close $file;
+
+      if ($autogen_failed == 1) {
+        local $/ = undef;
+        open my $file, '<', "$repo_dir_name/update.sh";
+        my $data = <$file>;
+        close $file;
+        $data =~ s{git pull --rebase}{echo 1};
+        open my $file2, '>', "$repo_dir_name/update.sh";
+        print $file2 $data;
+        close $file2;
+      }
+
+      $autogen_failed++;
+      redo;
+    } elsif (not $ok and $autogen_failed < $max_retry) {
+      run_command ['git', 'add', '.'],
+          chdir => $repo_dir_name;
+      run_command ['git', 'reset', '--hard'],
+          chdir => $repo_dir_name;
+      run_command ['git', 'checkout', 'HEAD~1'],
+          chdir => $repo_dir_name
+          or info_die "Failed autogen and git checkout ($autogen_failed)";
+      $autogen_failed++;
       redo;
     }
     info_die "Failed autogen" unless $ok;
@@ -4629,7 +4700,7 @@ while (@Command) {
     my $etag = get_pmbp_pl_etag;
     print $etag if defined $etag;
   } elsif ($command->{type} eq 'update-pmbp-pl') {
-    update_pmbp_pl;
+    update_pmbp_pl ($command->{branch});
 
   } elsif ($command->{type} eq 'update-gitignore') {
     update_gitignore;
@@ -5648,16 +5719,21 @@ invoke C<--update> again.
 
 =item --update-pmbp-pl
 
-Download the latest version of the pmbp.pl script, if available, to
+Download the latest version of the pmbp.pl script to
+C<local/bin/pmbp.pl> in the root directory.
+
+=item --update-pmbp-pl-staging
+
+Download the latest C<staging>-branch version of the pmbp.pl script to
 C<local/bin/pmbp.pl> in the root directory.
 
 =item --print-pmbp-pl-etag
 
-Print the HTTP C<ETag> value of the current pmbp.pl script, if
-available.  This is internally used to detect newer version of the
-script by the C<--update-pmbp-pl> command.  If the pmbp.pl script is
-not retrieved by the C<--update-pmbp-pl> command, the script does not
-know its C<ETag> and this command would print nothing.
+B<Deprecated>.  Print the HTTP C<ETag> value of the current pmbp.pl
+script, if available.  This is internally used to detect newer version
+of the script by the C<--update-pmbp-pl> command.  If the pmbp.pl
+script is not retrieved by the C<--update-pmbp-pl> command, the script
+does not know its C<ETag> and this command would print nothing.
 
 =item --create-pmbp-makefile="path/to/Makefile"
 
