@@ -3909,7 +3909,7 @@ sub install_openssl ($) {
           autoconf => {name => 'autoconf'},
           automake => {name => 'automake'},
           libtool => {name => 'libtool'},
-        }->{$_} // info_die "Unknown needs key |$_|";
+        }->{$_} || info_die "Unknown needs key |$_|";
       } keys %$needs]
           or info_die "Can't install openssl";
       $autogen_failed++;
