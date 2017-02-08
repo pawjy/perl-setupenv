@@ -9,6 +9,7 @@ git-submodules:
 
 updatenightly: version/perl.txt version/perl-cpan-path.txt
 	perl bin/pmbp.pl --print-openssl-stable-branch > version/openssl-stable-branch.txt
+	perl bin/pmbp.pl --print-libressl-stable-branch > version/libressl-stable-branch.txt
 	$(GIT) add version/*.txt
 
 local/cpan-perl.html:

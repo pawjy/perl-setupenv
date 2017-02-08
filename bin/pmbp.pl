@@ -279,6 +279,7 @@ GetOptions (
     install-make install-gcc install-openssl install-openssl-if-mac
     install-openssl-if-old
     print-openssl-stable-branch print-openssl-version
+    print-libressl-stable-branch
     init-git-repository
     help-tutorial
   )),
@@ -3700,6 +3701,7 @@ sub has_module ($$$$) {
 } # has_module
 
 sub get_openssl_branches_by_api () {
+  ## This can fail due to GitHub's API rate limits.
   my $json_file_name = "$PMBPDirName/tmp/openssl-branches.json";
   save_url q<https://api.github.com/repos/openssl/openssl/branches> => $json_file_name,
       max_age => 60*60*24*100;
@@ -3733,6 +3735,36 @@ sub get_openssl_branch () {
   info_die "Bad branch file |$branch|" unless $branch;
   return $branch;
 } # get_openssl_branch
+
+sub get_libressl_stable_branch_by_api () {
+  ## This can fail due to GitHub's API rate limits.
+  my $branches_url = q<https://api.github.com/repos/libressl-portable/portable/branches>;
+  save_url $branches_url => "$PMBPDirName/tmp/libressl-branches.json";
+  my $branch_list = load_json "$PMBPDirName/tmp/libressl-branches.json";
+  copy_log_file "$PMBPDirName/tmp/libressl-branches.json" => "libressl-branches";
+  my @branch;
+  info_die "Broken branch list" unless ref $branch_list eq 'ARRAY';
+  for (@$branch_list) {
+    if ($_->{name} =~ m{^OPENBSD_([0-9]+)_([0-9]+)$}) {
+      push @branch, [$1, $2, $_->{name}];
+    } else {
+      push @branch, [0, 0, $_->{name}];
+    }
+  }
+  @branch = sort { $b->[0] <=> $a->[0] || $b->[1] <=> $a->[1] } @branch;
+  return $branch[0]->[2];
+} # get_libressl_stable_branch_by_api
+
+sub get_libressl_branch () {
+  my $branch_file_name = "$PMBPDirName/tmp/libressl-branch.txt";
+  save_url q<https://raw.githubusercontent.com/wakaba/perl-setupenv/staging/version/libressl-stable-branch.txt> => $branch_file_name, # XXX
+      max_age => 60*60*24*100;
+  open my $branch_file, '<', $branch_file_name
+      or info_die "Can't open file |$branch_file_name|";
+  my $branch = <$branch_file>;
+  info_die "Bad branch file |$branch|" unless $branch;
+  return $branch;
+} # get_libressl_branch
 
 my $_OpenSSLVersion = undef;
 sub get_openssl_version ($) {
@@ -4745,6 +4777,8 @@ while (@Command) {
   } elsif ($command->{type} eq 'print-openssl-stable-branch') {
     my $branches = get_openssl_branches_by_api;
     print $branches->[0];
+  } elsif ($command->{type} eq 'print-libressl-stable-branch') {
+    print get_libressl_stable_branch_by_api;
 
   } elsif ($command->{type} eq 'print-cpan-top-url') {
     print get_cpan_top_url;
@@ -6226,8 +6260,12 @@ Print the OpenSSL version, if installed.
 
 =item --print-openssl-stable-branch
 
-[AT RISK]
-Print the GitHub branch name for the latest OpenSSL stable version.
+B<Deprecated>.  Print the GitHub branch name for the latest OpenSSL
+stable version.
+
+=item --print-libressl-stable-branch
+
+Print the GitHub branch name for the latest LibreSSL stable version.
 
 =item --install-apache="VERSION"
 
