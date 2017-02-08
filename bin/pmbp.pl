@@ -3757,7 +3757,7 @@ sub get_libressl_stable_branch_by_api () {
 
 sub get_libressl_branch () {
   my $branch_file_name = "$PMBPDirName/tmp/libressl-branch.txt";
-  save_url q<https://raw.githubusercontent.com/wakaba/perl-setupenv/staging/version/libressl-stable-branch.txt> => $branch_file_name, # XXX
+  save_url q<https://raw.githubusercontent.com/wakaba/perl-setupenv/master/version/libressl-stable-branch.txt> => $branch_file_name,
       max_age => 60*60*24*100;
   open my $branch_file, '<', $branch_file_name
       or info_die "Can't open file |$branch_file_name|";
