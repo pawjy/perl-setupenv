@@ -2238,6 +2238,11 @@ sub cpanm ($$) {
             {name => 'expat-devel', debian_name => 'libexpat1-dev'};
         $failed = 1;
       }
+      if ($log =~ /to see the exact reason why the detection of libxml2 installation/m) {
+        push @required_system,
+            {name => 'libxml2-devel', debian_name => 'libxml2-dev'};
+        $failed = 1;
+      }
       if ($log =~ /^This module requires GNU Libidn, which could not be found./m) {
         push @required_system,
             {name => 'libidn-devel', debian_name => 'libidn11-dev'};
