@@ -2129,6 +2129,9 @@ sub cpanm ($$) {
       if ($log =~ /Checking if you have Module::Build [0-9.]+ ... No \([0-9.]+ < ([0-9.]+)\)/m) {
         push @required_cpanm, PMBP::Module->new_from_package ('Module::Build~' . $1);
       }
+      if ($log =~ /Base class package "(Module::Build::[^"]+)" is empty./m) {
+        push @required_cpanm, PMBP::Module->new_from_package ($1);
+      }
       if ($log =~ m{Module::CoreList \S+ \(loaded from .*\) doesn't seem to have entries for perl \S+. You're strongly recommended to upgrade Module::CoreList from CPAN.}m) {
         push @required_force_cpanm, PMBP::Module->new_from_package ('Module::CoreList');
       }
@@ -2303,6 +2306,10 @@ sub cpanm ($$) {
           $log =~ /\bsh: gcc: command not found/m or
           $log =~ /^configure: error: no acceptable C compiler found/m) {
         push @required_system, {name => 'gcc'};
+      }
+      if ($log =~ /^# This module requires vim version 6.0 or later/m) {
+        push @required_system, {name => 'vim', redhat_name => 'vim-common'};
+        $failed = 1;
       }
       if ($log =~ /^We have to reconfigure CPAN.pm due to following uninitialized parameters:/m) {
         kill 15, $cpanm_pid;
