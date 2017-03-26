@@ -6627,11 +6627,15 @@ See the tutorial for how to install mod_perl.
 
 Wakaba <wakaba@suikawiki.org>.
 
+=head1 ACKNOWLEDGEMENTS
+
+Thanks to suzak and nobuoka.
+
 =head1 LICENSE
 
 Copyright 2012-2016 Wakaba <wakaba@suikawiki.org>.
 
-Copyright 2012-2013 Hatena <https://www.hatena.ne.jp/company/>.
+Copyright 2012-2017 Hatena <https://www.hatena.ne.jp/company/>.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
