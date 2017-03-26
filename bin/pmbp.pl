@@ -1155,7 +1155,7 @@ sub add_git_submodule ($$;%) {
       info 5, "$git_dir_name: submodule <$url> is already added as |$submodule->{dir_name}|";
       if ($args{recursive} and $args{top_level}) {
         for my $submodule (grep { $_->{dir_name} =~ m{^modules/} } @{git_submodules "$git_dir_name/$submodule->{dir_name}"}) {
-          add_git_submodule $git_dir_name, $submodule->{url}, recursive => $args{recursive};
+          add_git_submodule $git_dir_name, $submodule->{url}, recursive => $args{recursive}, parent_dir_name => $parent;
         }
       }
       return undef;
@@ -1202,7 +1202,7 @@ sub add_git_submodule ($$;%) {
   }
   if ($args{recursive}) {
     for my $submodule (grep { $_->{dir_name} =~ m{^modules/} } @{git_submodules "$git_dir_name/$parent/$dir_name"}) {
-      add_git_submodule $git_dir_name, $submodule->{url}, recursive => $args{recursive};
+      add_git_submodule $git_dir_name, $submodule->{url}, recursive => $args{recursive}, parent_dir_name => $parent;
     }
   }
   return "$parent/$dir_name";
@@ -6387,7 +6387,8 @@ application.  See the L</FILES> section.
 
 Add a Git submodule recursively.  That is, this command adds the
 specified Git repository, as well as submodules of the repository in
-the C<modules> directory.
+the specified container directory (if specified) or the C<modules>
+directory (if not specified).
 
 =back
 
