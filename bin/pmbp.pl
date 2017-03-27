@@ -1145,12 +1145,13 @@ sub git_submodule_url ($$) {
 sub add_git_submodule ($$;%);
 sub add_git_submodule ($$;%) {
   my ($git_dir_name, $url, %args) = @_;
+  my $default_parent = 'modules';
   my $parent = $args{parent_dir_name};
-  $parent = 'modules' if not defined $parent;
+  $parent = $default_parent if not defined $parent;
   my $dir_name = [grep { length } split m{/}, $url]->[-1];
   $dir_name =~ s/\.git$//;
   $dir_name =~ s/^perl-//;
-  for my $submodule (grep { $_->{dir_name} =~ m{^\Q$parent\E/} } @{git_submodules $git_dir_name}) {
+  for my $submodule (grep { $_->{dir_name} =~ m{^(?:\Q$parent\E|\Q$default_parent\E)/} } @{git_submodules $git_dir_name}) {
     if ($submodule->{url} eq $url) {
       info 5, "$git_dir_name: submodule <$url> is already added as |$submodule->{dir_name}|";
       if ($args{recursive} and $args{top_level}) {
@@ -6364,7 +6365,8 @@ there must be no trailing slash (C</>) character in the container
 directory path.
 
 If there is already a Git submodule with the specified URL as a child
-of the container directory, this command does nothing.
+of the container directory or as a child of C<modules> directory,
+this command does nothing.
 
 Otherwise, the specified Git repository is added as a child of the
 container directory, whose directory name is the last path segment of
@@ -6380,8 +6382,8 @@ For example,
 
   $ perl local/bin/pmbp.pl --add-git-submodule "t_deps/modules git://example/my/app1.git"
 
-... will add the Git repository as a submodule C<t_deps/modules/app1>,
-even when there is C<modules/app1>.
+... will add the Git repository as a submodule C<t_deps/modules/app1>.
+(It will do nothing, however, in case that there is C<modules/app1>.)
 
 If the submodule added contains a file
 C<config/perl/pmbp-extra-modules.txt>, its content is merged into the
@@ -6396,6 +6398,10 @@ Add a Git submodule recursively.  That is, this command adds the
 specified Git repository, as well as submodules of the repository in
 the specified container directory (if specified) or the C<modules>
 directory (if not specified).
+
+If there is already a Git submodule which is specified one or its descendant
+as a child of the container directory or as a child of C<modules> directory,
+that submodule will not be installed.
 
 =back
 
