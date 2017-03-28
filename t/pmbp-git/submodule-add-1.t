@@ -1,5 +1,5 @@
 #!/bin/sh
-echo "1..9"
+echo "1..7"
 basedir=$(cd `dirname $0`/../.. && pwd)
 pmbp=$basedir/bin/pmbp.pl
 tempdir=`perl -MFile::Temp=tempdir -e 'print tempdir'`/testapp
@@ -22,8 +22,5 @@ cd $tempdir/hoge/git1 && git init && touch b && git add b && git commit -m new
 (perl $pmbp --root-dir-name $tempdir/foo --add-git-submodule $tempdir/hoge/git1 && echo "ok 5") || echo "not ok 5"
 (cat $tempdir/foo/modules/git1/b && echo "not ok 6") || echo "ok 6"
 (cat $tempdir/foo/modules/git1.2/b && echo "ok 7") || echo "not ok 7"
-
-(perl $pmbp --root-dir-name $tempdir/foo --add-git-submodule aa/m\ $tempdir/git1 && echo "ok 8") || echo "not ok 8"
-(cat $tempdir/foo/aa/m/git1/a && echo "ok 9") || echo "not ok 9"
 
 rm -fr $tempdir
