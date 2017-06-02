@@ -2187,7 +2187,8 @@ sub cpanm ($$) {
         push @required_system, {name => 'v8-devel', debian_name => 'libv8-dev',
                                 homebrew_name => 'v8'};
       }
-      if ($log =~ /^Could not find gdlib-config in the search path. Please install libgd /m) {
+      if ($log =~ /^Could not find gdlib-config in the search path. Please install libgd /m or
+          $log =~ /^No package 'gdlib' found/m) {
         push @required_system,
             {name => 'gd-devel', debian_name => 'libgd2-xpm-dev'};
         $failed = 1;
