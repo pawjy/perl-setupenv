@@ -1,1 +1,1 @@
-authors/id/R/RJ/RJBS/perl-5.24.0.tar.gz
+authors/id/X/XS/XSAWYERX/perl-5.26.0.tar.bz2
