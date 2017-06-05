@@ -2339,10 +2339,6 @@ sub cpanm ($$) {
         info 0, "Perl $1 or later is requested (current: $2)";
         $failed = 1;
       }
-      if ($log =~ m{'\.' is no longer in \@INC; did you mean}) { # perl 5.26+
-        $envs->{PERL5LIB} .= ':.';
-        # not $failed
-      }
     }; # $scan_errors
     ## --- End of error message sniffer ---
 
