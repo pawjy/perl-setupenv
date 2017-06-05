@@ -2288,6 +2288,10 @@ sub cpanm ($$) {
             {name => 'proj-devel', debian_name => 'libproj-dev'};
         $failed = 1;
       }
+      if ($log =~ /^\*\*\* ExtUtils::PkgConfig requires the pkg-config utility, but it doesn't/m) {
+        push @required_system,
+            {name => 'pkg-config', redhat_name => 'pkgconfig'};
+      }
       if ($log =~ /^\* I could not find a working copy of (\S+)\./m) {
         my $name = $1;
         if ($name eq 'glib-2.0') {
