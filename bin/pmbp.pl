@@ -919,8 +919,8 @@ sub load_json_after_garbage ($) {
       if (not $ExecuteSystemPackageInstaller) {
         info 0, "Execute following command and retry:";
         info 0, '';
-        info 0, '  $ ' . $env . join ' ', @$cmd;
-        info 0, '  $ ' . $env . join ' ', @$cmd2 if defined $cmd2;
+        info 0, '  $ ' . $env . join ' ', map { shellarg $_ } @$cmd;
+        info 0, '  $ ' . $env . join ' ', map { shellarg $_ } @$cmd2 if defined $cmd2;
         info 0, '';
         if (grep { $_->{name} eq 'libperl-devel' } @$packages) {
           info 0, '(Instead of installing libperl-devel, you can use --install-perl command)';
@@ -2287,6 +2287,10 @@ sub cpanm ($$) {
         push @required_system,
             {name => 'proj-devel', debian_name => 'libproj-dev'};
         $failed = 1;
+      }
+      if ($log =~ /^\*\*\* ExtUtils::PkgConfig requires the pkg-config utility, but it doesn't/m) {
+        push @required_system,
+            {name => 'pkg-config', redhat_name => 'pkgconfig'};
       }
       if ($log =~ /^\* I could not find a working copy of (\S+)\./m) {
         my $name = $1;
