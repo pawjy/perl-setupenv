@@ -1725,24 +1725,30 @@ sub install_makeinstaller ($$;%) {
           echo ./Build          && ./Build && \
           echo ./Build install  && ./Build install
         else
-          echo perl Makefile.PL %s && perl Makefile.PL %s && \
+          echo perl %s Makefile.PL %s && perl %s Makefile.PL %s && \
           echo make                && make && \
           echo make install        && make install
         fi
       ) || echo "!!! MakeInstaller failed !!!"
     }, _quote_dq $ENV{SHELL},
        $makefilepl_args, $makefilepl_args,
-       $makefilepl_args, $makefilepl_args;
+       $args{perl_options} || '',
+       $makefilepl_args,
+       $args{perl_options} || '',
+       $makefilepl_args;
   } else {
     printf $file q{#!/bin/bash
       (
         export SHELL="%s"
-        echo perl Makefile.PL %s && perl Makefile.PL %s && \
+        echo perl %s Makefile.PL %s && perl %s Makefile.PL %s && \
         echo make                && make && \
         echo make install        && make install
       ) || echo "!!! MakeInstaller failed !!!"
     }, _quote_dq $ENV{SHELL},
-       $makefilepl_args, $makefilepl_args;
+       $args{perl_options} || '',
+       $makefilepl_args,
+       $args{perl_options} || '',
+       $makefilepl_args;
   }
   close $file;
   chmod 0755, "$MakeInstaller.$name";
@@ -1964,7 +1970,10 @@ sub cpanm ($$) {
       } else {
         install_makeinstaller 'textmecab',
             qq{--mecab-config="$mecab_config" } .
-            qq{--encoding="} . mecab_charset () . q{"};
+            qq{--encoding="} . mecab_charset () . q{"},
+            ## Perl 5.26 incompatibly changes "do"'s file lookup rule,
+            ## which breaks Text::MeCab's Makefile.PL.
+            perl_options => q{-I.};
         $envs->{SHELL} = "$MakeInstaller.textmecab";
         push @option, '--look';
       }
@@ -2101,6 +2110,9 @@ sub cpanm ($$) {
       if ($log =~ /^only nested arrays of non-refs are supported at .*?\/ExtUtils\/MakeMaker.pm/m) {
         push @required_install,
             PMBP::Module->new_from_package ('ExtUtils::MakeMaker');
+      }
+      if ($log =~ /^\s*\+ Module::Install$/m) {
+        push @required_install, PMBP::Module->new_from_package ('Module::Install');
       }
       if ($log =~ /^String found where operator expected at Makefile.PL line [0-9]+, near \"([0-9A-Za-z_]+)/m) {
         my $module_name = {
@@ -2338,10 +2350,6 @@ sub cpanm ($$) {
       if ($log =~ m{^Perl v([0-9.]+) required--this is only v([0-9.]+), stopped at }m) {
         info 0, "Perl $1 or later is requested (current: $2)";
         $failed = 1;
-      }
-      if ($log =~ m{'\.' is no longer in \@INC; did you mean}) { # perl 5.26+
-        $envs->{PERL5LIB} .= ':.';
-        # not $failed
       }
     }; # $scan_errors
     ## --- End of error message sniffer ---
