@@ -1733,8 +1733,9 @@ sub install_makeinstaller ($$;%) {
     }, _quote_dq $ENV{SHELL},
        $makefilepl_args, $makefilepl_args,
        $args{perl_options} || '',
+       $makefilepl_args,
        $args{perl_options} || '',
-       $makefilepl_args, $makefilepl_args;
+       $makefilepl_args;
   } else {
     printf $file q{#!/bin/bash
       (
@@ -1745,8 +1746,9 @@ sub install_makeinstaller ($$;%) {
       ) || echo "!!! MakeInstaller failed !!!"
     }, _quote_dq $ENV{SHELL},
        $args{perl_options} || '',
+       $makefilepl_args,
        $args{perl_options} || '',
-       $makefilepl_args, $makefilepl_args;
+       $makefilepl_args;
   }
   close $file;
   chmod 0755, "$MakeInstaller.$name";
