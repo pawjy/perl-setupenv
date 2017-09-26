@@ -3932,7 +3932,8 @@ sub install_openssl ($) {
             $autogen_sed_failed ||= 1;
           } elsif ($_[0] =~ m{patch: command not found}) {
             $needs->{patch} = 1;
-          } elsif ($_[0] =~ m{autoreconf: command not found}) {
+          } elsif ($_[0] =~ m{autoreconf: command not found} or
+                   $_[0] =~ m{autoreconf: not found}) {
             $needs->{autoconf} = 1;
             $needs->{automake} = 1; # requires these anyway
             $needs->{libtool} = 1;
