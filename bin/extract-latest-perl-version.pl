@@ -8,6 +8,11 @@ $html =~ m{
   <td[^<>]+>Latest\s+Release</td> \s*
   <td[^<>]+><a[^<>]+>perl-([0-9.]+)</a></td> \s*
   <td><small>&nbsp;\[<a\s+href="/CPAN/(authors/id/[^"]+?/perl-[^"]+)">Download</a>\]
+}x or
+$html =~ m{
+  <td[^<>]+>This\s+Release</td> \s*
+  <td[^<>]+>perl-([0-9.]+)</td> \s*
+  <td><small>&nbsp;\[<a\s+href="/CPAN/(authors/id/[^"]+?/perl-[^"]+)">Download</a>\]
 }x
     or die "Failed to extract Perl version";
 
