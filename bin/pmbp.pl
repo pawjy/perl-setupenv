@@ -2429,7 +2429,7 @@ sub cpanm ($$) {
       $result->{output_text} = <$file>;
     }
 
-    ($cpanm_ok and not $failed) or do {
+    unless ($cpanm_ok and not $failed) {
       unless ($CPANMDepth > 100 or $redo++ > 10) {
         my $redo;
         if ($remove_inc and
@@ -2523,24 +2523,6 @@ sub cpanm ($$) {
         }
         redo COMMAND if $redo;
       }
-      if (@module_arg and $module_arg[0] eq 'Net::SSLeay') {
-        my $result;
-        my $return = run_command
-            [$perl_command, '-MNet::SSLeay',
-             '-e', sprintf 'print scalar Net::SSLeay::ST_OK ()'],
-            envs => {PATH => get_env_path ($perl_version),
-                     PERL5LIB => (join ':', (get_lib_dir_names ($perl_command, $perl_version)))},
-            info_level => 3,
-            onoutput => sub {
-              $result = $_[0];
-              return 3;
-            };
-        unless ($result =~ /\A[0-9]+\z/) {
-          info 1, "OpenSSL or Net::SSLeay is broken";
-          install_openssl ($perl_version);
-          redo COMMAND;
-        }
-      }
       if ($args->{info}) {
         #
       } elsif ($args->{ignore_errors}) {
@@ -2551,7 +2533,28 @@ sub cpanm ($$) {
         }
         info_die "cpanm($CPANMDepth): Processing @{[join ' ', map { ref $_ ? $_->as_short : $_ } @$modules]} failed (@{[$? >> 8]}@{[($failed and not $failed eq '1') ? qq< $failed>: '']})\n";
       }
-    }; # close or do
+    } # apparently failed
+
+    if (not $args->{info} and not $args->{scandeps} and
+        @module_arg and $module_arg[0] eq 'Net::SSLeay') {
+      my $result;
+      my $return = run_command
+          [$perl_command, '-MNet::SSLeay',
+           '-e', sprintf 'print scalar Net::SSLeay::ST_OK ()'],
+          envs => {PATH => get_env_path ($perl_version),
+                   PERL5LIB => (join ':', (get_lib_dir_names ($perl_command, $perl_version)))},
+          info_level => 3,
+          onoutput => sub {
+            $result = $_[0];
+            return 3;
+          };
+      unless ($result =~ /\A[0-9]+\z/) {
+        info 1, "OpenSSL or Net::SSLeay is broken";
+        install_openssl ($perl_version);
+        $args->{force} = 1;
+        redo COMMAND;
+      }
+    }
 
     if (@module_arg and $module_arg[0] eq 'CPAN' and
         not $args->{info} and not $args->{scandeps}) {
