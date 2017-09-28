@@ -1796,7 +1796,8 @@ sub cpanm ($$) {
     }
     my $package = $modules->[0]->package;
     if (defined $package) {
-      if ($package eq 'Net::SSLeay') {
+      if ($package eq 'Net::SSLeay' or
+          $package =~ /^Crypt::OpenSSL::/) {
         info 1, "Net::SSLeay requires OpenSSL (or equivalent)";
         install_openssl_if_too_old ($perl_version);
       } elsif ($package eq 'Image::Magick') {
@@ -2184,10 +2185,15 @@ sub cpanm ($$) {
             {name => 'zlib-devel', debian_name => 'zlib1g-dev'};
       }
       if ($log =~ m{error: openssl/\w+.h: No such file or directory}m or
-          $log =~ m{error: 'openssl/\w+.h' file not found}m) {
-        push @required_system,
-            {name => 'openssl-devel', debian_name => 'libssl-dev',
-             homebrew_name => 'openssl'};
+          $log =~ m{error: 'openssl/\w+.h' file not found}m or
+          (not $args->{info} and not $args->{scandeps} and
+           @module_arg and $module_arg[0] =~ /^Crypt::OpenSSL::/ and
+           $log =~ m{.+\.xs: .+?error: })) {
+        install_openssl ($perl_version);
+        #push @required_system,
+        #    {name => 'openssl-devel', debian_name => 'libssl-dev',
+        #     homebrew_name => 'openssl'};
+        $failed = 1;
       }
       if ($log =~ m{^Can't link/include (?:C library )?'gmp.h', 'gmp'}m) {
         push @required_system,
