@@ -1896,6 +1896,10 @@ sub cpanm ($$) {
     info 8, sprintf "Current perl version = %vd, target perl version = %s",
         $^V, $perl_version;
 
+    my $cpath = join ':',
+        (defined $ENV{CPATH} ? $ENV{CPATH} : ()),
+        "$RootDirName/local/common/include";
+
     my $envs = {LANG => 'C',
                 PATH => (join ':', @additional_path, $path),
                 PERL5LIB => (join ':', grep { defined and length } 
@@ -1903,6 +1907,7 @@ sub cpanm ($$) {
                                  "$cpanm_lib_dir_name/lib/perl5",
                                  ((sprintf "%vd", $^V) eq $perl_version ? ($ENV{PERL5LIB}) : ())),
                 HOME => get_cpanm_dummy_home_dir_name ($perl_lib_dir_name),
+                CPATH => $cpath,
                 PERL_CPANM_HOME => $CPANMHomeDirName,
                 MAKEFLAGS => ''};
 
@@ -2188,8 +2193,8 @@ sub cpanm ($$) {
           $log =~ m{error: 'openssl/\w+.h' file not found}m or
           (not $args->{info} and not $args->{scandeps} and
            @module_arg and $module_arg[0] =~ /^Crypt::OpenSSL::/ and
-           $log =~ m{.+\.xs: .+?error: })) {
-        install_openssl ($perl_version);
+           $log =~ m{.+\.xs:.+?error: })) {
+        $required_misc{openssl} = 1;
         #push @required_system,
         #    {name => 'openssl-devel', debian_name => 'libssl-dev',
         #     homebrew_name => 'openssl'};
@@ -2447,10 +2452,11 @@ sub cpanm ($$) {
         if (@required_system) {
           $redo = 1 if install_system_packages \@required_system;
         }
+        if ($required_misc{openssl}) {
+          $redo = 1 if install_openssl ($perl_version);
+        }
         if ($required_misc{mecab}) {
-          if (install_mecab ()) {
-            $redo = 1;
-          }
+          $redo = 1 if install_mecab ();
         }
         if ($install_extutils_embed) {
           ## ExtUtils::Embed is core module since 5.003_07 and you
@@ -3875,7 +3881,7 @@ sub install_openssl ($) {
   } elsif (-x "$common_dir_name/bin/openssl") {
     info 0, sprintf "There is |$common_dir_name/bin/openssl| (%s)",
         get_openssl_version ($perl_version);
-    return;
+    return 0;
   }
 
   info 0, "Installing openssl...";
@@ -4004,6 +4010,7 @@ sub install_openssl ($) {
   ## Now, |Net::SSLeay| can be compiled and the command:
   ##   $ ./perl -MNet::SSLeay -e 'print +Net::SSLeay::SSLeay_version,"\n"'
   ## ... will output the same value as |./local/common/bin/openssl version|.
+  return 1;
 } # install_openssl
 
 sub install_openssl_if_too_old ($) {
