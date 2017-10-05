@@ -2957,11 +2957,15 @@ sub create_perl_command_shortcut ($$$;%) {
   $arg = resolve_path $arg, $RootDirName if defined $arg and not $args{relocatable};
   mkdir_for_file $file_name;
   info_writing 1, "command shortcut", $file_name;
-  my $perl_path = get_perlbrew_perl_bin_dir_name $perl_version;
-  my $pm_path = get_pm_dir_name ($perl_version) . "/bin";
-  my $lib_path = get_pm_dir_name ($perl_version) . "/lib";
-  my $common_bin_path = resolve_path "local/common/bin", $RootDirName;
-  my $common_lib_path = resolve_path "local/common/lib", $RootDirName;
+  my @bin_path;
+  push @bin_path, get_perlbrew_perl_bin_dir_name $perl_version;
+  push @bin_path, get_pm_dir_name ($perl_version) . "/bin";
+  push @bin_path, resolve_path "local/common/bin", $RootDirName;
+  push @bin_path, mecab_bin_dir_name ();
+  my @lib_path;
+  push @lib_path, get_pm_dir_name ($perl_version) . "/lib";
+  push @lib_path, resolve_path "local/common/lib", $RootDirName;
+  push @lib_path, mecab_lib_dir_name ();
   open my $file, '>', $file_name or info_die "$0: $file_name: $!";
   my $paths;
   if ($args{relocatable}) {
@@ -2969,7 +2973,7 @@ sub create_perl_command_shortcut ($$$;%) {
     my $root_path = File::Spec->abs2rel ($RootDirName, $file_path);
     $command = File::Spec->abs2rel ($command, $RootDirName)
         if defined $command and $command =~ m{/};
-    for ($pm_path, $perl_path, $lib_path, $common_bin_path, $common_lib_path) {
+    for (@bin_path, @lib_path) {
       $_ = File::Spec->abs2rel ($_);
       $_ = '$rootpath/' . $_;
     }
@@ -2981,9 +2985,7 @@ libpaths=`cat \$rootpath/%s 2> /dev/null | perl -MCwd=abs_path -e '\\\$p = abs_p
         _quote_dq +File::Spec->abs2rel (get_relative_libs_txt_file_name ($perl_version), $RootDirName),
     ;
   } else {
-    $paths = sprintf q{
-libpaths=`cat %s 2> /dev/null`
-    },
+    $paths = sprintf q{libpaths=`cat %s 2> /dev/null`},
         _quote_dq get_libs_txt_file_name ($perl_version),
     ;
   }
@@ -2993,8 +2995,8 @@ PMBP_ORIG_PATH="%s" PATH="%s" PERL5LIB="\$libpaths" LD_LIBRARY_PATH="%s" exec %s
 },
       $paths,
       _quote_dq '${PMBP_ORIG_PATH:-$PATH}',
-      _quote_dq "$pm_path:$perl_path:$common_bin_path:" . '${PMBP_ORIG_PATH:-$PATH}',
-      _quote_dq $lib_path . ':' . $common_lib_path . ':$LD_LIBRARY_PATH',
+      _quote_dq (join ':', @bin_path, '${PMBP_ORIG_PATH:-$PATH}'),
+      _quote_dq (join ':', @lib_path, '$LD_LIBRARY_PATH'),
       (defined $command ? '"' . $command . '" ' : '') .
       (defined $arg ? '"' . $arg . '" ' : '');
   close $file;
