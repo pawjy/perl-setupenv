@@ -1710,8 +1710,9 @@ sub install_cpanm_wrapper () {
 } # install_cpanm_wrapper
 
 sub install_makeinstaller ($$;%) {
-  my ($name, $makefilepl_args, %args) = @_;
+  my ($name, $configure_args, %args) = @_;
   #return if -f "$MakeInstaller.$name";
+  my $makefilepl_args = join ' ', @$configure_args;
   info_writing 1, "makeinstaller.$name", "$MakeInstaller.$name";
   mkdir_for_file "$MakeInstaller.$name";
   open my $file, '>', "$MakeInstaller.$name"
@@ -1860,8 +1861,9 @@ sub cpanm ($$) {
       push @option, '--save-dists' => pmtar_dir_name ();
     }
 
+    my @configure_args;
     if (@module_arg and $module_arg[0] eq 'DBD::mysql' and not $args->{info}) {
-      push @option, '--configure-args=--ssl';
+      push @configure_args, '--ssl';
     }
 
     push @option,
@@ -1900,6 +1902,8 @@ sub cpanm ($$) {
         (defined $ENV{CPATH} ? $ENV{CPATH} : ()),
         "$RootDirName/local/common/include";
 
+    push @configure_args, "LIBS=-L" . "$RootDirName/local/common/lib";
+
     my $envs = {LANG => 'C',
                 PATH => (join ':', @additional_path, $path),
                 PERL5LIB => (join ':', grep { defined and length } 
@@ -1915,11 +1919,11 @@ sub cpanm ($$) {
       $envs->{OPENSSL_PREFIX} = "$RootDirName/local/common";
     }
     
-    ## --- Error message sniffer ---
     if (@module_arg and $module_arg[0] eq 'GD' and
         not $args->{info} and not $args->{scandeps}) {
       ## <https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=636649>
-      install_makeinstaller 'gd', q{CCFLAGS="$PMBP__CCFLAGS"},
+      push @configure_args, q{CCFLAGS="$PMBP__CCFLAGS"};
+      install_makeinstaller 'gd', \@configure_args,
           module_build => 1;
       ## Though it has both Makefile.PL and Build.PL, Makefile.PL does
       ## not make GD.so in some Debian environment.
@@ -1933,9 +1937,10 @@ sub cpanm ($$) {
              $modules->[0]->distvname =~ /^mod_perl-2\./) {
       install_apache_httpd ('2.2');
       ## <https://perl.apache.org/docs/2.0/user/install/install.html#Dynamic_mod_perl>
-      install_makeinstaller 'modperl2',
-          qq{MP_APXS="$RootDirName/local/apache/httpd-2.2/bin/apxs" } .
+      push @configure_args,
+          qq{MP_APXS="$RootDirName/local/apache/httpd-2.2/bin/apxs"},
           qq{MP_APR_CONFIG="$RootDirName/local/apache/httpd-2.2/bin/apr-1-config"};
+      install_makeinstaller 'modperl2', \@configure_args;
       $envs->{SHELL} = "$MakeInstaller.modperl2";
       push @option, '--look';
     } elsif (not $args->{info} and not $args->{scandeps} and
@@ -1944,8 +1949,11 @@ sub cpanm ($$) {
              $modules->[0]->distvname =~ /^mod_perl-1\./) {
       install_apache1 ();
       ## <https://perl.apache.org/docs/1.0/guide/getwet.html>
-      install_makeinstaller 'modperl1',
-          qq{USE_APXS=1 WITH_APXS="$RootDirName/local/apache/httpd-1.3/bin/apxs" EVERYTHING=1};
+      push @configure_args,
+          qq{USE_APXS=1},
+          qq{WITH_APXS="$RootDirName/local/apache/httpd-1.3/bin/apxs"},
+          qq{EVERYTHING=1};
+      install_makeinstaller 'modperl1', \@configure_args;
       $envs->{SHELL} = "$MakeInstaller.modperl1";
       push @option, '--look';
     #} elsif ($args->{scandeps} and
@@ -1968,15 +1976,11 @@ sub cpanm ($$) {
         $mecab_config = mecab_config_file_name ();
       }
       # <http://cpansearch.perl.org/src/DMAKI/Text-MeCab-0.20014/tools/probe_mecab.pl>
-      if ($args->{scandeps}) {
-        push @option,
-            qq{--configure-args=} .
-            qq{--mecab-config="$mecab_config" } .
-            qq{--encoding="} . mecab_charset () . q{"};
-      } else {
-        install_makeinstaller 'textmecab',
-            qq{--mecab-config="$mecab_config" } .
-            qq{--encoding="} . mecab_charset () . q{"},
+      push @configure_args,
+          qq{--mecab-config="$mecab_config"},
+          qq{--encoding="} . mecab_charset () . q{"};
+      unless ($args->{scandeps}) {
+        install_makeinstaller 'textmecab', \@configure_args,
             ## Perl 5.26 incompatibly changes "do"'s file lookup rule,
             ## which breaks Text::MeCab's Makefile.PL.
             perl_options => q{-I.};
@@ -2010,11 +2014,16 @@ sub cpanm ($$) {
       info_die "Can't create symlink |$temp_file_name|"
           unless -f $temp_file_name;
 
-      install_makeinstaller 'mathpari', qq{pari_tgz="$temp_file_name"};
+      push @configure_args, qq{pari_tgz="$temp_file_name"};
+      install_makeinstaller 'mathpari', \@configure_args;
       $envs->{SHELL} = "$MakeInstaller.mathpari";
       push @option, '--look';
     }
+    if (@configure_args) {
+      push @option, '--configure-args=' . join ' ', @configure_args;
+    }
 
+    ## --- Error message sniffer ---
     my $failed;
     my $remove_inc;
     my $install_extutils_embed;
