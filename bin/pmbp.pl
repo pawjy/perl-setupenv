@@ -1972,7 +1972,8 @@ sub cpanm ($$) {
              not $args->{info}) {
       my $mecab_config = mecab_config_file_name ();
       unless (defined $mecab_config) {
-        install_mecab ();
+        install_mecab ()
+            or info_die "Can't install mecab";
         $mecab_config = mecab_config_file_name ();
       }
       # <http://cpansearch.perl.org/src/DMAKI/Text-MeCab-0.20014/tools/probe_mecab.pl>
@@ -4555,6 +4556,10 @@ sub mecab_config_file_name () {
 sub install_mecab () {
   my $mecab_charset = mecab_charset;
   my $dest_dir_name = "$RootDirName/local/mecab-@{[mecab_version]}-@{[mecab_charset]}";
+  unless (which 'g++') {
+    install_system_packages [{name => 'g++', redhat_name => 'gcc-c++'}]
+        or return 0;
+  }
   return 0 unless install_tarball
       q<https://drive.google.com/uc?export=download&id=0B4y35FiV1wh7cENtOXlicTFaRUE>
       => 'mecab' => $dest_dir_name,
