@@ -1920,6 +1920,9 @@ sub cpanm ($$) {
     if (@module_arg and $module_arg[0] eq 'Crypt::OpenSSL::Random' and
         not $args->{info}) {
       push @configure_args, "LIBDIR=" . "$RootDirName/local/common/lib";
+    } elsif (@module_arg and $module_arg[0] eq 'Crypt::OpenSSL::RSA' and
+             not $args->{info}) {
+      push @option, "--build-args=OTHERLDFLAGS=-L" . "$RootDirName/local/common/lib";
     } elsif (@module_arg and $module_arg[0] eq 'GD' and
         not $args->{info} and not $args->{scandeps}) {
       ## <https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=636649>
