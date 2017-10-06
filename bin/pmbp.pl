@@ -2575,14 +2575,14 @@ sub cpanm ($$) {
             return 3;
           };
       unless ($result =~ /\A[0-9]+\z/) {
-        info 1, "OpenSSL or Net::SSLeay is broken";
+        info 1, "OpenSSL or Net::SSLeay is broken [$result]";
         unless ($CPANMDepth > 100 or $redo++ > 10) {
           install_openssl ($perl_version);
           $args->{force} = 1;
           redo COMMAND;
+        } else {
+          info_die "OpenSSL or Net::SSLeay is broken ($CPANMDepth/$redo)";
         }
-      } else {
-        info_die "OpenSSL or Net::SSLeay is broken";
       }
     }
 
