@@ -1902,11 +1902,6 @@ sub cpanm ($$) {
         (defined $ENV{CPATH} ? $ENV{CPATH} : ()),
         "$RootDirName/local/common/include";
 
-    if (@module_arg and $module_arg[0] =~ /^Crypt::OpenSSL::/ and
-        not $args->{info}) {
-      push @configure_args, "LIBS=-L" . "$RootDirName/local/common/lib";
-    }
-
     my $envs = {LANG => 'C',
                 PATH => (join ':', @additional_path, $path),
                 PERL5LIB => (join ':', grep { defined and length } 
@@ -1921,8 +1916,11 @@ sub cpanm ($$) {
     if (-x "$RootDirName/local/common/bin/openssl") {
       $envs->{OPENSSL_PREFIX} = "$RootDirName/local/common";
     }
-    
-    if (@module_arg and $module_arg[0] eq 'GD' and
+     
+    if (@module_arg and $module_arg[0] eq 'Crypt::OpenSSL::Random' and
+        not $args->{info}) {
+      push @configure_args, "LIBDIR=" . "$RootDirName/local/common/lib";
+    } elsif (@module_arg and $module_arg[0] eq 'GD' and
         not $args->{info} and not $args->{scandeps}) {
       ## <https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=636649>
       install_makeinstaller 'gd', [q{CCFLAGS="$PMBP__CCFLAGS"}],
@@ -2545,6 +2543,13 @@ sub cpanm ($$) {
         if ($required_misc{cpan}) {
           if (install_cpan_config $perl_command, $perl_version, $perl_lib_dir_name) {
             $redo = 1;
+          }
+        }
+        if (not $redo) {
+          my $cc = get_perl_config $perl_command, $perl_version, 'cc';
+          unless (which $cc) {
+            ## There is the platform's perl binary, but there is no compiler.q
+            $redo = 1 if install_system_packages [{name => 'gcc'}];
           }
         }
         redo COMMAND if $redo;
