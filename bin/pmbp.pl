@@ -1902,10 +1902,7 @@ sub cpanm ($$) {
         (defined $ENV{CPATH} ? $ENV{CPATH} : ()),
         "$RootDirName/local/common/include";
 
-    if (@module_arg and $module_arg[0] =~ /^Crypt::OpenSSL::/ and
-        not $args->{info}) {
-      push @configure_args, "LIBS=-L" . "$RootDirName/local/common/lib";
-    }
+    push @configure_args, "LIBS=-L" . "$RootDirName/local/common/lib";
 
     my $envs = {LANG => 'C',
                 PATH => (join ':', @additional_path, $path),
