@@ -2381,6 +2381,13 @@ sub cpanm ($$) {
         info 0, "Perl $1 or later is requested (current: $2)";
         $failed = 1;
       }
+      if (not $failed and
+          $log =~ m{-> FAIL Installing (Crypt::OpenSSL::Random|Crypt::OpenSSL::RSA|GD|Text::MeCab|Math::Pari) failed. See} and
+          not (@module_arg and $module_arg[0] eq $1 and
+               not $args->{info})) {
+        push @required_install,
+            PMBP::Module->new_from_package ($1);
+      }
     }; # $scan_errors
     ## --- End of error message sniffer ---
 
