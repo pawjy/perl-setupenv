@@ -2579,11 +2579,13 @@ sub cpanm ($$) {
     if (not $args->{info} and not $args->{scandeps} and
         @module_arg and $module_arg[0] eq 'Net::SSLeay') {
       my $result;
+      my @lib = get_lib_dir_names_of ($perl_command, $perl_version, $perl_lib_dir_name);
       my $return = run_command
-          [$perl_command, '-MNet::SSLeay',
-           '-e', sprintf 'print scalar Net::SSLeay::ST_OK ()'],
-          envs => {PATH => get_env_path ($perl_version),
-                   PERL5LIB => (join ':', (get_lib_dir_names ($perl_command, $perl_version)))},
+          [$perl_command,
+           (map { '-I' . $_ } @lib),
+           '-MNet::SSLeay',
+           '-e', 'print scalar Net::SSLeay::ST_OK ()'],
+          envs => {PATH => get_env_path ($perl_version)},
           info_level => 3,
           onoutput => sub {
             $result = $_[0];
@@ -2909,16 +2911,23 @@ sub get_pm_dir_name ($) {
   return "$RootDirName/local/perl-$perl_version/pm";
 } # get_pm_dir_name
 
+sub get_lib_dir_names_of ($$$) {
+  my ($perl_command, $perl_version, $pm_dir_name) = @_;
+  my $archname = get_perl_archname $perl_command, $perl_version;
+  return (
+    qq{$pm_dir_name/lib/perl5/$archname},
+    qq{$pm_dir_name/lib/perl5},
+  );
+} # get_lib_dir_names_of
+
 sub get_lib_dir_names ($$) {
   my ($perl_command, $perl_version) = @_;
   my $pm_dir_name = get_pm_dir_name ($perl_version);
-  my $archname = get_perl_archname $perl_command, $perl_version;
   my @lib = grep { defined } map { abs_path $_ } map { glob $_ }
       qq{$RootDirName/lib},
       qq{$RootDirName/modules/*/lib},
       qq{$RootDirName/local/submodules/*/lib},
-      qq{$pm_dir_name/lib/perl5/$archname},
-      qq{$pm_dir_name/lib/perl5};
+      get_lib_dir_names_of ($perl_command, $perl_version, $pm_dir_name);
   return @lib;
 } # get_lib_dir_names
 
