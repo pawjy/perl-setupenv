@@ -3010,8 +3010,8 @@ sub create_perl_command_shortcut ($$$;%) {
       $_ = '$rootpath/' . $_;
     }
     $paths = sprintf q{
-rootpath="\$(cd %s && pwd)"
-libpaths=`cat \$rootpath/%s 2> /dev/null | perl -MCwd=abs_path -e '\\\$p = abs_path shift; local \\\$/ = undef; print join q{:}, map { \\\$p . q{/} . \\\$_ } split /:/, <>' "\$rootpath"`
+rootpath=$(cd %s && pwd)
+libpaths=`cat $rootpath/%s 2> /dev/null | perl -MCwd=abs_path -e '$p = abs_path shift; local $/ = undef; print join q{:}, map { $p . q{/} . $_ } split /:/, <>' "$rootpath"`
     },
         ($root_path eq '.' ? '`dirname $0`' : '`dirname $0`/'._quote_dq $root_path),
         _quote_dq +File::Spec->abs2rel (get_relative_libs_txt_file_name ($perl_version), $RootDirName),
