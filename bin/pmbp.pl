@@ -4860,12 +4860,14 @@ while (@Command) {
     install_system_packages [{name => 'gcc'}]
         or info_die "Can't install gcc";
   } elsif ($command->{type} eq 'install-mysqld') {
-    install_system_packages [
-      {name => 'mysql-server-devel',
-       redhat_name => 'MySQL-devel',
-       debian_name => 'libmysqld-dev',
-       homebrew_name => 'mysql'},
-    ] or info_die "Can't install mysqld";
+    unless (which 'mysqld') {
+      install_system_packages [
+        {name => 'mysql-server-devel',
+         redhat_name => 'MySQL-devel',
+         debian_name => 'libmysqld-dev',
+         homebrew_name => 'mysql'},
+      ] or info_die "Can't install mysqld";
+    }
   } elsif ($command->{type} eq 'install-openssl') {
     $get_perl_version->() unless defined $perl_version;
     install_openssl ($perl_version);
