@@ -1041,7 +1041,12 @@ sub get_mysqld_system_packages () {
   return [
     {name => 'mysql-server-devel',
      redhat_name => 'MySQL-devel',
-     debian_name => 'libmysqld-dev',
+     #debian_name => 'libmysqld-dev',
+     debian_name => 'libmariadbd-dev',
+     homebrew_name => 'mysql'},
+    {name => 'mysql-server-devel',
+     redhat_name => 'MySQL-devel',
+     debian_name => 'mariadb-server',
      homebrew_name => 'mysql'},
   ];
 } # get_mysqld_system_packages
