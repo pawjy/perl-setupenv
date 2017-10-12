@@ -1035,6 +1035,24 @@ sub use_perl_core_module ($) {
   } # which
 }
 
+## ------ MySQL ------
+
+sub get_mysqld_system_packages () {
+  return [
+    {name => 'mysql-server-devel',
+     redhat_name => 'MySQL-devel',
+     debian_name => 'libmysqld-dev',
+     homebrew_name => 'mysql'},
+  ];
+} # get_mysqld_system_packages
+
+sub install_mysqld_if_necessary () {
+  unless (which 'mysqld') {
+    info 0, "Instaling mysqld...";
+    install_system_packages get_mysqld_system_packages or info_die "Can't install mysqld";
+  }
+} # install_mysqld_if_necessary
+
 ## ------ Git repositories ------
 
 {
@@ -2237,11 +2255,7 @@ sub cpanm ($$) {
         $failed = 1;
       }
       if ($log =~ m{ld: cannot find -lmysqlclient}m) {
-        push @required_system,
-            {name => 'mysql-server-devel',
-             redhat_name => 'MySQL-devel',
-             debian_name => 'libmysqld-dev',
-             homebrew_name => 'mysql'};
+        push @required_system, get_mysqld_system_packages;
         $failed = 1;
       }
       if ($log =~ /^The value of POSTGRES_INCLUDE points to a non-existent directory/m or
@@ -4860,14 +4874,7 @@ while (@Command) {
     install_system_packages [{name => 'gcc'}]
         or info_die "Can't install gcc";
   } elsif ($command->{type} eq 'install-mysqld') {
-    unless (which 'mysqld') {
-      install_system_packages [
-        {name => 'mysql-server-devel',
-         redhat_name => 'MySQL-devel',
-         debian_name => 'libmysqld-dev',
-         homebrew_name => 'mysql'},
-      ] or info_die "Can't install mysqld";
-    }
+    install_mysqld_if_necessary;
   } elsif ($command->{type} eq 'install-openssl') {
     $get_perl_version->() unless defined $perl_version;
     install_openssl ($perl_version);
