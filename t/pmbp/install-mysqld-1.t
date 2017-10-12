@@ -8,6 +8,6 @@ mkdir -p $tempdir/foo
 cd $tempdir/foo && \
 ((perl $pmbp --install-mysqld && echo "ok 1") || echo "not ok 1")
 
-(mysqld --version && echo "ok 2") || echo "not ok 2"
+((mysqld --version || /usr/sbin/mysqld --version) && echo "ok 2") || echo "not ok 2"
 
 rm -fr $tempdir

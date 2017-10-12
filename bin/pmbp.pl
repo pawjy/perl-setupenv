@@ -1052,7 +1052,7 @@ sub get_mysqld_system_packages () {
 } # get_mysqld_system_packages
 
 sub install_mysqld_if_necessary () {
-  unless (which 'mysqld') {
+  unless (which 'mysqld' or which '/usr/sbin/mysqld') {
     info 0, "Instaling mysqld...";
     install_system_packages get_mysqld_system_packages or info_die "Can't install mysqld";
   }
