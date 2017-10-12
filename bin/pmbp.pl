@@ -276,8 +276,8 @@ GetOptions (
     print-pmtar-dir-name print-pmpp-dir-name print-perl-path
     print-submodule-components
     install-mecab install-svn install-git install-curl install-wget
-    install-make install-gcc install-openssl install-openssl-if-mac
-    install-openssl-if-old
+    install-make install-gcc install-mysqld
+    install-openssl install-openssl-if-mac install-openssl-if-old
     print-openssl-stable-branch print-openssl-version
     print-libressl-stable-branch
     init-git-repository
@@ -4859,6 +4859,13 @@ while (@Command) {
   } elsif ($command->{type} eq 'install-gcc') {
     install_system_packages [{name => 'gcc'}]
         or info_die "Can't install gcc";
+  } elsif ($command->{type} eq 'install-mysqld') {
+    install_system_packages [
+      {name => 'mysql-server-devel',
+       redhat_name => 'MySQL-devel',
+       debian_name => 'libmysqld-dev',
+       homebrew_name => 'mysql'};
+    ] or info_die "Can't install mysqld";
   } elsif ($command->{type} eq 'install-openssl') {
     $get_perl_version->() unless defined $perl_version;
     install_openssl ($perl_version);
@@ -6341,6 +6348,10 @@ Install GNU Make, if necessary.
 =item --install-gcc
 
 Install GCC, if necessary.
+
+=item --install-mysqld
+
+Install MySQL server, if necessary.
 
 =item --install-openssl
 
