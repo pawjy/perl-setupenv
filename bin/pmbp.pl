@@ -1821,6 +1821,7 @@ sub cpanm ($$) {
     my $package = $modules->[0]->package;
     if (defined $package) {
       if ($package eq 'Net::SSLeay' or
+          $package eq 'Crypt::SSLeay' or
           $package =~ /^Crypt::OpenSSL::/) {
         info 1, "Net::SSLeay requires OpenSSL (or equivalent)";
         install_openssl_if_too_old ($perl_version);
@@ -1938,6 +1939,10 @@ sub cpanm ($$) {
 
     if (-x "$RootDirName/local/common/bin/openssl") {
       $envs->{OPENSSL_PREFIX} = "$RootDirName/local/common";
+
+      ## For Crypt::SSLeay's Makefile.PL
+      $envs->{OPENSSL_INCLUDE} = "$RootDirName/local/common/include";
+      $envs->{OPENSSL_LIB} = "$RootDirName/local/common/lib";
     }
      
     if (@module_arg and $module_arg[0] eq 'Crypt::OpenSSL::Random' and
