@@ -2243,6 +2243,9 @@ sub cpanm ($$) {
         #     homebrew_name => 'openssl'};
         $failed = 1;
       }
+      if ($log =~ m{ld: library not found for -lssl}m) {
+        $required_misc{openssl_ld} = 1;
+      }
       if ($log =~ m{^Can't link/include (?:C library )?'gmp.h', 'gmp'}m) {
         push @required_system,
             {name => 'gmp-devel', debian_name => 'libgmp-dev',
@@ -2500,6 +2503,14 @@ sub cpanm ($$) {
         }
         if ($required_misc{openssl}) {
           $redo = 1 if install_openssl ($perl_version);
+        }
+        if ($required_misc{openssl_ld}) {
+          if (which 'xcode-select' and
+              run_command ['xcode-select', '--install']) {
+            $redo = 1;
+          } else {
+            $redo = 1 if install_openssl ($perl_version);
+          }
         }
         if ($required_misc{mecab}) {
           $redo = 1 if install_mecab ();
