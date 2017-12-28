@@ -4939,14 +4939,8 @@ while (@Command) {
   } elsif ($command->{type} eq 'install-openssl') {
     $get_perl_version->() unless defined $perl_version;
     install_openssl ($perl_version);
-  } elsif ($command->{type} eq 'install-openssl-if-mac') {
-    info 5, sprintf "Platform %s (is Mac OS X? %s)",
-        $^O, $PlatformIsMacOSX ? 'true' : 'false';
-    if ($PlatformIsMacOSX) {
-      $get_perl_version->() unless defined $perl_version;
-      install_openssl ($perl_version);
-    }
-  } elsif ($command->{type} eq 'install-openssl-if-old') {
+  } elsif ($command->{type} eq 'install-openssl-if-old' or
+           $command->{type} eq 'install-openssl-if-mac') {
     $get_perl_version->() unless defined $perl_version;
     install_openssl_if_too_old ($perl_version);
   } elsif ($command->{type} eq 'print-openssl-version') {
@@ -6427,15 +6421,14 @@ Install MySQL server, if necessary.
 
 Install LibreSSL into C<local/common>.
 
-=item --install-openssl-if-mac
-
-Same as C<--install-openssl> but has no effect unless the platform is
-Mac OS X.
-
 =item --install-openssl-if-old
 
 Same as C<--install-openssl> but has no effect unless an OpenSSL is
 installed and it is not too old.
+
+=item --install-openssl-if-mac
+
+B<Deprecated>.  Same as C<--install-openssl-if-old>.
 
 =item --print-openssl-version
 
