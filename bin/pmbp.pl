@@ -969,16 +969,6 @@ sub load_json_after_garbage ($) {
   } # install_system_packages
 }
 
-sub get_make_system_packages () {
-  return [
-    ($PlatformIsMacOSX ? (
-      {name => 'homebrew/dupes/xar'},
-    ) : ()),
-    {name => 'make',
-     homebrew_name => 'homebrew/dupes/make'},
-  ];
-} # get_make_system_packages
-
 sub use_perl_core_module ($) {
   my $package = $_[0];
   eval qq{ require $package } and return;
@@ -1035,30 +1025,27 @@ sub use_perl_core_module ($) {
   } # which
 }
 
-sub get_mysqld_system_packages () {
-  return [
-    {name => 'mysql-server-devel',
-     redhat_name => 'MySQL-devel',
-     #debian_name => 'libmysqld-dev',
-     debian_name => 'libmariadbd-dev',
-     homebrew_name => 'mysql'},
-    {name => 'mysql-server-devel',
-     redhat_name => 'MySQL-devel',
-     debian_name => 'mariadb-server',
-     homebrew_name => 'mysql'},
-  ];
-} # get_mysqld_system_packages
-
 my $InstallableItemDefs = {};
 
 $InstallableItemDefs->{make} = {
   bin => 'make',
-  packages => get_make_system_packages,
+  packages => [
+    ($PlatformIsMacOSX ? (
+      {name => 'homebrew/dupes/xar'},
+    ) : ()),
+    {name => 'make',
+     homebrew_name => 'homebrew/dupes/make'},
+  ],
 };
 
 $InstallableItemDefs->{gcc} = {
   bin => 'gcc',
   packages => [{name => 'gcc'}],
+};
+
+$InstallableItemDefs->{'g++'} = {
+  bin => 'g++',
+  packages => [{name => 'g++', redhat_name => 'gcc-c++'}],
 };
 
 $InstallableItemDefs->{tar} = {
@@ -1088,7 +1075,17 @@ $InstallableItemDefs->{wget} = {
 
 $InstallableItemDefs->{mysqld} = {
   bin => ['mysqld', '/usr/sbin/mysqld'],
-  packages => get_mysqld_system_packages,
+  packages => [
+    {name => 'mysql-server-devel',
+     redhat_name => 'MySQL-devel',
+     #debian_name => 'libmysqld-dev',
+     debian_name => 'libmariadbd-dev',
+     homebrew_name => 'mysql'},
+    {name => 'mysql-server-devel',
+     redhat_name => 'MySQL-devel',
+     debian_name => 'mariadb-server',
+     homebrew_name => 'mysql'},
+  ],
 };
 
 $InstallableItemDefs->{vim} = {
@@ -1195,14 +1192,14 @@ sub git_submodules ($) {
   my ($git_dir_name) = @_;
   my $out = '';
   #run_command
-  #    ['git', 'submodule', '--quiet', 'foreach', 'sh', '-c', 'true; echo $path'],
+  #    [git, 'submodule', '--quiet', 'foreach', 'sh', '-c', 'true; echo $path'],
   #    chdir => $git_dir_name,
   #    onoutput => sub { $out .= $_[0]; 6 }
   #        or info_die "git submodule failed";
   #return [map { +{dir_name => $_} } grep { length } split /\x0A/, $out];
   return [] unless -f "$git_dir_name/.gitmodules";
   run_command
-      ['git', 'config', '-f', '.gitmodules',
+      [git, 'config', '-f', '.gitmodules',
        '--get-regexp', '^submodule\..+\.url$'],
       chdir => $git_dir_name,
       onoutput => sub { $out .= $_[0]; 6 };
@@ -1220,7 +1217,7 @@ sub git_submodule_url ($$) {
   my ($git_dir_name, $submodule_dir_name) = @_;
   my $out = '';
   run_command
-      ['git', 'config', '-f', '.gitmodules', "submodule.$submodule_dir_name.url"],
+      [git, 'config', '-f', '.gitmodules', "submodule.$submodule_dir_name.url"],
       chdir => $git_dir_name,
       onoutput => sub { $out .= $_[0]; 6 }
           or info_die "git config failed";
@@ -1260,7 +1257,7 @@ sub add_git_submodule ($$;%) {
   }
   info 0, "Adding <$url> as a submodule...";
   run_command
-      ['git', 'submodule', 'add', $url, "$parent/$dir_name"],
+      [git, 'submodule', 'add', $url, "$parent/$dir_name"],
       chdir => $git_dir_name
           or info_die "git submodule failed";
   my $extra_file_name = "$git_dir_name/$parent/$dir_name/config/perl/pmbp-extra-modules.txt";
@@ -4037,14 +4034,7 @@ sub install_openssl ($) {
     #    or info_die "|git pull| failed";
   }
 
-  unless (which ('make')) {
-    install_system_packages get_make_system_packages
-        or info_die "Can't install make";
-  }
-  unless (which ('gcc')) {
-    install_system_packages [{name => 'gcc'}]
-        or info_die "Can't install gcc";
-  }
+  install_if_necessary 'make', 'gcc';
 
   my $temp_dir_name = create_temp_dir_name;
   my $temp_c_file_name = "$temp_dir_name/a.c";
@@ -4067,7 +4057,7 @@ sub install_openssl ($) {
   my $autogen_failed = 0;
   {
     info 0, "Installing LibreSSL revision:";
-    run_command ['git', 'rev-parse', 'HEAD'],
+    run_command [git, 'rev-parse', 'HEAD'],
         chdir => $repo_dir_name,
         onoutput => sub { 0 };
 
@@ -4115,11 +4105,11 @@ sub install_openssl ($) {
       $autogen_failed++;
       redo;
     } elsif (not $ok and $autogen_failed < $max_retry) {
-      run_command ['git', 'add', '.'],
+      run_command [git, 'add', '.'],
           chdir => $repo_dir_name;
-      run_command ['git', 'reset', '--hard'],
+      run_command [git, 'reset', '--hard'],
           chdir => $repo_dir_name;
-      run_command ['git', 'checkout', 'HEAD~1'],
+      run_command [git, 'checkout', 'HEAD~1'],
           chdir => $repo_dir_name
           or info_die "Failed autogen and git checkout ($autogen_failed)";
       $autogen_failed++;
@@ -4214,6 +4204,7 @@ sub build_imagemagick ($$$;%) {
   A: {
     my $retry;
     my @required_system;
+    my @required_installable;
     my $onoutput = sub {
       my $log = $_[0];
       if ($log =~ m{ld: cannot find -lperl}m) {
@@ -4224,7 +4215,7 @@ sub build_imagemagick ($$$;%) {
         $retry = 1;
       } elsif ($log =~ /\bsh: 1: cc: not found$/m or
                $log =~ /^configure: error: no acceptable C compiler found/m) {
-        push @required_system, {name => 'gcc'};
+        push @required_installable, 'gcc';
       }
       return 1;
     };
@@ -4232,6 +4223,7 @@ sub build_imagemagick ($$$;%) {
       return 0 unless $retry;
       return 0 if $retry_count++ > 5;
       return 0 unless install_system_packages \@required_system;
+      install_if_necessary (@required_installable);
       return 1;
     };
     run_command
@@ -4682,10 +4674,9 @@ sub mecab_config_file_name () {
 sub install_mecab () {
   my $mecab_charset = mecab_charset;
   my $dest_dir_name = "$RootDirName/local/mecab-@{[mecab_version]}-@{[mecab_charset]}";
-  unless (which 'g++') {
-    install_system_packages [{name => 'g++', redhat_name => 'gcc-c++'}]
-        or return 0;
-  }
+  
+  install_if_necessary 'g++';
+  
   return 0 unless install_tarball
       q<https://drive.google.com/uc?export=download&id=0B4y35FiV1wh7cENtOXlicTFaRUE>
       => 'mecab' => $dest_dir_name,
