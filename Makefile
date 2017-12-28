@@ -73,6 +73,9 @@ endif
 ifeq "$(TARGET)" "perl"
 	$(PROVE) --verbose t/pmbp-perl/*.t
 endif
+ifeq "$(TARGET)" "perl-old"
+	$(PROVE) --verbose t/pmbp-perl-old/*.t
+endif
 ifeq "$(TARGET)" "imagemagick"
 	$(PROVE) --verbose t/pmbp-imagemagick/*.t
 endif
@@ -85,6 +88,9 @@ endif
 ifeq "$(TARGET)" "mecab"
 	$(PROVE) --verbose t/pmbp-mecab/*.t
 endif
+ifeq "$(TARGET)" "gd"
+	$(PROVE) --verbose t/pmbp-gd/*.t
+endif
 ifeq "$(TARGET)" "rrdtool"
 	$(PROVE) --verbose t/pmbp-rrdtool/*.t
 endif
@@ -93,4 +99,10 @@ ifeq "$(TARGET)" "svn"
 endif
 ifeq "$(TARGET)" "tls"
 	$(PROVE) --verbose t/pmbp-tls/*.t
+endif
+ifeq "$(TARGET)" "tls-2"
+	$(PROVE) --verbose t/pmbp-tls-2/*.t
+endif
+ifeq "$(TARGET)" "tls-3"
+	$(PROVE) --verbose t/pmbp-tls-3/*.t
 endif

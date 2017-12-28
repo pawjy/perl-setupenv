@@ -15,13 +15,17 @@ env:
     - TARGET=imagemagick
     - TARGET=modperl
     - TARGET=tls
+    - TARGET=tls-2
+    - TARGET=tls-3
     - TARGET=svn
     - TARGET=scan
     - TARGET=lists
     - TARGET=perl
+    - TARGET=perl-old
     - TARGET=apache
     - TARGET=rrdtool
     - TARGET=mecab
+    - TARGET=gd
     - TARGET=env
     - TARGET=git
     - TARGET=update
@@ -31,13 +35,11 @@ matrix:
   allow_failures:
     - env: TARGET=modperl
     - os: osx
-      env: TARGET=tls
+      env: TARGET=gd
     - os: osx
       env: TARGET=svn
     - os: osx
-      env: TARGET=scan
-    - os: osx
-      env: TARGET=perl
+      env: TARGET=perl-old
     - os: osx
       env: TARGET=apache
     - os: osx
