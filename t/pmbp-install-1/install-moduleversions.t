@@ -1,2 +1,2 @@
 #!/bin/sh
-sh `dirname $0`/install-module.sh Module::Versions
+sh `dirname $0`/../pmbp/install-module.sh Module::Versions
