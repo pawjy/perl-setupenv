@@ -1061,6 +1061,11 @@ $InstallableItemDefs->{gcc} = {
   packages => [{name => 'gcc'}],
 };
 
+$InstallableItemDefs->{tar} = {
+  bin => 'tar',
+  packages => [{name => 'tar'}],
+};
+
 $InstallableItemDefs->{bzip2} = {
   bin => 'bzip2',
   packages => [{name => 'bzip2'}],
@@ -1084,6 +1089,11 @@ $InstallableItemDefs->{wget} = {
 $InstallableItemDefs->{mysqld} = {
   bin => ['mysqld', '/usr/sbin/mysqld'],
   packages => get_mysqld_system_packages,
+};
+
+$InstallableItemDefs->{vim} = {
+  bin => 'vim',
+  packages => [{name => 'vim', redhat_name => 'vim-common'}],
 };
 
 sub install_if_necessary (@) {
@@ -1891,6 +1901,7 @@ sub cpanm ($$) {
     my @required_install;
     my @required_install2;
     my @required_system;
+    my @required_installable;
     my %required_misc;
     my %diag;
 
@@ -2186,7 +2197,7 @@ sub cpanm ($$) {
       }
       if ($log =~ /Failed to extract .+?.tar.gz - You need to have tar or Archive::Tar installed./m) {
         #push @required_cpanm, PMBP::Module->new_from_package ('Archive::Tar'); # core 5.9.3+
-        push @required_system, {name => 'tar'};
+        push @required_installable, 'tar';
       }
       if ($log =~ /Failed to extract .+.zip - You need to have unzip or Archive::Zip installed./m) {
         push @required_cpanm, PMBP::Module->new_from_package ('Archive::Zip');
@@ -2264,7 +2275,7 @@ sub cpanm ($$) {
         push @additional_option, '--skip-satisfied';
       }
       if ($log =~ /Can't configure the distribution. You probably need to have 'make'/m) {
-        push @required_system, @{+get_make_system_packages};
+        push @required_installable, 'make';
       }
       if ($log =~ /cannot find -lz/m) {
         push @required_system,
@@ -2306,7 +2317,7 @@ sub cpanm ($$) {
         $failed = 1;
       }
       if ($log =~ m{ld: cannot find -lmysqlclient}m) {
-        push @required_system, get_mysqld_system_packages;
+        push @required_installable, 'mysqld';
         $failed = 1;
       }
       if ($log =~ /^The value of POSTGRES_INCLUDE points to a non-existent directory/m or
@@ -2414,10 +2425,10 @@ sub cpanm ($$) {
       if ($log =~ /\bsh: 1: cc: not found$/m or
           $log =~ /\bsh: gcc: command not found/m or
           $log =~ /^configure: error: no acceptable C compiler found/m) {
-        push @required_system, {name => 'gcc'};
+        push @required_installable, 'gcc';
       }
       if ($log =~ /^# This module requires vim version 6.0 or later/m) {
-        push @required_system, {name => 'vim', redhat_name => 'vim-common'};
+        push @required_installable, 'vim';
         $failed = 1;
       }
       if ($log =~ /^We have to reconfigure CPAN.pm due to following uninitialized parameters:/m) {
@@ -2432,7 +2443,7 @@ sub cpanm ($$) {
         }
       }
       if ($log =~ /^! Can't configure the distribution\. You probably need to have 'make'\./m) {
-        push @required_system, @{+get_make_system_packages};
+        push @required_installable, 'make';
       }
       if ($log =~ /^!!! MakeInstaller failed !!!$/m) {
         $failed = 1;
@@ -2536,6 +2547,10 @@ sub cpanm ($$) {
           remove_tree "$module_arg[0]/inc";
           $redo = 1;
         }
+        if (@required_installable) {
+          install_if_necessary (@required_installable);
+          $redo = 1;
+        }
         if (@required_system) {
           $redo = 1 if install_system_packages \@required_system;
         }
@@ -2563,7 +2578,7 @@ sub cpanm ($$) {
           undef $install_extutils_embed;
           $redo = 1;
         }
-        if (not @required_system and
+        if (not @required_system and not @required_installable and
             (@required_cpanm or @required_force_cpanm)) {
           local $CPANMDepth = $CPANMDepth + 1;
           for my $module (@required_cpanm) {
@@ -2631,7 +2646,7 @@ sub cpanm ($$) {
         if (not $redo) {
           my $cc = get_perl_config $perl_command, $perl_version, 'cc';
           unless (which $cc) {
-            ## There is the platform's perl binary, but there is no compiler.q
+            ## There is the platform's perl binary, but there is no compiler.
             $redo = 1 if install_system_packages [{name => 'gcc'}];
           }
         }
