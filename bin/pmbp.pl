@@ -1061,6 +1061,11 @@ $InstallableItemDefs->{gcc} = {
   packages => [{name => 'gcc'}],
 };
 
+$InstallableItemDefs->{bzip2} = {
+  bin => 'bzip2',
+  packages => [{name => 'bzip2'}],
+};
+
 $InstallableItemDefs->{git} = {
   bin => 'git',
   packages => [{name => 'git'}],
@@ -1082,6 +1087,7 @@ $InstallableItemDefs->{mysqld} = {
 };
 
 sub install_if_necessary (@) {
+  my @package;
   ITEM: for my $item (@_) {
     my $def = $InstallableItemDefs->{$item};
     info_die "Installable item |$item| is not defined" unless defined $def;
@@ -1095,11 +1101,14 @@ sub install_if_necessary (@) {
         }
       }
     }
-    
-    install_system_packages
-        ($def->{packages} || info_die "|packages| not defined for |$item|")
-        or info_die "Can't install item |$item|";
+
+    push @package,
+        $def->{packages} || info_die "|packages| not defined for |$item|";
   } # ITEM
+
+  if (@package) {
+    install_system_packages (@package) or info_die "Can't install items |@_|";
+  }
 } # install_if_necessary
 
 ## ------ Git repositories ------
@@ -1356,15 +1365,7 @@ sub install_perlbrew () {
 
   use_perl_core_module 'PerlIO';
 
-  my @install;
-  push @install, {name => 'bzip2'} unless which ('bzip2');
-  push @install, @{+get_make_system_packages}
-      unless which ('make');
-  push @install, {name => 'gcc'} unless which ('gcc');
-  if (@install) {
-    install_system_packages \@install
-        or info_die "Need to install commands before perlbrew";
-  }
+  install_if_necessary 'bzip2', 'make', 'gcc';
 
   my $install_file_name = "$RootDirName/local/install.perlbrew";
   save_url $PerlbrewInstallerURL => $install_file_name;
