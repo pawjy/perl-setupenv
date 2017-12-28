@@ -880,6 +880,7 @@ sub load_json_after_garbage ($) {
   my $HasAPT;
   my $HasYUM;
   my $HasBrew;
+  my $AptGetUpdated;
   sub install_system_packages ($;%) {
     my ($packages, %args) = @_;
     return unless @$packages;
@@ -916,45 +917,56 @@ sub load_json_after_garbage ($) {
     }
 
     if ($cmd) {
+      my @update;
+      if ($HasAPT and not $AptGetUpdated) {
+        my $found = run_command ['apt-cache', 'show', $packages->[0]->{debian_name} || $packages->[0]->{name}];
+        unless ($found) {
+          my $cmd = [$AptGetCommand, 'update'];
+          if (@sudo) {
+            @update = (@sudo, '--', @$cmd);
+          } else {
+            @update = ('su', '-c', join ' ', map { shellarg $_ } @$cmd);
+          }
+        }
+      }
+      
       if (not $ExecuteSystemPackageInstaller) {
+        my $pre = '';
+        if (@update) {
+          $pre = join ' ', map { shellarg $_ } @update;
+          $pre .= ' && ';
+        }
+        
         info 0, "Execute following command and retry:";
         info 0, '';
-        info 0, '  $ ' . $env . join ' ', map { shellarg $_ } @$cmd;
-        info 0, '  $ ' . $env . join ' ', map { shellarg $_ } @$cmd2 if defined $cmd2;
+        info 0, '  $ ' . $pre . $env . join ' ', map { shellarg $_ } @$cmd;
+        info 0, '  $ ' . $pre . $env . join ' ', map { shellarg $_ } @$cmd2 if defined $cmd2;
         info 0, '';
         if (grep { $_->{name} eq 'libperl-devel' } @$packages) {
           info 0, '(Instead of installing libperl-devel, you can use --install-perl command)';
         }
       } else {
-        for (0..1) {
-          my $return = run_command $cmd,
+        if (@update) {
+          if (run_command \@update, info_level => 1, info_command_level => 0) {
+            $AptGetUpdated = 1;
+          } else {
+            info 0, "Failed to update apt-get package list";
+          }
+        }
+        
+        my $return = run_command $cmd,
+            info_level => 1,
+            info_command_level => 0,
+            envs => {DEBIAN_FRONTEND => "noninteractive"};
+
+        if ($return and defined $cmd2) {
+          $return = run_command $cmd2,
               info_level => 0,
               info_command_level => 0,
               envs => {DEBIAN_FRONTEND => "noninteractive"};
-
-          if (not $return) {
-            if ($HasAPT) {
-              # E: Unable to locate package
-              my $cmd = [$AptGetCommand, 'update'];
-              if (@sudo) {
-                unshift @$cmd, @sudo, '--';
-              } else {
-                $cmd = ['su', '-c', join ' ', map { shellarg $_ } @$cmd];
-              }
-              run_command $cmd and next;
-            }
-          }
-
-          if ($return and defined $cmd2) {
-            $return = run_command $cmd2,
-                info_level => 0,
-                info_command_level => 0,
-                envs => {DEBIAN_FRONTEND => "noninteractive"};
-          }
-
-          return $return;
         }
-        return 0;
+
+        return $return;
       }
     } else {
       info 0, "Install following packages and retry:";
@@ -1110,11 +1122,11 @@ sub install_if_necessary (@) {
     }
 
     push @package,
-        $def->{packages} || info_die "|packages| not defined for |$item|";
+        @{$def->{packages} || info_die "|packages| not defined for |$item|"};
   } # ITEM
 
   if (@package) {
-    install_system_packages (@package) or info_die "Can't install items |@_|";
+    install_system_packages (\@package) or info_die "Can't install |@_|";
   }
 } # install_if_necessary
 
