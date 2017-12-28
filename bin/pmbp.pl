@@ -1035,8 +1035,6 @@ sub use_perl_core_module ($) {
   } # which
 }
 
-## ------ MySQL ------
-
 sub get_mysqld_system_packages () {
   return [
     {name => 'mysql-server-devel',
@@ -1051,12 +1049,58 @@ sub get_mysqld_system_packages () {
   ];
 } # get_mysqld_system_packages
 
-sub install_mysqld_if_necessary () {
-  unless (which 'mysqld' or which '/usr/sbin/mysqld') {
-    info 0, "Instaling mysqld...";
-    install_system_packages get_mysqld_system_packages or info_die "Can't install mysqld";
-  }
-} # install_mysqld_if_necessary
+my $InstallableItemDefs = {};
+
+$InstallableItemDefs->{make} = {
+  bin => 'make',
+  packages => get_make_system_packages,
+};
+
+$InstallableItemDefs->{gcc} = {
+  bin => 'gcc',
+  packages => [{name => 'gcc'}],
+};
+
+$InstallableItemDefs->{git} = {
+  bin => 'git',
+  packages => [{name => 'git'}],
+};
+
+$InstallableItemDefs->{curl} = {
+  bin => 'curl',
+  packages => [{name => 'curl'}],
+};
+
+$InstallableItemDefs->{wget} = {
+  bin => 'wget',
+  packages => [{name => 'wget'}],
+};
+
+$InstallableItemDefs->{mysqld} = {
+  bin => ['mysqld', '/usr/sbin/mysqld'],
+  packages => get_mysqld_system_packages,
+};
+
+sub install_if_necessary (@) {
+  ITEM: for my $item (@_) {
+    my $def = $InstallableItemDefs->{$item};
+    info_die "Installable item |$item| is not defined" unless defined $def;
+
+    if (defined $def->{bin}) {
+      for (ref $def->{bin} ? @{$def->{bin}} : $def->{bin}) {
+        my $which = which $_;
+        if (defined $which) {
+          info 2, "You have item |$item| at |$which|";
+          next ITEM;
+        }
+      }
+    }
+    
+    install_system_packages
+        ($def->{packages} || info_die "|packages| not defined for |$item|")
+        or info_die "Can't install item |$item|";
+  } # ITEM
+} # install_if_necessary
 
 ## ------ Git repositories ------
 
@@ -1231,13 +1275,6 @@ sub add_git_submodule ($$;%) {
   }
   return "$parent/$dir_name";
 } # add_git_submodule
-
-sub git_version () {
-  my $out = '';
-  run_command [git, 'version'],
-      onoutput => sub { $out .= $_[0]; 4 };
-  return $out;
-} # git_version
 
 ## ------ Perl ------
 
@@ -4881,21 +4918,17 @@ while (@Command) {
         top_level => 1;
 
   } elsif ($command->{type} eq 'install-git') {
-    git_version or info_die "Can't install git";
+    install_if_necessary 'git';
   } elsif ($command->{type} eq 'install-curl') {
-    install_system_packages [{name => 'curl'}]
-        or info_die "Can't install curl";
+    install_if_necessary 'curl';
   } elsif ($command->{type} eq 'install-wget') {
-    install_system_packages [{name => 'wget'}]
-        or info_die "Can't install wget";
+    install_if_necessary 'wget';
   } elsif ($command->{type} eq 'install-make') {
-    install_system_packages get_make_system_packages
-        or info_die "Can't install make";
+    install_if_necessary 'make';
   } elsif ($command->{type} eq 'install-gcc') {
-    install_system_packages [{name => 'gcc'}]
-        or info_die "Can't install gcc";
+    install_if_necessary 'gcc';
   } elsif ($command->{type} eq 'install-mysqld') {
-    install_mysqld_if_necessary;
+    install_if_necessary 'mysqld';
   } elsif ($command->{type} eq 'install-openssl') {
     $get_perl_version->() unless defined $perl_version;
     install_openssl ($perl_version);
