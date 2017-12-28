@@ -29,8 +29,23 @@ env:
     - TARGET=normal
 matrix:
   allow_failures:
-    - os: osx
     - env: TARGET=modperl
+    - os: osx
+      env: TARGET=tls
+    - os: osx
+      env: TARGET=svn
+    - os: osx
+      env: TARGET=scan
+    - os: osx
+      env: TARGET=perl
+    - os: osx
+      env: TARGET=apache
+    - os: osx
+      env: TARGET=rrdtool
+    - os: osx
+      env: TARGET=mecab
+    - os: osx
+      env: TARGET=normal
 before_install: git submodule update --init
 install: "make test-deps-travis"
 script: "make test"
