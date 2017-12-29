@@ -54,6 +54,8 @@ jobs:
       env: TARGET=mecab
   include:
     - stage: merge
+      before_install: "true"
+      install: "true"
       script: curl -f https://gist.githubusercontent.com/wakaba/ab553f86cd017e0cb28c6dbb5364b009/raw/travis-merge-job.pl | perl
 notifications:
   email:
