@@ -263,6 +263,16 @@ GetOptions (
       push @Command, {type => $n, module => $module};
     });
   } qw(print-module-pathname print-module-version)),
+  '--install-commands=s' => sub {
+    push @Command, {type => 'install-commands',
+                    value => [grep { length $_ } split /\s+/, $_[1]]};
+  },
+  (map {
+    my $name = $_;
+    ("--install-$name" => sub {
+       push @Command, {type => 'install-commands', value => [$name]};
+    });
+  } qw(git curl wget make gcc mysqld)),
   (map {
     my $n = $_;
     ("--$n" => sub {
@@ -275,8 +285,7 @@ GetOptions (
     print-perl-archname print-libs
     print-pmtar-dir-name print-pmpp-dir-name print-perl-path
     print-submodule-components
-    install-mecab install-svn install-git install-curl install-wget
-    install-make install-gcc install-mysqld
+    install-mecab install-svn
     install-openssl install-openssl-if-mac install-openssl-if-old
     print-openssl-stable-branch print-openssl-version
     print-libressl-stable-branch
@@ -1105,7 +1114,7 @@ $CommandDefs->{vim} = {
   packages => [{name => 'vim', redhat_name => 'vim-common'}],
 };
 
-sub install_command ($) {
+sub install_commands ($) {
   my @package;
   ITEM: for my $item (@{$_[0]}) {
     my $def = $CommandDefs->{$item};
@@ -1128,7 +1137,7 @@ sub install_command ($) {
   if (@package) {
     install_system_packages (\@package) or info_die "Can't install |@_|";
   }
-} # install_command
+} # install_commands
 
 ## ------ Git repositories ------
 
@@ -1384,7 +1393,7 @@ sub install_perlbrew () {
 
   use_perl_core_module 'PerlIO';
 
-  install_command ['bzip2', 'make', 'gcc'];
+  install_commands ['bzip2', 'make', 'gcc'];
 
   my $install_file_name = "$RootDirName/local/install.perlbrew";
   save_url $PerlbrewInstallerURL => $install_file_name;
@@ -2557,7 +2566,7 @@ sub cpanm ($$) {
           $redo = 1;
         }
         if (@required_installable) {
-          install_command \@required_installable;
+          install_commands \@required_installable;
           $redo = 1;
         }
         if (@required_system) {
@@ -4046,7 +4055,7 @@ sub install_openssl ($) {
     #    or info_die "|git pull| failed";
   }
 
-  install_command ['make', 'gcc'];
+  install_commands ['make', 'gcc'];
 
   my $temp_dir_name = create_temp_dir_name;
   my $temp_c_file_name = "$temp_dir_name/a.c";
@@ -4235,7 +4244,7 @@ sub build_imagemagick ($$$;%) {
       return 0 unless $retry;
       return 0 if $retry_count++ > 5;
       return 0 unless install_system_packages \@required_system;
-      install_command \@required_installable;
+      install_commands \@required_installable;
       return 1;
     };
     run_command
@@ -4705,7 +4714,7 @@ sub install_mecab () {
   my $mecab_charset = mecab_charset;
   my $dest_dir_name = "$RootDirName/local/mecab-@{[mecab_version]}-@{[mecab_charset]}";
   
-  install_command ['g++'];
+  install_commands ['g++'];
   
   return 0 unless install_tarball
       q<https://drive.google.com/uc?export=download&id=0B4y35FiV1wh7cENtOXlicTFaRUE>
@@ -4955,18 +4964,8 @@ while (@Command) {
         recursive => $command->{recursive},
         top_level => 1;
 
-  } elsif ($command->{type} eq 'install-git') {
-    install_command ['git'];
-  } elsif ($command->{type} eq 'install-curl') {
-    install_command ['curl'];
-  } elsif ($command->{type} eq 'install-wget') {
-    install_command ['wget'];
-  } elsif ($command->{type} eq 'install-make') {
-    install_command ['make'];
-  } elsif ($command->{type} eq 'install-gcc') {
-    install_command ['gcc'];
-  } elsif ($command->{type} eq 'install-mysqld') {
-    install_command ['mysqld'];
+  } elsif ($command->{type} eq 'install-commands') {
+    install_commands $command->{value};
   } elsif ($command->{type} eq 'install-openssl') {
     $get_perl_version->() unless defined $perl_version;
     install_openssl ($perl_version);
@@ -6424,29 +6423,36 @@ modules.
 
 =over 4
 
-=item --install-git
+=item --install-commands "APP1 APP2 APP3 ..."
 
-Install Git, if necessary.
+Install executable applications, if necessary.  If some of
+applications specified are not available, they are installed, using
+platform's package manager or by compiling from source codes.
+
+Zero or more applications can be specified as space-separated list of
+the following names:
+
+  curl   curl
+  gcc    GCC
+  git    Git
+  make   GNU Make
+  mysqld MySQL server
+  wget   wget
+
+=item --install-git
 
 =item --install-curl
 
-Install curl, if necessary.
-
 =item --install-wget
-
-Install wget, if necessary.
 
 =item --install-make
 
-Install GNU Make, if necessary.
-
 =item --install-gcc
-
-Install GCC, if necessary.
 
 =item --install-mysqld
 
-Install MySQL server, if necessary.
+These C<--install-NAME> commands are shorthands for
+C<--install-commands NAME>.
 
 =item --install-openssl
 
