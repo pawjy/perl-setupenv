@@ -109,6 +109,9 @@ endif
 ifeq "$(TARGET)" "tls-4"
 	$(PROVE) --verbose t/pmbp-tls-4/*.t
 endif
+ifeq "$(TARGET)" "tls-5"
+	$(PROVE) --verbose t/pmbp-tls-5/*.t
+endif
 ifeq "$(TARGET)" "mysqld"
 	$(PROVE) --verbose t/pmbp-mysqld/*.t
 endif
