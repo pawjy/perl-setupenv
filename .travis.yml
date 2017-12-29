@@ -48,11 +48,13 @@ matrix:
       env: TARGET=rrdtool
     - os: osx
       env: TARGET=mecab
-before_install: git submodule update --init
+before_install: "true"
 install: "make test-deps-travis"
 script: "make test"
-after_success:
-  - curl https://gist.githubusercontent.com/wakaba/9970857/raw/travis-merger.pl | perl
+jobs:
+  include:
+    - stage: merge
+      script: curl -f https://gist.githubusercontent.com/wakaba/ab553f86cd017e0cb28c6dbb5364b009/raw/travis-merge-job.pl | perl
 notifications:
   email:
     - wakaba@suikawiki.org
