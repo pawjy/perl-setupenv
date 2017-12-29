@@ -784,7 +784,7 @@ sub _save_url {
       @option = (
         $CurlCommand,
         @CurlOption,
-        '-s', '-S', '-L',
+        '-s', '-S', '-L', '-f',
         '-o', $file_name,
         ($args{save_response_headers} ? ('-D', '-') : ()), # XXX not work as intended
         ($args{timeout} ? ('--max-time', $args{timeout}) : ()),
