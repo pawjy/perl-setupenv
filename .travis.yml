@@ -32,6 +32,7 @@ env:
     - TARGET=update
     - TARGET=install-1
     - TARGET=normal
+    - TARGET=mysqld
 matrix:
   allow_failures:
     - env: TARGET=modperl
@@ -47,8 +48,6 @@ matrix:
       env: TARGET=rrdtool
     - os: osx
       env: TARGET=mecab
-    - os: osx
-      env: TARGET=normal
 before_install: git submodule update --init
 install: "make test-deps-travis"
 script: "make test"
