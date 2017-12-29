@@ -1116,7 +1116,8 @@ $CommandDefs->{vim} = {
 
 sub install_commands ($) {
   my @package;
-  ITEM: for my $item (@{$_[0]}) {
+  my %found;
+  ITEM: for my $item (grep { not $found{$_}++ } @{$_[0]}) {
     my $def = $CommandDefs->{$item};
     info_die "Command |$item| is not defined" unless defined $def;
 
@@ -1135,7 +1136,7 @@ sub install_commands ($) {
   } # ITEM
 
   if (@package) {
-    install_system_packages (\@package) or info_die "Can't install |@_|";
+    install_system_packages (\@package) or info_die "Can't install |@{$_[0]}|";
   }
 } # install_commands
 
@@ -1695,7 +1696,8 @@ sub install_cpanm () {
 
     my $out = '';
     unless (run_command ['perl', '-MExtUtils::MakeMaker', '-e', ' ']) {
-      install_system_packages [{name => 'perl-ExtUtils-MakeMaker', debian_name => 'libextutils-makemaker-perl'}] # core 5+
+      install_system_packages [{name => 'perl-ExtUtils-MakeMaker', debian_name => 'perl-modules'}] or # debian
+      install_system_packages [{name => 'perl-ExtUtils-MakeMaker', debian_name => 'libextutils-makemaker-perl'}] # core 5+ / old Debian
           or info_die "Your perl does not have |ExtUtils::MakeMaker| (which is a core module)";
     }
   }
