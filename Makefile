@@ -106,3 +106,6 @@ endif
 ifeq "$(TARGET)" "tls-3"
 	$(PROVE) --verbose t/pmbp-tls-3/*.t
 endif
+ifeq "$(TARGET)" "tls-4"
+	$(PROVE) --verbose t/pmbp-tls-4/*.t
+endif

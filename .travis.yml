@@ -17,6 +17,7 @@ env:
     - TARGET=tls
     - TARGET=tls-2
     - TARGET=tls-3
+    - TARGET=tls-4
     - TARGET=svn
     - TARGET=scan
     - TARGET=lists
