@@ -1037,9 +1037,9 @@ sub use_perl_core_module ($) {
   } # which
 }
 
-my $InstallableItemDefs = {};
+my $CommandDefs = {};
 
-$InstallableItemDefs->{make} = {
+$CommandDefs->{make} = {
   bin => 'make',
   packages => [
     ($PlatformIsMacOSX ? (
@@ -1050,42 +1050,42 @@ $InstallableItemDefs->{make} = {
   ],
 };
 
-$InstallableItemDefs->{gcc} = {
+$CommandDefs->{gcc} = {
   bin => 'gcc',
   packages => [{name => 'gcc'}],
 };
 
-$InstallableItemDefs->{'g++'} = {
+$CommandDefs->{'g++'} = {
   bin => 'g++',
   packages => [{name => 'g++', redhat_name => 'gcc-c++'}],
 };
 
-$InstallableItemDefs->{tar} = {
+$CommandDefs->{tar} = {
   bin => 'tar',
   packages => [{name => 'tar'}],
 };
 
-$InstallableItemDefs->{bzip2} = {
+$CommandDefs->{bzip2} = {
   bin => 'bzip2',
   packages => [{name => 'bzip2'}],
 };
 
-$InstallableItemDefs->{git} = {
+$CommandDefs->{git} = {
   bin => 'git',
   packages => [{name => 'git'}],
 };
 
-$InstallableItemDefs->{curl} = {
+$CommandDefs->{curl} = {
   bin => 'curl',
   packages => [{name => 'curl'}],
 };
 
-$InstallableItemDefs->{wget} = {
+$CommandDefs->{wget} = {
   bin => 'wget',
   packages => [{name => 'wget'}],
 };
 
-$InstallableItemDefs->{mysqld} = {
+$CommandDefs->{mysqld} = {
   bin => ['mysqld', '/usr/sbin/mysqld'],
   packages => [
     {name => 'mysql-server-devel',
@@ -1100,35 +1100,35 @@ $InstallableItemDefs->{mysqld} = {
   ],
 };
 
-$InstallableItemDefs->{vim} = {
+$CommandDefs->{vim} = {
   bin => 'vim',
   packages => [{name => 'vim', redhat_name => 'vim-common'}],
 };
 
-sub install_if_necessary (@) {
+sub install_command ($) {
   my @package;
-  ITEM: for my $item (@_) {
-    my $def = $InstallableItemDefs->{$item};
-    info_die "Installable item |$item| is not defined" unless defined $def;
+  ITEM: for my $item (@{$_[0]}) {
+    my $def = $CommandDefs->{$item};
+    info_die "Command |$item| is not defined" unless defined $def;
 
     if (defined $def->{bin}) {
       for (ref $def->{bin} ? @{$def->{bin}} : $def->{bin}) {
         my $which = which $_;
         if (defined $which) {
-          info 2, "You have item |$item| at |$which|";
+          info 2, "You have command |$item| at |$which|";
           next ITEM;
         }
       }
     }
 
     push @package,
-        @{$def->{packages} || info_die "|packages| not defined for |$item|"};
+        @{$def->{packages} || info_die "|packages| not defined for command |$item|"};
   } # ITEM
 
   if (@package) {
     install_system_packages (\@package) or info_die "Can't install |@_|";
   }
-} # install_if_necessary
+} # install_command
 
 ## ------ Git repositories ------
 
@@ -1384,7 +1384,7 @@ sub install_perlbrew () {
 
   use_perl_core_module 'PerlIO';
 
-  install_if_necessary 'bzip2', 'make', 'gcc';
+  install_command ['bzip2', 'make', 'gcc'];
 
   my $install_file_name = "$RootDirName/local/install.perlbrew";
   save_url $PerlbrewInstallerURL => $install_file_name;
@@ -2557,7 +2557,7 @@ sub cpanm ($$) {
           $redo = 1;
         }
         if (@required_installable) {
-          install_if_necessary (@required_installable);
+          install_command \@required_installable;
           $redo = 1;
         }
         if (@required_system) {
@@ -4046,7 +4046,7 @@ sub install_openssl ($) {
     #    or info_die "|git pull| failed";
   }
 
-  install_if_necessary 'make', 'gcc';
+  install_command ['make', 'gcc'];
 
   my $temp_dir_name = create_temp_dir_name;
   my $temp_c_file_name = "$temp_dir_name/a.c";
@@ -4235,7 +4235,7 @@ sub build_imagemagick ($$$;%) {
       return 0 unless $retry;
       return 0 if $retry_count++ > 5;
       return 0 unless install_system_packages \@required_system;
-      install_if_necessary (@required_installable);
+      install_command \@required_installable;
       return 1;
     };
     run_command
@@ -4705,7 +4705,7 @@ sub install_mecab () {
   my $mecab_charset = mecab_charset;
   my $dest_dir_name = "$RootDirName/local/mecab-@{[mecab_version]}-@{[mecab_charset]}";
   
-  install_if_necessary 'g++';
+  install_command ['g++'];
   
   return 0 unless install_tarball
       q<https://drive.google.com/uc?export=download&id=0B4y35FiV1wh7cENtOXlicTFaRUE>
@@ -4956,17 +4956,17 @@ while (@Command) {
         top_level => 1;
 
   } elsif ($command->{type} eq 'install-git') {
-    install_if_necessary 'git';
+    install_command ['git'];
   } elsif ($command->{type} eq 'install-curl') {
-    install_if_necessary 'curl';
+    install_command ['curl'];
   } elsif ($command->{type} eq 'install-wget') {
-    install_if_necessary 'wget';
+    install_command ['wget'];
   } elsif ($command->{type} eq 'install-make') {
-    install_if_necessary 'make';
+    install_command ['make'];
   } elsif ($command->{type} eq 'install-gcc') {
-    install_if_necessary 'gcc';
+    install_command ['gcc'];
   } elsif ($command->{type} eq 'install-mysqld') {
-    install_if_necessary 'mysqld';
+    install_command ['mysqld'];
   } elsif ($command->{type} eq 'install-openssl') {
     $get_perl_version->() unless defined $perl_version;
     install_openssl ($perl_version);
