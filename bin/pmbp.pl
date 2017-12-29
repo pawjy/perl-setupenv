@@ -4608,8 +4608,9 @@ sub install_svn () {
 
 sub install_tarball ($$$;%) {
   my ($src_url => $package_category => $dest_dir_name, %args) = @_;
+  $src_url = [$src_url] unless ref $src_url eq 'ARRAY';
   my $name = $args{name};
-  if (not $name and $src_url =~ /([0-9A-Za-z_.-]+)\.tar\.gz$/) {
+  if (not $name and $src_url->[0] =~ /([0-9A-Za-z_.-]+)\.tar\.gz$/) {
     $name = $1;
   }
   info_die "No package name specified" unless $name;
@@ -4620,19 +4621,36 @@ sub install_tarball ($$$;%) {
   }
 
   info 0, "Installing $name...";
-  my $tar_file_name = pmtar_dir_name . "/packages/$package_category/$name.tar.gz";
-  if (-f $src_url) {
-    $tar_file_name = $src_url;
-  } else {
-    save_url $src_url => $tar_file_name unless -f $tar_file_name;
+  my $src_dir_name;
+  my @container_dir_name;
+  for my $src_url (@$src_url) {
+    my $tar_file_name = pmtar_dir_name . "/packages/$package_category/$name.tar.gz";
+    if (-f $src_url) {
+      $tar_file_name = $src_url;
+    } else {
+      unless (-f $tar_file_name) {
+        unless (_save_url $src_url => $tar_file_name) {
+          info 0, "Failed to download <$src_url>";
+          next;
+        }
+      }
+    }
+    
+    my $container_dir_name = "$PMBPDirName/tmp/" . int rand 100000;
+    push @container_dir_name, $container_dir_name;
+    make_path $container_dir_name;
+    if (run_command ['tar', 'zxf', $tar_file_name], chdir => $container_dir_name) {
+      $src_dir_name = "$container_dir_name/$name";
+      last;
+    } else {
+      info 0, "Can't expand |$tar_file_name| (renamed as |$tar_file_name.broken|)";
+      rename $tar_file_name => "$tar_file_name.broken";
+      next;
+    }
+  } # $src_url
+  unless (defined $src_dir_name) {
+    info_die "Failed to install tarball |$name|";
   }
-  
-  my $container_dir_name = "$PMBPDirName/tmp/" . int rand 100000;
-  make_path $container_dir_name;
-  run_command ['tar', 'zxf', $tar_file_name],
-      chdir => $container_dir_name
-      or info_die "Can't expand $tar_file_name";
-  my $src_dir_name = "$container_dir_name/$name";
 
   $args{before_configure}->($src_dir_name) if $args{before_configure};
 
@@ -4651,7 +4669,7 @@ sub install_tarball ($$$;%) {
       chdir => $src_dir_name
           or info_die "$name make install failed";
 
-  remove_tree $container_dir_name;
+  remove_tree $_ for @container_dir_name;
 
   return $args{check} ? $args{check}->() : 1;
 } # install_tarball
@@ -4697,9 +4715,10 @@ sub install_mecab () {
         '--with-charset=' . $mecab_charset,
       ],
       check => sub { -x "@{[mecab_bin_dir_name]}/mecab-config" };
-  return install_tarball
-      q<https://drive.google.com/uc?export=download&id=0B4y35FiV1wh7MWVlSDBCSXZMTXM>
-      => 'mecab' => $dest_dir_name,
+  return install_tarball [
+    q<https://drive.google.com/uc?export=download&id=0B4y35FiV1wh7MWVlSDBCSXZMTXM>,
+    q<https://downloads.sourceforge.net/project/mecab/mecab-ipadic/2.7.0-20070801/mecab-ipadic-2.7.0-20070801.tar.gz>,
+  ] => 'mecab' => $dest_dir_name,
       name => 'mecab-ipadic-2.7.0-20070801',
       configure_args => [
         #  --with-dicdir=DIR  set dicdir location
