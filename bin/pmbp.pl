@@ -11,8 +11,10 @@ use Config;
 use Cwd;
 use File::Spec ();
 use Getopt::Long;
+
 ## Some environment does not have this module.
-BEGIN { eval q{ use Time::HiRes qw(time); 1 } or warn $@ };
+my $TimeHiResError;
+BEGIN { eval q{ use Time::HiRes qw(time); 1 } or $TimeHiResError = $@ };
 
 my $PlatformIsWindows = $^O eq 'MSWin32';
 my $PlatformIsMacOSX = $^O eq 'darwin';
@@ -900,6 +902,12 @@ sub load_json_after_garbage ($) {
 
 sub run_system_commands ($) {
   my $commands = $_[0];
+  ## Array reference of
+  ##   Array reference:
+  ##     0  Hash reference of environment variables
+  ##     1  Array reference of command and arguments
+  ##     2  Info text before start, if any, or |undef|
+  ##     3  Code reference invoked after success
   
   unless ($ExecuteSystemPackageInstaller) {
     info 0, "Execute following command and retry:";
@@ -913,12 +921,13 @@ sub run_system_commands ($) {
     return 0;
   } else {
     for my $c (@$commands) {
+      info 0, "$c->[2]..." if defined $c->[2];
       my $result = run_command $c->[1],
           envs => $c->[0],
           info_level => 1,
-          info_command_level => 0;
+          info_command_level => 1;
       if ($result) {
-        $c->[2]->();
+        $c->[3]->();
       } else {
         return 0;
       }
@@ -961,7 +970,7 @@ sub xcode_select_install () {
           my $found = run_command ['apt-cache', 'show', $_];
           unless ($found) {
             push @command, [{}, wrap_by_sudo [$AptGetCommand, 'update'],
-                            sub { $AptGetUpdated = 1 }];
+                            undef, sub { $AptGetUpdated = 1 }];
             last;
           }
         }
@@ -970,25 +979,28 @@ sub xcode_select_install () {
       push @command, [
         {DEBIAN_FRONTEND => "noninteractive"},
         wrap_by_sudo [$AptGetCommand, 'install', '-y', @name],
+        "Installing @name",
         sub { },
       ];
     } elsif ($HasYUM) {
+      my @name = map { $_->{redhat_name} || $_->{name} } @$packages;
       push @command, [
         {},
-        wrap_by_sudo [$YumCommand, 'install', '-y',
-                      map { $_->{redhat_name} || $_->{name} } @$packages],
+        wrap_by_sudo [$YumCommand, 'install', '-y', @name],
+        "Installing @name",
         sub { },
       ];
     } elsif ($HasBrew) {
+      my @name = map { $_->{homebrew_name} || $_->{name} } @$packages;
       push @command, [
         {},
-        [$BrewCommand, 'install',
-         map { $_->{homebrew_name} || $_->{name} } @$packages],
+        [$BrewCommand, 'install', @name],
+        "Installing @name",
         sub { },
       ];
-      if (grep { 'openssl' eq ($_->{homebrew_name} || $_->{name}) } @$packages) {
+      if (grep { 'openssl' eq $_ } @name) {
         push @command,
-            [{}, [$BrewCommand, 'link', 'openssl', '--force'], sub { }];
+            [{}, [$BrewCommand, 'link', 'openssl', '--force'], undef, sub { }];
       }
     }
 
@@ -4897,6 +4909,8 @@ my $root_module = PMBP::Module->new_from_package ('.');
   ## Check the clock of the machine.  If its value is wrong, some of
   ## building process, such as |make|, might not work because of
   ## failure of timestamp comparison.
+  info 1, "There is no |Time::HiRes|: |$TimeHiResError|"
+      if defined $TimeHiResError;
   my $time = time;
   my $timestamp = get_real_time;
   my $delta = $time - $timestamp;
