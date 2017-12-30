@@ -895,7 +895,8 @@ sub xcode_select_install () {
 
   return run_system_commands
       [{}, ['xcode-select', '--install'],
-       'Installing Xcode command line developer tools', sub { }];
+       'Installing Xcode command line developer tools', sub { },
+       'packagemanager'];
 } # xcode_select_install
 
 sub install_homebrew () {
@@ -910,7 +911,7 @@ sub install_homebrew () {
       $temp_file_name,
       max_age => 24*60*60;
   run_system_commands ([[{}, ['/usr/bin/ruby', $temp_file_name],
-                         'Installing homebrew', sub { }]])
+                         'Installing homebrew', sub { }, 'packagemanager']])
       ## The installer requests for input if there is tty.
       or info_die "Failed to install homebrew";
 } # install_homebrew
@@ -953,13 +954,15 @@ sub run_system_commands ($) {
     return 0;
   } else {
     for my $c (@$commands) {
-      info 0, "$c->[2]..." if defined $c->[2];
-      my $result = run_command $c->[1],
-          envs => $c->[0],
+      my ($envs, $cmd, $label, $done, $pn) = @$c;
+      info 0, "$label..." if defined $label;
+      my $result = run_command $cmd,
+          envs => $envs,
           info_level => 1,
-          info_command_level => 1;
+          info_command_level => 1,
+          profiler_name => $pn;
       if ($result) {
-        $c->[3]->();
+        $done->();
       } else {
         return 0;
       }
@@ -973,6 +976,22 @@ sub run_system_commands ($) {
   my $HasYUM;
   my $HasBrew;
   my $AptGetUpdated;
+
+  sub install_which () {
+    ## CentOS: |which|
+    ## Debian: |debianutils|
+    
+    if (run_command [$YumCommand, '--version']) {
+      $HasYUM = 1;
+      return run_system_commands
+          [[{}, ['su', '-c', join ' ', map { shellarg $_ }
+                 'yum', 'install', '-y', 'which'],
+            'Installing which', undef, sub { }, 'packagemanager']];
+    }
+
+    return 0;
+  } # install_which
+  
   sub construct_install_system_packages_commands ($;%) {
     my ($packages, %args) = @_;
     
@@ -994,7 +1013,7 @@ sub run_system_commands ($) {
           my $found = run_command ['apt-cache', 'show', $_];
           unless ($found) {
             push @command, [{}, wrap_by_sudo [$AptGetCommand, 'update'],
-                            undef, sub { $AptGetUpdated = 1 }];
+                            undef, sub { $AptGetUpdated = 1 }, 'network'];
             last;
           }
         }
@@ -1004,7 +1023,7 @@ sub run_system_commands ($) {
         {DEBIAN_FRONTEND => "noninteractive"},
         wrap_by_sudo [$AptGetCommand, 'install', '-y', @name],
         "Installing @name",
-        sub { },
+        sub { }, 'packagemanager',
       ];
     } elsif ($HasYUM) {
       for (@{$args{prepare_yum} or []}) {
@@ -1039,15 +1058,16 @@ sub run_system_commands ($) {
         }
         if (@name) {
           push @command, [{}, [$BrewCommand, 'install', @name],
-                          "Installing @name", sub { }];
+                          "Installing @name", sub { }, 'packagemanager'];
         }
         if (@cask_name) {
           push @command, [{}, [$BrewCommand, 'cask', 'install', @cask_name],
-                          "Installing @name", sub { }];
+                          "Installing @name", sub { }, 'packagemanager'];
         }
         if (grep { 'openssl' eq $_ } @name) {
           push @command,
-              [{}, [$BrewCommand, 'link', 'openssl', '--force'], undef, sub { }];
+              [{}, [$BrewCommand, 'link', 'openssl', '--force'], undef, sub { },
+               'packagemanager'];
         }
       }
     }
@@ -1106,9 +1126,19 @@ sub use_perl_core_module ($) {
     };
   } # get_env_path
 
+  my $HasWhich;
   sub which ($;$);
   sub which ($;$) {
     my ($command, $perl_version) = @_;
+
+    unless (defined $HasWhich) {
+      if (run_command [$WhichCommand, 'which']) {
+        $HasWhich = 1;
+      } else {
+        $HasWhich = install_which;
+      }
+    }
+    
     my $output;
     if (run_command [$WhichCommand, $command],
             envs => {defined $perl_version ? (PATH => get_env_path ($perl_version)) : ()},
@@ -4889,15 +4919,16 @@ sub prepare_apt_for_docker () {
       qq<https://download.docker.com/linux/$os/gpg> => $temp_file_name,
       max_age => 24*60*60;
   push @$commands,
-      [{}, wrap_by_sudo ['apt-key', 'add', $temp_file_name], undef, sub { }];
+      [{}, wrap_by_sudo ['apt-key', 'add', $temp_file_name], undef, sub { }, undef];
 
   my $arch = 'amd64';
   push @$commands,
       [{}, wrap_by_sudo ['add-apt-repository',
-                         "deb [arch=$arch] https://download.docker.com/linux/$os $id stable"], undef, sub { }];
+                         "deb [arch=$arch] https://download.docker.com/linux/$os $id stable"],
+       undef, sub { }, undef];
 
   push @$commands,
-      [{}, wrap_by_sudo [$AptGetCommand, 'update'], undef, sub { }];
+      [{}, wrap_by_sudo [$AptGetCommand, 'update'], undef, sub { }, 'network'];
   
   return $commands;
 } # prepare_apt_for_docker
@@ -4912,7 +4943,7 @@ sub prepare_yum_for_docker () {
   push @$commands,
       [{}, wrap_by_sudo ['yum-config-manager', '--add-repo',
                          'https://download.docker.com/linux/centos/docker-ce.repo'],
-       undef, sub { }];
+       undef, sub { }, undef];
 
   return $commands;
 } # prepare_yum_for_docker
