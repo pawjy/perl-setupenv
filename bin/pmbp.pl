@@ -885,6 +885,48 @@ sub load_json_after_garbage ($) {
 
 ## ------ System environment ------
 
+{
+  my $HasSudo;
+  sub wrap_by_sudo ($) {
+    my $cmd = $_[0];
+    $HasSudo = which ($SudoCommand) unless defined $HasSudo;
+    if ($HasSudo) {
+      return [$SudoCommand, '--', @$cmd];
+    } else {
+      return ['su', '-c', join ' ', map { shellarg $_ } @$cmd];
+    }
+  } # wrap_by_sudo
+}
+
+sub run_system_commands ($) {
+  my $commands = $_[0];
+  
+  unless ($ExecuteSystemPackageInstaller) {
+    info 0, "Execute following command and retry:";
+    info 0, '';
+    for my $c (@$commands) {
+      info 0, join ' ', '  $',
+          (grep { length $_ } join ' ', map { shellarg $_ => shellarg $c->[0]->{$_} } keys %{$c->[0]}),
+          (join ' ', map { shellarg $_ } @{$c->[1]});
+    }
+    info 0, '';
+    return 0;
+  } else {
+    for my $c (@$commands) {
+      my $result = run_command $c->[1],
+          envs => $c->[0],
+          info_level => 1,
+          info_command_level => 0;
+      if ($result) {
+        $c->[2]->();
+      } else {
+        return 0;
+      }
+    }
+    return 1;
+  }
+} # run_system_commands
+
 sub xcode_select_install () {
   if ($PlatformIsMacOSX) {
     info 0, "|xcode-select --install| is requested on non-Mac platform";
@@ -910,79 +952,48 @@ sub xcode_select_install () {
     $HasBrew = which ($BrewCommand) ? 1 : 0
         if not defined $HasBrew;
 
-    my @sudo = which ($SudoCommand) ? ($SudoCommand) : ();
-
-    my $cmd;
-    my $cmd2;
-    my $env = '';
+    my @command;
     if ($HasAPT) {
-      $cmd = [$AptGetCommand, 'install', '-y', map { $_->{debian_name} || $_->{name} } @$packages];
-      $env = 'DEBIAN_FRONTEND="noninteractive" ';
+      my @name = map { $_->{debian_name} || $_->{name} } @$packages;
+
+      unless ($AptGetUpdated) {
+        for (@name) {
+          my $found = run_command ['apt-cache', 'show', $_];
+          unless ($found) {
+            push @command, [{}, wrap_by_sudo [$AptGetCommand, 'update'],
+                            sub { $AptGetUpdated = 1 }];
+            last;
+          }
+        }
+      }
+
+      push @command, [
+        {DEBIAN_FRONTEND => "noninteractive"},
+        wrap_by_sudo [$AptGetCommand, 'install', '-y', @name],
+        sub { },
+      ];
     } elsif ($HasYUM) {
-      $cmd = [$YumCommand, 'install', '-y', map { $_->{redhat_name} || $_->{name} } @$packages];
+      push @command, [
+        {},
+        wrap_by_sudo [$YumCommand, 'install', '-y',
+                      map { $_->{redhat_name} || $_->{name} } @$packages],
+        sub { },
+      ];
     } elsif ($HasBrew) {
-      $cmd = [$BrewCommand, 'install', map { $_->{homebrew_name} || $_->{name} } @$packages];
+      push @command, [
+        {},
+        [$BrewCommand, 'install',
+         map { $_->{homebrew_name} || $_->{name} } @$packages],
+        sub { },
+      ];
       if (grep { 'openssl' eq ($_->{homebrew_name} || $_->{name}) } @$packages) {
-        $cmd2 = [$BrewCommand, 'link', 'openssl', '--force'];
-      }
-    }
-    if ($HasAPT or $HasYUM) {
-      if (@sudo) {
-        unshift @$cmd, @sudo, '--';
-      } else {
-        $cmd = ['su', '-c', join ' ', map { shellarg $_ } @$cmd];
+        push @command,
+            [{}, [$BrewCommand, 'link', 'openssl', '--force'], sub { }];
       }
     }
 
-    if ($cmd) {
-      my @update;
-      if ($HasAPT and not $AptGetUpdated) {
-        my $found = run_command ['apt-cache', 'show', $packages->[0]->{debian_name} || $packages->[0]->{name}];
-        unless ($found) {
-          my $cmd = [$AptGetCommand, 'update'];
-          if (@sudo) {
-            @update = (@sudo, '--', @$cmd);
-          } else {
-            @update = ('su', '-c', join ' ', map { shellarg $_ } @$cmd);
-          }
-        }
-      }
-      
-      if (not $ExecuteSystemPackageInstaller) {
-        my $pre = '';
-        if (@update) {
-          $pre = join ' ', map { shellarg $_ } @update;
-          $pre .= ' && ';
-        }
-        
-        info 0, "Execute following command and retry:";
-        info 0, '';
-        info 0, '  $ ' . $pre . $env . join ' ', map { shellarg $_ } @$cmd;
-        info 0, '  $ ' . $env . join ' ', map { shellarg $_ } @$cmd2 if defined $cmd2;
-        info 0, '';
-      } else {
-        if (@update) {
-          if (run_command \@update, info_level => 1, info_command_level => 0) {
-            $AptGetUpdated = 1;
-          } else {
-            info 0, "Failed to update apt-get package list";
-          }
-        }
-        
-        my $return = run_command $cmd,
-            info_level => 1,
-            info_command_level => 0,
-            envs => {DEBIAN_FRONTEND => "noninteractive"};
-
-        if ($return and defined $cmd2) {
-          $return = run_command $cmd2,
-              info_level => 0,
-              info_command_level => 0,
-              envs => {DEBIAN_FRONTEND => "noninteractive"};
-        }
-
-        return $return;
-      }
+    if (@command) {
+      return run_system_commands \@command;
     } else {
       info 0, "Install following packages and retry:";
       info 0, '';
