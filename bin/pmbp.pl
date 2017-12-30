@@ -958,11 +958,8 @@ sub xcode_select_install () {
         info 0, "Execute following command and retry:";
         info 0, '';
         info 0, '  $ ' . $pre . $env . join ' ', map { shellarg $_ } @$cmd;
-        info 0, '  $ ' . $pre . $env . join ' ', map { shellarg $_ } @$cmd2 if defined $cmd2;
+        info 0, '  $ ' . $env . join ' ', map { shellarg $_ } @$cmd2 if defined $cmd2;
         info 0, '';
-        if (grep { $_->{name} eq 'libperl-devel' } @$packages) {
-          info 0, '(Instead of installing libperl-devel, you can use --install-perl command)';
-        }
       } else {
         if (@update) {
           if (run_command \@update, info_level => 1, info_command_level => 0) {
@@ -991,9 +988,6 @@ sub xcode_select_install () {
       info 0, '';
       info 0, "  " . join ' ', map { $_->{name} } @$packages;
       info 0, '';
-      if (grep { $_->{name} eq 'libperl-devel' } @$packages) {
-        info 0, '(Instead of installing libperl-devel, you can use --install-perl command)';
-      }
     }
     return 0;
   } # install_system_packages
@@ -2208,7 +2202,9 @@ sub cpanm ($$) {
       }
       if ($log =~ m{error: perl.h: No such file or directory}m) {
         push @required_system,
-            {name => 'perl-devel', debian_name => 'libperl-dev'};
+            {name => 'perl-devel',
+             redhat_name => 'perl-libs',
+             debian_name => 'libperl-dev'};
       }
       if ($log =~ m{^make(?:\[[0-9]+\])?: .+?ExtUtils/xsubpp}m or
           $log =~ m{^Can\'t open perl script ".*?ExtUtils/xsubpp"}m) {
@@ -2382,7 +2378,9 @@ sub cpanm ($$) {
       }
       if ($log =~ m{ld: cannot find -lperl$}m) {
         push @required_system,
-            {name => 'perl-devel', debian_name => 'libperl-dev'};
+            {name => 'perl-devel',
+             redhat_name => 'perl-libs',
+             debian_name => 'libperl-dev'};
         $failed = 1;
       }
       if ($log =~ /^Expat.xs:.+?: error: expat.h: No such file or directory/m) {
