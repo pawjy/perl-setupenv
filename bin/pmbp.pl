@@ -942,7 +942,9 @@ sub xcode_select_install () {
     return 0;
   }
 
-  return run_command ['xcode-select', '--install'];
+  return run_system_commands
+      [{}, ['xcode-select', '--install'],
+       'Installing Xcode command line developer tools', sub { }];
 } # xcode_select_install
 
 {
