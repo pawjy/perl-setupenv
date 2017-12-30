@@ -2301,6 +2301,10 @@ sub cpanm ($$) {
       if ($log =~ /^Can\'t call method "load_all_extensions" on an undefined value at inc\/Module\/Install.pm /m) {
         $remove_inc = 1;
       }
+      if ($log =~ m{Invalid version format \(version required\) at .+/Module/Runtime.pm line }m) {
+        ## Moose version inconsistency
+        push @required_install, PMBP::Module->new_from_package ('Moose');
+      }
       if ($log =~ /^(\S+) version \S+ required--this is only version \S+/m) {
         push @required_install, PMBP::Module->new_from_package ($1);
       }
