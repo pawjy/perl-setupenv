@@ -911,6 +911,7 @@ sub install_homebrew () {
       max_age => 24*60*60;
   run_system_commands ([[{}, ['/usr/bin/ruby', $temp_file_name],
                          'Installing homebrew', sub { }]])
+      ## The installer requests for input if there is tty.
       or info_die "Failed to install homebrew";
 } # install_homebrew
 
@@ -937,15 +938,17 @@ sub run_system_commands ($) {
   ##     1  Array reference of command and arguments
   ##     2  Info text before start, if any, or |undef|
   ##     3  Code reference invoked after success
-  
+
   unless ($ExecuteSystemPackageInstaller) {
     info 0, "Execute following command and retry:";
     info 0, '';
+    my @c;
     for my $c (@$commands) {
-      info 0, join ' ', '  $',
-          (grep { length $_ } join ' ', map { shellarg $_ => shellarg $c->[0]->{$_} } keys %{$c->[0]}),
+      push @c, join ' ',
+          (grep { length $_ } join ' ', map { shellarg ($_) . '=' .shellarg $c->[0]->{$_} } keys %{$c->[0]}),
           (join ' ', map { shellarg $_ } @{$c->[1]});
     }
+    info 0, '  $ ' . join " && \\\n    ", @c;
     info 0, '';
     return 0;
   } else {
@@ -970,9 +973,8 @@ sub run_system_commands ($) {
   my $HasYUM;
   my $HasBrew;
   my $AptGetUpdated;
-  sub install_system_packages ($;%) {
+  sub construct_install_system_packages_commands ($;%) {
     my ($packages, %args) = @_;
-    return unless @$packages;
     
     $HasAPT = which ($AptGetCommand) ? 1 : 0
         if not defined $HasAPT;
@@ -983,6 +985,10 @@ sub run_system_commands ($) {
     if ($HasAPT) {
       my @name = map { $_->{debian_name} || $_->{name} } @$packages;
 
+      for (@{$args{prepare_apt} or []}) {
+        push @command, @{$_->()};
+      }
+      
       unless ($AptGetUpdated) {
         for (@name) {
           my $found = run_command ['apt-cache', 'show', $_];
@@ -1001,6 +1007,10 @@ sub run_system_commands ($) {
         sub { },
       ];
     } elsif ($HasYUM) {
+      for (@{$args{prepare_yum} or []}) {
+        push @command, @{$_->()};
+      }
+      
       my @name = map { $_->{redhat_name} || $_->{name} } @$packages;
       push @command, [
         {},
@@ -1018,31 +1028,48 @@ sub run_system_commands ($) {
       }
 
       if ($HasBrew) {
-        my @name = map { $_->{homebrew_name} || $_->{name} } @$packages;
-        push @command, [
-          {},
-          [$BrewCommand, 'install', @name],
-          "Installing @name",
-          sub { },
-        ];
+        my @name;
+        my @cask_name;
+        for (@$packages) {
+          if (defined $_->{cask_name}) {
+            push @cask_name, $_->{cask_name};
+          } else {
+            push @name, $_->{homebrew_name} || $_->{name};
+          }
+        }
+        if (@name) {
+          push @command, [{}, [$BrewCommand, 'install', @name],
+                          "Installing @name", sub { }];
+        }
+        if (@cask_name) {
+          push @command, [{}, [$BrewCommand, 'cask', 'install', @cask_name],
+                          "Installing @name", sub { }];
+        }
         if (grep { 'openssl' eq $_ } @name) {
           push @command,
               [{}, [$BrewCommand, 'link', 'openssl', '--force'], undef, sub { }];
         }
       }
     }
-
-    if (@command) {
-      return run_system_commands \@command;
-    } else {
-      info 0, "Install following packages and retry:";
-      info 0, '';
-      info 0, "  " . join ' ', map { $_->{name} } @$packages;
-      info 0, '';
-    }
-    return 0;
-  } # install_system_packages
+    return \@command;
+  } # construct_install_system_packages_commands
 }
+
+sub install_system_packages ($;%) {
+  my ($packages, %args) = @_;
+  return unless @$packages;
+
+  my $commands = construct_install_system_packages_commands $packages, %args;
+  if (@$commands) {
+    return run_system_commands $commands;
+  } else {
+    info 0, "Install following packages and retry:";
+    info 0, '';
+    info 0, "  " . join ' ', map { $_->{name} } @$packages;
+    info 0, '';
+    return 0;
+  }
+} # install_system_packages
 
 sub use_perl_core_module ($) {
   my $package = $_[0];
@@ -1170,9 +1197,18 @@ $CommandDefs->{vim} = {
   packages => [{name => 'vim', redhat_name => 'vim-common'}],
 };
 
+$CommandDefs->{docker} = {
+  bin => 'docker',
+  prepare_apt => \&prepare_apt_for_docker,
+  prepare_yum => \&prepare_yum_for_docker,
+  packages => [{name => 'docker-ce', cask_name => 'docker'}],
+};
+
 sub install_commands ($) {
   my @package;
   my %found;
+  my @prepare_apt;
+  my @prepare_yum;
   ITEM: for my $item (grep { not $found{$_}++ } @{$_[0]}) {
     my $def = $CommandDefs->{$item};
     info_die "Command |$item| is not defined" unless defined $def;
@@ -1189,10 +1225,14 @@ sub install_commands ($) {
 
     push @package,
         @{$def->{packages} || info_die "|packages| not defined for command |$item|"};
+    push @prepare_apt, $def->{prepare_apt} if defined $def->{prepare_apt};
+    push @prepare_yum, $def->{prepare_yum} if defined $def->{prepare_yum};
   } # ITEM
 
   if (@package) {
-    install_system_packages (\@package) or info_die "Can't install |@{$_[0]}|";
+    install_system_packages
+        (\@package, prepare_apt => \@prepare_apt, prepare_yum => \@prepare_yum)
+        or info_die "Can't install |@{$_[0]}|";
   }
 } # install_commands
 
@@ -1751,9 +1791,9 @@ sub install_cpanm () {
     save_url $CPANMURL => $CPANMCommand;
 
     my $out = '';
-    unless (run_command ['perl', '-MExtUtils::MakeMaker', '-e', ' ']) {
+    unless (run_command ['perl', '-MExtUtils::MakeMaker', '-e', ' ']) { # core 5+
       install_system_packages [{name => 'perl-ExtUtils-MakeMaker', debian_name => 'perl-modules'}] or # debian
-      install_system_packages [{name => 'perl-ExtUtils-MakeMaker', debian_name => 'libextutils-makemaker-perl'}] # core 5+ / old Debian
+      install_system_packages [{name => 'perl-ExtUtils-MakeMaker', debian_name => 'libextutils-makemaker-perl'}] # old Debian
           or info_die "Your perl does not have |ExtUtils::MakeMaker| (which is a core module)";
     }
   }
@@ -4806,6 +4846,77 @@ sub install_mecab () {
       };
 } # install_mecab
 
+## ------ Docker ------
+
+sub prepare_apt_for_docker () {
+  ## <https://docs.docker.com/engine/installation/linux/docker-ce/debian/>
+  
+  unless (which 'lsb_release') {
+    install_system_packages [{name => 'software-properties-common'}]
+        or info_die "Failed to install docker (lsb_release)";
+  }
+  my $id = '';
+  my $result = run_command ['lsb_release', '-cs'],
+      onoutput => sub { $id .= $_[0] if defined $_[0]; 2 }
+      or info_die "Failed to install docker (lsb_release)";
+  chomp $id;
+
+  my $os = '';
+  run_command ['bash', '-c', '. /etc/os-release; echo "$ID"'],
+      onoutput => sub { $os .= $_[0] if defined $_[0]; 2 }
+      or info_die "Failed to install docker (os-release)";
+  chomp $os;
+
+  unless (_save_url qq<https://download.docker.com/linux/$os/dists/$id/> => "$PMBPDirName/tmp/dummy." . rand) {
+    info 1, "There is no docker apt repository for $os $id";
+    ## This need to be updated when a new version is available...
+    if ($os eq 'debian') {
+      $id = 'stretch';
+    } elsif ($os eq 'ubuntu') {
+      $id = 'xenial';
+    } else {
+      info_die "Failed to install docker ($os $id not supported)";
+    }
+  }
+  
+  my $commands = construct_install_system_packages_commands
+      [{name => 'apt-transport-https'},
+       {name => 'ca-certificates'},
+       {name => 'gnupg2'}];
+
+  my $temp_file_name = "$PMBPDirName/tmp/docker-apt-key";
+  save_url
+      qq<https://download.docker.com/linux/$os/gpg> => $temp_file_name,
+      max_age => 24*60*60;
+  push @$commands,
+      [{}, wrap_by_sudo ['apt-key', 'add', $temp_file_name], undef, sub { }];
+
+  my $arch = 'amd64';
+  push @$commands,
+      [{}, wrap_by_sudo ['add-apt-repository',
+                         "deb [arch=$arch] https://download.docker.com/linux/$os $id stable"], undef, sub { }];
+
+  push @$commands,
+      [{}, wrap_by_sudo [$AptGetCommand, 'update'], undef, sub { }];
+  
+  return $commands;
+} # prepare_apt_for_docker
+
+sub prepare_yum_for_docker () {
+  ## <https://docs.docker.com/engine/installation/linux/docker-ce/centos/>
+
+  my $commands = construct_install_system_packages_commands
+      [{name => 'yum-utils'},
+       {name => 'device-mapper-persistent-data'},
+       {name => 'lvm2'}];
+  push @$commands,
+      [{}, wrap_by_sudo ['yum-config-manager', '--add-repo',
+                         'https://download.docker.com/linux/centos/docker-ce.repo'],
+       undef, sub { }];
+
+  return $commands;
+} # prepare_yum_for_docker
+
 ## ------ Perl application ------
 
 sub install_perl_app ($$$;%) {
@@ -6502,10 +6613,14 @@ Zero or more applications can be specified as space-separated list of
 the following names:
 
   curl   curl
+  docker Docker
   gcc    GCC
+  g++    GNU C++ Compiler
   git    Git
   make   GNU Make
   mysqld MySQL (or MariaDB) server
+  tar    tar
+  vim    vim
   wget   wget
 
 =item --install-git

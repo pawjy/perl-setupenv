@@ -115,3 +115,6 @@ endif
 ifeq "$(TARGET)" "mysqld"
 	$(PROVE) --verbose t/pmbp-mysqld/*.t
 endif
+ifeq "$(TARGET)" "docker"
+	$(PROVE) --verbose t/pmbp-docker/*.t
+endif

@@ -34,6 +34,7 @@ env:
     - TARGET=install-1
     - TARGET=normal
     - TARGET=mysqld
+    - TARGET=docker
 before_install: "true"
 install: "make test-deps-travis"
 script: "make test"
