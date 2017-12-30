@@ -885,7 +885,36 @@ sub load_json_after_garbage ($) {
   }
 } # load_json_after_garbage
 
-## ------ System environment ------
+## ------ Mac OS X ------
+
+sub xcode_select_install () {
+  if ($PlatformIsMacOSX) {
+    info 0, "|xcode-select --install| is requested on non-Mac platform";
+    return 0;
+  }
+
+  return run_system_commands
+      [{}, ['xcode-select', '--install'],
+       'Installing Xcode command line developer tools', sub { }];
+} # xcode_select_install
+
+sub install_homebrew () {
+  ## Homebrew and Homebrew-Cask
+  ## <https://docs.brew.sh/Installation.html>
+
+  # requires xcode_select_install
+
+  my $temp_file_name = "$PMBPDirName/tmp/homebrewinstall";
+  save_url
+      q<https://raw.githubusercontent.com/Homebrew/install/master/install> =>
+      $temp_file_name,
+      max_age => 24*60*60;
+  run_system_commands ([[{}, ['/usr/bin/ruby', $temp_file_name],
+                         'Installing homebrew', sub { }]])
+      or info_die "Failed to install homebrew";
+} # install_homebrew
+
+## ------ System environment (platform independent) ------
 
 {
   my $HasSudo;
@@ -936,17 +965,6 @@ sub run_system_commands ($) {
   }
 } # run_system_commands
 
-sub xcode_select_install () {
-  if ($PlatformIsMacOSX) {
-    info 0, "|xcode-select --install| is requested on non-Mac platform";
-    return 0;
-  }
-
-  return run_system_commands
-      [{}, ['xcode-select', '--install'],
-       'Installing Xcode command line developer tools', sub { }];
-} # xcode_select_install
-
 {
   my $HasAPT;
   my $HasYUM;
@@ -960,9 +978,7 @@ sub xcode_select_install () {
         if not defined $HasAPT;
     $HasYUM = which ($YumCommand) ? 1 : 0
         if not defined $HasYUM;
-    $HasBrew = which ($BrewCommand) ? 1 : 0
-        if not defined $HasBrew;
-
+    
     my @command;
     if ($HasAPT) {
       my @name = map { $_->{debian_name} || $_->{name} } @$packages;
@@ -992,17 +1008,27 @@ sub xcode_select_install () {
         "Installing @name",
         sub { },
       ];
-    } elsif ($HasBrew) {
-      my @name = map { $_->{homebrew_name} || $_->{name} } @$packages;
-      push @command, [
-        {},
-        [$BrewCommand, 'install', @name],
-        "Installing @name",
-        sub { },
-      ];
-      if (grep { 'openssl' eq $_ } @name) {
-        push @command,
-            [{}, [$BrewCommand, 'link', 'openssl', '--force'], undef, sub { }];
+    } else {
+      if (not defined $HasBrew) {
+        $HasBrew = which ($BrewCommand) ? 1 : 0;
+        if (not $HasBrew and $PlatformIsMacOSX) {
+          install_homebrew;
+          $HasBrew = which ($BrewCommand) ? 1 : 0;
+        }
+      }
+
+      if ($HasBrew) {
+        my @name = map { $_->{homebrew_name} || $_->{name} } @$packages;
+        push @command, [
+          {},
+          [$BrewCommand, 'install', @name],
+          "Installing @name",
+          sub { },
+        ];
+        if (grep { 'openssl' eq $_ } @name) {
+          push @command,
+              [{}, [$BrewCommand, 'link', 'openssl', '--force'], undef, sub { }];
+        }
       }
     }
 
