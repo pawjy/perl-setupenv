@@ -1098,12 +1098,14 @@ $CommandDefs->{mysqld} = {
   bin => ['mysqld', '/usr/sbin/mysqld'],
   packages => [
     {name => 'mysql-server-devel',
-     redhat_name => 'MySQL-devel',
+     #redhat_name => 'MySQL-devel',
+     redhat_name => 'mariadb-devel',
      #debian_name => 'libmysqld-dev',
      debian_name => 'libmariadbd-dev',
      homebrew_name => 'mysql'},
     {name => 'mysql-server-devel',
-     redhat_name => 'MySQL-devel',
+     #redhat_name => 'MySQL-devel',
+     redhat_name => 'mariadb-devel',
      debian_name => 'mariadb-server',
      homebrew_name => 'mysql'},
   ],
@@ -2355,8 +2357,10 @@ sub cpanm ($$) {
       if ($log =~ m{Can't exec "mysql_config": No such file or directory}m) {
         push @required_system,
             {name => 'mysql-client-devel',
-             redhat_name => 'MySQL-devel',
-             debian_name => 'libmysqlclient-dev',
+             #redhat_name => 'MySQL-devel',
+             redhat_name => 'mariadb-devel',
+             #debian_name => 'libmysqlclient-dev',
+             debian_name => 'libmariadbclient-dev',
              homebrew_name => 'mysql'};
         $failed = 1;
       }
@@ -6438,7 +6442,7 @@ the following names:
   gcc    GCC
   git    Git
   make   GNU Make
-  mysqld MySQL server
+  mysqld MySQL (or MariaDB) server
   wget   wget
 
 =item --install-git
