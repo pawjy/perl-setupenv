@@ -242,6 +242,14 @@ GetOptions (
   '--update-pmbp-pl-staging' => sub {
     push @Command, {type => 'update-pmbp-pl', branch => 'staging'};
   },
+  '--create-bootstrap-script=s' => sub {
+    my @f = split /\s+/, $_[1], 2;
+    die "Bad --create-bootstrap-script argument"
+        unless defined $f[1] and length $f[1];
+    push @Command, {type => 'create-bootstrap-script',
+                    template_file_name => $f[0],
+                    result_file_name => $f[1]};
+  },
   (map {
     my $n = $_;
     ("--$n=s" => sub {
@@ -539,6 +547,41 @@ sub save_pmbp_tutorial () {
 sub exec_show_pmbp_tutorial () {
   exec 'perldoc', $RootDirName.'/local/pmbp/doc/pmbp-tutorial.pod';
 } # exec_show_pmbp_tutorial
+
+sub create_bootstrap_script ($$) {
+  my ($template_file_name, $result_file_name) = @_;
+  local $/ = undef;
+
+  info 0, "Loading script template |$template_file_name|...";
+  profiler_start 'file';
+  open my $file, '<', $template_file_name
+      or info_die "$0: $template_file_name: $!";
+  my $script = <$file>;
+  profiler_stop 'file';
+
+  my $bs_file_name = "$PMBPDirName/bin/bootstrap.sh";
+  save_url
+      (q<https://raw.githubusercontent.com/wakaba/perl-setupenv/staging/bin/bootstrap.sh> # XXX branch
+       => $bs_file_name,
+       max_age => 24*60*60);
+
+  profiler_start 'file';
+  open my $bs_file, '<', $bs_file_name
+      or info_die "$0: $bs_file_name: $!";
+  my $bs = <$bs_file>;
+  profiler_stop 'file';
+
+  $script =~ s/\{\{INSTALL\}\}/$bs/g;
+
+  info 0, "Generate |$result_file_name|...";
+  profiler_start 'file';
+  mkdir_for_file ($result_file_name);
+  open my $result_file, '>', $result_file_name or
+      info_die "$0: $result_file_name: $!";
+  print $result_file $script;
+  close $result_file;
+  profiler_stop 'file';
+} # create_bootstrap_script
 
 ## ------ Files and directories ------
 
@@ -5172,6 +5215,9 @@ while (@Command) {
     print $etag if defined $etag;
   } elsif ($command->{type} eq 'update-pmbp-pl') {
     update_pmbp_pl ($command->{branch});
+  } elsif ($command->{type} eq 'create-bootstrap-script') {
+    create_bootstrap_script
+        ($command->{template_file_name}, $command->{result_file_name});
 
   } elsif ($command->{type} eq 'update-gitignore') {
     update_gitignore;
@@ -6194,6 +6240,32 @@ does not know its C<ETag> and this command would print nothing.
 
 Create a sample Makefile containing rules for installing dependency
 and running test scripts using pmbp.pl infrastructure.
+
+=item --create-bootstrap-script="path/to/template path/to/output"
+
+Create a shell script used as a "bootstrap".  The argument to this
+command is a space-separated pair of template file path and result
+file path.
+
+The template file must be a bash shell script with a special line:
+C<{{INSTALL}}>, which is to be expanded to lines to install pmbp's
+fundamental dependencies (e.g. Perl, curl) and to download the latest
+pmbp.pl script at C<local/bin/pmbp.pl> in the current directory in
+result file.
+
+The result shell script is expected to be used as the first script
+executed at the begining of an automated application build process for
+a clean environment.
+
+An example of template file:
+
+  #!/bin/bash
+  cd /myapp
+  {{INSTALL}}
+  ## Now we can assume there are |perl| and |local/bin/pmbp.pl|.
+  perl local/bin/pmbp.pl --install-commands "make git"
+  git clone https://url/of/component
+  cd component && make deps
 
 =back
 
