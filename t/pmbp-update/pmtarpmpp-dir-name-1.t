@@ -4,6 +4,8 @@ basedir=`dirname $0`/../..
 pmbp=$basedir/bin/pmbp.pl
 tempdir=`perl -MFile::Temp=tempdir -e 'print tempdir'`/testapp
 
+export HOMEBREW_NO_AUTO_UPDATE=1
+
 mkdir -p "$tempdir"
 tempdir=`readlink -f "$tempdir" || ((brew install coreutils || true) && greadlink -f "$tempdir")`
 
