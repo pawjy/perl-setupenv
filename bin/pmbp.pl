@@ -440,7 +440,7 @@ $PMPPDirName ||= $RootDirName . '/deps/pmpp';
 }
 
 sub get_real_time () {
-  save_url (q<https://ntp-a1.nict.go.jp/cgi-bin/jst> => "$RootDirName/local/timestamp")
+  _save_url (q<https://ntp-a1.nict.go.jp/cgi-bin/jst> => "$RootDirName/local/timestamp")
       or do { info 0, "Can't get current timestamp"; return undef };
   open my $file, '<', "$RootDirName/local/timestamp" or
       do { info 0, "Failed to open timestamp file"; return undef };
@@ -754,8 +754,8 @@ sub _save_url {
 
   my $fetcher;
   for (0..1) {
-    $HasWget = which ($WgetCommand) ? 1 : 0 if not defined $HasWget;
-    $HasCurl = which ($CurlCommand) ? 1 : 0 if not defined $HasCurl;
+    $HasWget = which_or_version ($WgetCommand) ? 1 : 0 if not defined $HasWget;
+    $HasCurl = which_or_version ($CurlCommand) ? 1 : 0 if not defined $HasCurl;
     if ($HasCurl) {
       $fetcher = 'curl';
       last;
@@ -763,13 +763,14 @@ sub _save_url {
       $fetcher = 'wget';
       last;
     } else {
-      install_system_packages [{name => 'curl'}]
-          or info_die "There is no |wget| or |curl|";
-      undef $HasWget;
-      undef $HasCurl;
-      next;
+      if (install_system_packages [{name => 'curl'}]) {
+        undef $HasWget;
+        undef $HasCurl;
+        next;
+      }
     }
-    info_die "There is no |wget| or |curl|";
+    info 0, "There is no |wget| or |curl|";
+    return 0;
   }
 
   mkdir_for_file $file_name;
@@ -922,7 +923,7 @@ sub install_homebrew () {
   my $HasSudo;
   sub wrap_by_sudo ($) {
     my $cmd = $_[0];
-    $HasSudo = which ($SudoCommand) unless defined $HasSudo;
+    $HasSudo = which_or_version ($SudoCommand) unless defined $HasSudo;
     if ($HasSudo) {
       return [$SudoCommand, '--', @$cmd];
     } else {
@@ -985,8 +986,8 @@ sub run_system_commands ($) {
       $HasYUM = 1;
       return run_system_commands
           [[{}, ['su', '-c', join ' ', map { shellarg $_ }
-                 'yum', 'install', '-y', 'which'],
-            'Installing which', undef, sub { }, 'packagemanager']];
+                 $YumCommand, 'install', '-y', 'which'],
+            'Installing which', sub { }, 'packagemanager']];
     }
 
     return 0;
@@ -995,9 +996,9 @@ sub run_system_commands ($) {
   sub construct_install_system_packages_commands ($;%) {
     my ($packages, %args) = @_;
     
-    $HasAPT = which ($AptGetCommand) ? 1 : 0
+    $HasAPT = which_or_version ($AptGetCommand) ? 1 : 0
         if not defined $HasAPT;
-    $HasYUM = which ($YumCommand) ? 1 : 0
+    $HasYUM = which_or_version ($YumCommand) ? 1 : 0
         if not defined $HasYUM;
     
     my @command;
@@ -1031,12 +1032,8 @@ sub run_system_commands ($) {
       }
       
       my @name = map { $_->{redhat_name} || $_->{name} } @$packages;
-      push @command, [
-        {},
-        wrap_by_sudo [$YumCommand, 'install', '-y', @name],
-        "Installing @name",
-        sub { },
-      ];
+      push @command, [{}, wrap_by_sudo [$YumCommand, 'install', '-y', @name],
+                      "Installing @name", sub { }, 'packagemanager'];
     } else {
       if (not defined $HasBrew) {
         $HasBrew = which ($BrewCommand) ? 1 : 0;
@@ -1155,6 +1152,18 @@ sub use_perl_core_module ($) {
     }
     return undef;
   } # which
+
+  sub which_or_version ($) {
+    my $cmd = $_[0];
+    my $result = which $cmd;
+    if ($result) {
+      return $result;
+    } elsif (run_command [$cmd, '--version']) {
+      return 1;
+    } else {
+      return 0;
+    }
+  } # which_or_version
 }
 
 my $CommandDefs = {};
@@ -1273,7 +1282,7 @@ sub install_commands ($) {
   sub git () {
     my $git_command = $GitCommand;
     $git_command = 'git' unless defined $git_command;
-    $HasGit = which $git_command unless defined $HasGit;
+    $HasGit = which_or_version $git_command unless defined $HasGit;
     if (not $HasGit) {
       if ($git_command eq 'git') {
         install_system_packages [{name => 'git'}]
