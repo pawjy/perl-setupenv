@@ -885,6 +885,15 @@ sub load_json_after_garbage ($) {
 
 ## ------ System environment ------
 
+sub xcode_select_install () {
+  if ($PlatformIsMacOSX) {
+    info 0, "|xcode-select --install| is requested on non-Mac platform";
+    return 0;
+  }
+
+  return run_command ['xcode-select', '--install'];
+} # xcode_select_install
+
 {
   my $HasAPT;
   my $HasYUM;
@@ -2582,9 +2591,8 @@ sub cpanm ($$) {
           $redo = 1 if install_openssl ($perl_version);
         }
         if ($required_misc{openssl_ld}) {
-          if (which 'xcode-select' and
-              run_command ['xcode-select', '--install']) {
-            $redo = 1;
+          if ($PlatformIsMacOSX) {
+            $redo = 1 if xcode_select_install;
           } else {
             $redo = 1 if install_openssl ($perl_version);
           }
@@ -4072,11 +4080,11 @@ sub install_openssl ($) {
   unless (run_command ['gcc', '-lz', $temp_c_file_name],
               chdir => $temp_dir_name) {
     if ($PlatformIsMacOSX) {
-      run_command ['xcode-select', '--install']
-          or info_die "xcode-select failed";
+      xcode_select_install
+          or info_die "Failed to install openssl (xcode-select)";
     } else {
       install_system_packages [{name => 'zlib-devel', debian_name => 'zlib1g-dev'}]
-          or info_die "Can't install zlib-devel";
+          or info_die "Failed to install openssl (zlib-devel)";
     }
   }
 
