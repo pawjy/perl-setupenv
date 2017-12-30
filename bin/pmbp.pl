@@ -1827,14 +1827,13 @@ sub install_cpan_config ($$$) {
 sub install_cpanm () {
   if (not -f $CPANMCommand or
       [stat $CPANMCommand]->[9] < [stat $0]->[9]) { # mtime
-    save_url $CPANMURL => $CPANMCommand;
-
-    my $out = '';
     unless (run_command ['perl', '-MExtUtils::MakeMaker', '-e', ' ']) { # core 5+
       install_system_packages [{name => 'perl-ExtUtils-MakeMaker', debian_name => 'perl-modules'}] or # debian
       install_system_packages [{name => 'perl-ExtUtils-MakeMaker', debian_name => 'libextutils-makemaker-perl'}] # old Debian
           or info_die "Your perl does not have |ExtUtils::MakeMaker| (which is a core module)";
     }
+
+    save_url $CPANMURL => $CPANMCommand;
   }
 } # install_cpanm
 
@@ -2810,8 +2809,11 @@ sub cpanm ($$) {
         if (not $redo) {
           my $cc = get_perl_config $perl_command, $perl_version, 'cc';
           unless (which $cc) {
+            info 1, 'There is no gcc; Installing gcc before retrying...';
             ## There is the platform's perl binary, but there is no compiler.
             $redo = 1 if install_system_packages [{name => 'gcc'}];
+          } else {
+            info 0, "Can't detect why cpanm failed";
           }
         }
         redo COMMAND if $redo;
