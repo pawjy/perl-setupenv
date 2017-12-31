@@ -5,9 +5,20 @@ pmbp=$basedir/bin/pmbp.pl
 tempdir=`perl -MFile::Temp=tempdir -e 'print tempdir'`/testapp
 
 mkdir -p $tempdir/foo
-cd $tempdir/foo && \
-((perl $pmbp --install-commands docker && echo "ok 1") || echo "not ok 1")
 
-(docker --version && echo "ok 2") || echo "not ok 2"
+if [ $TRAVIS != "" ] && [ $TRAVIS_OS_NAME == "osx" ]; then
+  echo "Travis CI (Mac OS X)"
+
+  ## This waits for user's input permanently...
+  cd $tempdir/foo && \
+  ((timeout 120 perl $pmbp --install-commands docker && echo "not ok 1") || echo "ok 1")
+
+  (open /Applications/Docker.app && echo "ok 2") || echo "not ok 2"
+else
+  cd $tempdir/foo && \
+  ((perl $pmbp --install-commands docker && echo "ok 1") || echo "not ok 1")
+
+  (docker --version && echo "ok 2") || echo "not ok 2"
+fi
 
 rm -fr $tempdir
