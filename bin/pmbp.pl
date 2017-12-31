@@ -1048,7 +1048,7 @@ sub run_system_commands ($) {
     if ($HasAPT) {
       my @name = map { $_->{debian_name} || $_->{name} } @$packages;
 
-      for (@{$args{prepare_apt} or []}) {
+      for (@{$args{before_apt} or []}) {
         push @command, @{$_->()};
       }
       
@@ -1070,7 +1070,7 @@ sub run_system_commands ($) {
         sub { }, 'packagemanager',
       ];
     } elsif ($HasYUM) {
-      for (@{$args{prepare_yum} or []}) {
+      for (@{$args{before_yum} or []}) {
         push @command, @{$_->()};
       }
       
@@ -1100,14 +1100,18 @@ sub run_system_commands ($) {
           push @command, [{}, [$BrewCommand, 'install', @name],
                           "Installing @name", sub { }, 'packagemanager'];
         }
-        if (@cask_name) {
-          push @command, [{}, [$BrewCommand, 'cask', 'install', @cask_name],
-                          "Installing @name", sub { }, 'packagemanager'];
-        }
         if (grep { 'openssl' eq $_ } @name) {
           push @command,
               [{}, [$BrewCommand, 'link', 'openssl', '--force'], undef, sub { },
                'packagemanager'];
+        }
+        if (@cask_name) {
+          push @command, [{}, [$BrewCommand, 'cask', 'install', @cask_name],
+                          "Installing @cask_name", sub { }, 'packagemanager'];
+        }
+
+        for (@{$args{after_brew} or []}) {
+          push @command, @{$_->()};
         }
       }
     }
@@ -1281,16 +1285,18 @@ $CommandDefs->{vim} = {
 
 $CommandDefs->{docker} = {
   bin => 'docker',
-  prepare_apt => \&prepare_apt_for_docker,
-  prepare_yum => \&prepare_yum_for_docker,
+  before_apt => \&before_apt_for_docker,
+  before_yum => \&before_yum_for_docker,
+  after_brew => \&after_brew_for_docker,
   packages => [{name => 'docker-ce', cask_name => 'docker'}],
 };
 
 sub install_commands ($) {
   my @package;
   my %found;
-  my @prepare_apt;
-  my @prepare_yum;
+  my @before_apt;
+  my @before_yum;
+  my @after_brew;
   ITEM: for my $item (grep { not $found{$_}++ } @{$_[0]}) {
     my $def = $CommandDefs->{$item};
     info_die "Command |$item| is not defined" unless defined $def;
@@ -1307,13 +1313,16 @@ sub install_commands ($) {
 
     push @package,
         @{$def->{packages} || info_die "|packages| not defined for command |$item|"};
-    push @prepare_apt, $def->{prepare_apt} if defined $def->{prepare_apt};
-    push @prepare_yum, $def->{prepare_yum} if defined $def->{prepare_yum};
+    push @before_apt, $def->{before_apt} if defined $def->{before_apt};
+    push @before_yum, $def->{before_yum} if defined $def->{before_yum};
+    push @after_brew, $def->{after_brew} if defined $def->{after_brew};
   } # ITEM
 
   if (@package) {
     install_system_packages
-        (\@package, prepare_apt => \@prepare_apt, prepare_yum => \@prepare_yum)
+        (\@package,
+         before_apt => \@before_apt,
+         before_yum => \@before_yum)
         or info_die "Can't install |@{$_[0]}|";
   }
 } # install_commands
@@ -4932,7 +4941,7 @@ sub install_mecab () {
 
 ## ------ Docker ------
 
-sub prepare_apt_for_docker () {
+sub before_apt_for_docker () {
   ## <https://docs.docker.com/engine/installation/linux/docker-ce/debian/>
   
   unless (which 'lsb_release') {
@@ -4985,9 +4994,9 @@ sub prepare_apt_for_docker () {
       [{}, wrap_by_sudo [$AptGetCommand, 'update'], undef, sub { }, 'network'];
   
   return $commands;
-} # prepare_apt_for_docker
+} # before_apt_for_docker
 
-sub prepare_yum_for_docker () {
+sub before_yum_for_docker () {
   ## <https://docs.docker.com/engine/installation/linux/docker-ce/centos/>
 
   my $commands = construct_install_system_packages_commands
@@ -5000,7 +5009,14 @@ sub prepare_yum_for_docker () {
        undef, sub { }, undef];
 
   return $commands;
-} # prepare_yum_for_docker
+} # before_yum_for_docker
+
+sub after_brew_for_docker () {
+  my $commands;
+  push @$commands, [{}, ['open', '-W', '/Applications/Docker.app'],
+                    undef, sub { }, undef];
+  return $commands;
+} # after_brew_for_docker
 
 ## ------ Perl application ------
 
@@ -6014,21 +6030,23 @@ the current C<PATH> is used.
 
 If the option is specified, or if the C<TRAVIS> environment variable
 is se to a true value, the required package detected by the script is
-automatically installed.  Please note that the script execute the
-package manager with C<sudo> command such that you might be requested
-to input sudo password to continue installation.
+automatically installed.
 
 Otherwise, the suggested system packages are printed to the standard
 error output and the installer is not automatically invoked.
 
-At the time of writing, C<apt-get> (for Debian) and C<yum> (for
-Fedora) are supported.
+At the time of writing, C<apt-get> (for Debian and Ubuntu), C<yum>
+(for Fedora and CentOS), and C<brew> (for Mac OS X with Homebrew /
+Homebrew-Cask) are supported.
 
-The C<sudo> command would ask you to input the password if the
-standard input of the script is connected to tty.  Otherwise the
-C<sudo> command would fail (unless your password is the empty string
-or you are the root).  Installer are executed with options to disable
-any prompt.
+Please note that, on Linux, the script execute the package manager
+with C<su> or C<sudo> command.  The command would ask you to input the
+password if the standard input of the script is connected to tty.
+Otherwise the command would fail (unless your password is the empty
+string or you are the root).  Installer are executed with options to
+disable any prompt.  Also note that, on Mac OS X, the platform might
+show you a password or other prompt which cannot be disabled from the
+script, asking for the user's input.
 
 =item --sudo-command="path/to/sudo"
 
