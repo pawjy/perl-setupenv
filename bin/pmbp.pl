@@ -561,7 +561,7 @@ sub create_bootstrap_script ($$) {
 
   my $bs_file_name = "$PMBPDirName/bin/bootstrap.sh";
   save_url
-      (q<https://raw.githubusercontent.com/wakaba/perl-setupenv/staging/bin/bootstrap.sh> # XXX branch
+      (q<https://raw.githubusercontent.com/wakaba/perl-setupenv/master/bin/bootstrap.sh>
        => $bs_file_name,
        max_age => 24*60*60);
 
