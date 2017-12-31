@@ -8,10 +8,11 @@ mkdir -p $tempdir/foo
 
 if [ $TRAVIS != "" ] && [ $TRAVIS_OS_NAME == "osx" ]; then
   echo "Travis CI (Mac OS X)"
-
+  brew install coreutils || true
+  
   ## This waits for user's input permanently...
   cd $tempdir/foo && \
-  ((timeout 120 perl $pmbp --install-commands docker && echo "not ok 1") || echo "ok 1")
+  ((gtimeout 120 perl $pmbp --install-commands docker && echo "not ok 1") || echo "ok 1")
 
   (open /Applications/Docker.app && echo "ok 2") || echo "not ok 2"
 else
