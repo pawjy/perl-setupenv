@@ -2520,7 +2520,8 @@ sub cpanm ($$) {
       if ($log =~ /^Could not find gdlib-config in the search path. Please install libgd /m or
           $log =~ /^No package 'gdlib' found/m) {
         push @required_system,
-            {name => 'gd-devel', debian_name => 'libgd2-xpm-dev'};
+            {name => 'gd-devel', debian_name => 'libgd2-xpm-dev',
+             brew_name => 'gd'};
         $failed = 1;
       }
       if ($log =~ /fatal error: mpfr.h: No such file or directory/m) {
