@@ -2584,9 +2584,11 @@ sub cpanm ($$) {
             {name => 'libidn-devel', debian_name => 'libidn11-dev'};
         $failed = 1;
       }
-      if ($log =~ /fatal error: libkakasi.h: No such file or directory/m) {
+      if ($log =~ /fatal error: libkakasi.h: No such file or directory/m or
+          $log =~ /fatal error: 'libkakasi.h' file not found/m) {
         push @required_system,
-            {name => 'kakasi-devel', debian_name => 'libkakasi2-dev'};
+            {name => 'kakasi-devel', debian_name => 'libkakasi2-dev',
+             brew_name => 'kakasi'};
         $failed = 1;
       }
       if ($log =~ /error: Your compiler is not powerful enough to compile MeCab/m) {
