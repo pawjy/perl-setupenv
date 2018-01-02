@@ -2521,7 +2521,7 @@ sub cpanm ($$) {
           $log =~ /^No package 'gdlib' found/m) {
         push @required_system,
             {name => 'gd-devel', debian_name => 'libgd2-xpm-dev',
-             brew_name => 'gd'};
+             homebrew_name => 'gd'};
         $failed = 1;
       }
       if ($log =~ /fatal error: mpfr.h: No such file or directory/m) {
@@ -2588,7 +2588,7 @@ sub cpanm ($$) {
           $log =~ /fatal error: 'libkakasi.h' file not found/m) {
         push @required_system,
             {name => 'kakasi-devel', debian_name => 'libkakasi2-dev',
-             brew_name => 'kakasi'};
+             homebrew_name => 'kakasi'};
         $failed = 1;
       }
       if ($log =~ /error: Your compiler is not powerful enough to compile MeCab/m) {
@@ -2621,7 +2621,7 @@ sub cpanm ($$) {
         } elsif ($name eq 'pangocairo') {
           push @required_system,
               {name => 'pango-devel', debian_name => 'libpango1.0-dev',
-               brew_name => 'pango'};
+               homebrew_name => 'pango'};
         } elsif ($name =~ /^cairo-/) {
           # cairo-png cairo-ps cairo-pdf cairo-svg
           push @required_system,
