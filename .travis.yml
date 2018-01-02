@@ -42,8 +42,6 @@ jobs:
   allow_failures:
     - env: TARGET=modperl
     - os: osx
-      env: TARGET=gd
-    - os: osx
       env: TARGET=svn
     - os: osx
       env: TARGET=perl-old
@@ -51,8 +49,6 @@ jobs:
       env: TARGET=apache
     - os: osx
       env: TARGET=rrdtool
-    - os: osx
-      env: TARGET=mecab
   include:
     - stage: merge
       before_install: "true"

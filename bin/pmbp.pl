@@ -2620,7 +2620,8 @@ sub cpanm ($$) {
               {name => 'glib2-devel', debian_name => 'libglib2.0-dev'};
         } elsif ($name eq 'pangocairo') {
           push @required_system,
-              {name => 'pango-devel', debian_name => 'libpango1.0-dev'};
+              {name => 'pango-devel', debian_name => 'libpango1.0-dev',
+               brew_name => 'pango'};
         } elsif ($name =~ /^cairo-/) {
           # cairo-png cairo-ps cairo-pdf cairo-svg
           push @required_system,
