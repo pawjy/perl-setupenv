@@ -1019,7 +1019,6 @@ sub run_system_commands ($) {
   my $HasAPT;
   my $HasYUM;
   my $HasBrew;
-  my $AptGetUpdated;
 
   sub install_which () {
     ## CentOS: |which|
@@ -1035,17 +1034,34 @@ sub run_system_commands ($) {
 
     return 0;
   } # install_which
-  
-  sub construct_install_system_packages_commands ($;%) {
-    my ($packages, %args) = @_;
-    
+
+  sub system_package_manager () {
     $HasAPT = which_or_version ($AptGetCommand) ? 1 : 0
         if not defined $HasAPT;
     $HasYUM = which_or_version ($YumCommand) ? 1 : 0
         if not defined $HasYUM;
+
+    if (not $HasAPT and not $HasYUM and not defined $HasBrew) {
+      $HasBrew = which ($BrewCommand) ? 1 : 0;
+      if (not $HasBrew and $PlatformIsMacOSX) {
+        install_homebrew;
+        $HasBrew = which ($BrewCommand) ? 1 : 0;
+      }
+    }
+
+    return $HasAPT ? 'apt' : $HasYUM ? 'yum' : $HasBrew ? 'brew' : 'nopackagemanager';
+  } # system_package_manager
+}
+
+{
+  my $AptGetUpdated;
+  sub construct_install_system_packages_commands ($;%) {
+    my ($packages, %args) = @_;
+
+    my $pm = system_package_manager;
     
     my @command;
-    if ($HasAPT) {
+    if ($pm eq 'apt') {
       my @name = map { $_->{debian_name} || $_->{name} } @$packages;
 
       for (@{$args{before_apt} or []}) {
@@ -1069,7 +1085,7 @@ sub run_system_commands ($) {
         "Installing @name",
         sub { }, 'packagemanager',
       ];
-    } elsif ($HasYUM) {
+    } elsif ($pm eq 'yum') {
       for (@{$args{before_yum} or []}) {
         push @command, @{$_->()};
       }
@@ -1077,42 +1093,32 @@ sub run_system_commands ($) {
       my @name = map { $_->{redhat_name} || $_->{name} } @$packages;
       push @command, [{}, wrap_by_sudo [$YumCommand, 'install', '-y', @name],
                       "Installing @name", sub { }, 'packagemanager'];
-    } else {
-      if (not defined $HasBrew) {
-        $HasBrew = which ($BrewCommand) ? 1 : 0;
-        if (not $HasBrew and $PlatformIsMacOSX) {
-          install_homebrew;
-          $HasBrew = which ($BrewCommand) ? 1 : 0;
-        }
+    } elsif ($pm eq 'brew') {
+      my @name;
+      my @cask_name;
+      for (@$packages) {
+        if (defined $_->{cask_name}) {
+          push @cask_name, $_->{cask_name};
+        } else {
+          push @name, $_->{homebrew_name} || $_->{name};
+          }
+      }
+      if (@name) {
+        push @command, [{}, [$BrewCommand, 'install', @name],
+                        "Installing @name", sub { }, 'packagemanager'];
+      }
+      if (grep { 'openssl' eq $_ } @name) {
+        push @command,
+            [{}, [$BrewCommand, 'link', 'openssl', '--force'], undef, sub { },
+             'packagemanager'];
+      }
+      if (@cask_name) {
+        push @command, [{}, [$BrewCommand, 'cask', 'install', @cask_name],
+                        "Installing @cask_name", sub { }, 'packagemanager'];
       }
 
-      if ($HasBrew) {
-        my @name;
-        my @cask_name;
-        for (@$packages) {
-          if (defined $_->{cask_name}) {
-            push @cask_name, $_->{cask_name};
-          } else {
-            push @name, $_->{homebrew_name} || $_->{name};
-          }
-        }
-        if (@name) {
-          push @command, [{}, [$BrewCommand, 'install', @name],
-                          "Installing @name", sub { }, 'packagemanager'];
-        }
-        if (grep { 'openssl' eq $_ } @name) {
-          push @command,
-              [{}, [$BrewCommand, 'link', 'openssl', '--force'], undef, sub { },
-               'packagemanager'];
-        }
-        if (@cask_name) {
-          push @command, [{}, [$BrewCommand, 'cask', 'install', @cask_name],
-                          "Installing @cask_name", sub { }, 'packagemanager'];
-        }
-
-        for (@{$args{after_brew} or []}) {
-          push @command, @{$_->()};
-        }
+      for (@{$args{after_brew} or []}) {
+        push @command, @{$_->()};
       }
     }
     return \@command;
@@ -1331,6 +1337,21 @@ sub install_commands ($) {
          after_brew => \@after_brew)
         or info_die "Can't install |@{$_[0]}|";
   }
+
+  if ($found{docker}) {
+    my $pm = system_package_manager;
+    if ($pm eq 'brew' and not which 'docker') {
+      my $count = 0;
+      info 0, "Waiting for Docker for Mac installed...";
+      while (not which 'docker') {
+        sleep 3;
+        $count++;
+        if ($count > 30) {
+          info_die "Docker for Mac is still not ready";
+        }
+      }
+    }
+  } # docker
 } # install_commands
 
 ## ------ Git repositories ------
@@ -5023,7 +5044,7 @@ sub before_yum_for_docker () {
 
 sub after_brew_for_docker () {
   my $commands;
-  push @$commands, [{}, ['open', '-W', '/Applications/Docker.app'],
+  push @$commands, [{}, ['open', '/Applications/Docker.app'],
                     undef, sub { }, undef];
   return $commands;
 } # after_brew_for_docker
