@@ -1327,7 +1327,8 @@ sub install_commands ($) {
     install_system_packages
         (\@package,
          before_apt => \@before_apt,
-         before_yum => \@before_yum)
+         before_yum => \@before_yum,
+         after_brew => \@after_brew)
         or info_die "Can't install |@{$_[0]}|";
   }
 } # install_commands
