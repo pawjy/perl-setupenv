@@ -47,8 +47,6 @@ jobs:
       env: TARGET=perl-old
     - os: osx
       env: TARGET=apache
-    - os: osx
-      env: TARGET=rrdtool
   include:
     - stage: merge
       before_install: "true"

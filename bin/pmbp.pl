@@ -1291,6 +1291,11 @@ $CommandDefs->{docker} = {
   packages => [{name => 'docker-ce', cask_name => 'docker'}],
 };
 
+$CommandDefs->{gnuplot} = {
+  bin => 'gnuplot',
+  packages => [{name => 'gnuplot'}],
+};
+
 sub install_commands ($) {
   my @package;
   my %found;
