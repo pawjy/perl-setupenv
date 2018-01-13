@@ -2564,7 +2564,8 @@ sub cpanm ($$) {
           $log =~ /^You need to install postgresql-server-dev-X.Y for building a server-side extension or libpq-dev for building a client-side application./m or
           $log =~ /No POSTGRES_HOME defined, cannot find automatically/m) {
         push @required_system, {name => 'postgresql-devel',
-                                debian_name => 'libpq-dev'};
+                                debian_name => 'libpq-dev',
+                                homebrew_name => 'postgresql'};
       }
       if ($log =~ m{ld: cannot find -lperl}m) {
         push @required_system,
