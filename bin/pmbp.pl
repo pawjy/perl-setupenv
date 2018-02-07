@@ -1291,6 +1291,7 @@ $CommandDefs->{vim} = {
 
 $CommandDefs->{docker} = {
   bin => 'docker',
+  check_command => ['docker', 'stack'],
   before_apt => \&before_apt_for_docker,
   before_yum => \&before_yum_for_docker,
   after_brew => \&after_brew_for_docker,
@@ -1312,7 +1313,12 @@ sub install_commands ($) {
     my $def = $CommandDefs->{$item};
     info_die "Command |$item| is not defined" unless defined $def;
 
-    if (defined $def->{bin}) {
+    if (defined $def->{check_command}) {
+      if (run_command $def->{check_command}, info_level => 9) {
+        info 2, "You have command |$item|";
+        next ITEM;
+      }
+    } elsif (defined $def->{bin}) {
       for (ref $def->{bin} ? @{$def->{bin}} : $def->{bin}) {
         my $which = which $_;
         if (defined $which) {
