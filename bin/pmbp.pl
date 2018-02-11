@@ -1291,7 +1291,7 @@ $CommandDefs->{vim} = {
 
 $CommandDefs->{docker} = {
   bin => 'docker',
-  check_command => ['docker', 'stack'],
+  #check_command => ['docker', 'stack'],
   before_apt => \&before_apt_for_docker,
   before_yum => \&before_yum_for_docker,
   after_brew => \&after_brew_for_docker,
