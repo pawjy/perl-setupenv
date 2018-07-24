@@ -73,6 +73,9 @@ endif
 ifeq "$(TARGET)" "perl"
 	$(PROVE) --verbose t/pmbp-perl/*.t
 endif
+ifeq "$(TARGET)" "pm-old"
+	$(PROVE) --verbose t/pmbp-pm-old/*.t
+endif
 ifeq "$(TARGET)" "perl-old"
 	$(PROVE) --verbose t/pmbp-perl-old/*.t
 endif

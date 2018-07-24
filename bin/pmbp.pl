@@ -6847,6 +6847,8 @@ already installed, this command does nothing.
 Install Apache Subversion into C<local/apache/svn>.  If subversion is
 already installed, this command does nothing.
 
+This option is no longer formally supported.
+
 =item --install-perl-app="[name=]git://url/of/repo.git"
 
 Install a Perl application.  The command argument must be a Git
@@ -7199,7 +7201,7 @@ Thanks to suzak and nobuoka.
 
 =head1 LICENSE
 
-Copyright 2012-2016 Wakaba <wakaba@suikawiki.org>.
+Copyright 2012-2018 Wakaba <wakaba@suikawiki.org>.
 
 Copyright 2012-2017 Hatena <https://www.hatena.ne.jp/company/>.
 
