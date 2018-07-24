@@ -1808,7 +1808,7 @@ sub install_perl_by_perlbuild ($) {
       if ($output =~ m{Cannot get file from (https?://.+?/([a-z][a-zA-Z0-9_.-]+?\.tar\.gz)): 599 Internal Exception at}) {
         ## HTTP GET timeout
         $tarball_path = "$perl_tar_dir_path/$2";
-        save_url $1 => $tarball_path;
+        save_url "$1" => $tarball_path;
         $redo = 1;
       }
       if ($redo and $i < 10) {
