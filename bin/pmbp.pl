@@ -1070,8 +1070,10 @@ sub run_system_commands ($) {
       
       unless ($AptGetUpdated) {
         for (@name) {
-          my $found = run_command ['apt-cache', 'show', $_];
-          unless ($found) {
+          my $result = '';
+          my $ok = run_command ['apt-cache', 'show', $_],
+              onoutput => sub { $result .= $_[0]; 2 };
+          unless ($ok and $result =~ m{^\Q$_\E }m) {
             push @command, [{}, wrap_by_sudo [$AptGetCommand, 'update'],
                             undef, sub { $AptGetUpdated = 1 }, 'network'];
             last;
