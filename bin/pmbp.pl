@@ -1080,7 +1080,7 @@ sub run_system_commands ($) {
           }
         }
       }
-
+      
       push @command, [
         {DEBIAN_FRONTEND => "noninteractive"},
         wrap_by_sudo [$AptGetCommand, 'install', '-y', @name],
@@ -1770,12 +1770,14 @@ sub install_perl_by_perlbuild ($) {
 
     if ($PlatformIsMacOSX) {
       make_path "$RootDirName/local/perlbrew-lib/Devel/PatchPerl/Plugin";
-      save_url "https://raw.githubusercontent.com/wakaba/perl-setupenv/staging/lib/Devel/PatchPerl/Plugin/MacOSX.pm" => "$RootDirName/local/perlbrew-lib/Devel/PatchPerl/Plugin/MacOSX.pm", # XXX staging -> master
+      save_url "https://raw.githubusercontent.com/wakaba/perl-setupenv/master/lib/Devel/PatchPerl/Plugin/MacOSX.pm" => "$RootDirName/local/perlbrew-lib/Devel/PatchPerl/Plugin/MacOSX.pm",
           max_age => 10*24*60*60;
       push @patch, qw(MacOSX);
     }
 
     make_path $perl_tar_dir_path;
+    my $stdout = '';
+    my $stderr = '';
     run_command ['perl',
                  "$RootDirName/local/perlbuild",
                  $perl_version,
@@ -1789,6 +1791,8 @@ sub install_perl_by_perlbuild ($) {
                  @perl_option,
                 ],
                 envs => get_perlbrew_envs,
+                onstdout => sub { $stdout .= $_[0]; 2 },
+                onstderr => sub { $stderr .= $_[0]; 2 },
                 prefix => "perlbuild($i): ",
                 profiler_name => 'perlbuild'
                     unless -f $perl_path;
@@ -1802,6 +1806,11 @@ sub install_perl_by_perlbuild ($) {
             or info_die "Can't copy libperl.so";
       }
     } else {
+      if ($stdout =~ m{Cannot get file from https?://.+.tar.gz: 599 Internal Exception at} or
+          $stderr =~ m{Cannot get file from https?://.+.tar.gz: 599 Internal Exception at}) {
+        ## HTTP GET timeout
+        $redo = 1;
+      }
       if ($redo and $i < 10) {
         info 0, "perlbuild($i): Failed to install perl-$perl_version; retrying...";
         redo PERLBREW;

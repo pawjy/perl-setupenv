@@ -49,8 +49,6 @@ jobs:
     - os: osx
       env: TARGET=perl-old
     - os: osx
-      env: TARGET=imagemagick
-    - os: osx
       env: TARGET=apache
   include:
     - stage: merge
