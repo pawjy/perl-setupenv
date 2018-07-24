@@ -1070,15 +1070,17 @@ sub run_system_commands ($) {
       
       unless ($AptGetUpdated) {
         for (@name) {
-          my $found = run_command ['apt-cache', 'show', $_];
-          unless ($found) {
+          my $result = '';
+          my $ok = run_command ['apt-cache', 'show', $_],
+              onoutput => sub { $result .= $_[0]; 2 };
+          unless ($ok and $result =~ m{^\Q$_\E }m) {
             push @command, [{}, wrap_by_sudo [$AptGetCommand, 'update'],
                             undef, sub { $AptGetUpdated = 1 }, 'network'];
             last;
           }
         }
       }
-
+      
       push @command, [
         {DEBIAN_FRONTEND => "noninteractive"},
         wrap_by_sudo [$AptGetCommand, 'install', '-y', @name],
@@ -1744,22 +1746,14 @@ sub install_perlbuild () {
   my $perlbuild_path = "$RootDirName/local/perlbuild";
   make_path "$RootDirName/local/perlbrew";
   my $perlbuild_url = q<https://raw.githubusercontent.com/tokuhirom/Perl-Build/master/perl-build>;
-  save_url $perlbuild_url => "$perlbuild_path-orig", max_age => 60*60*24*30;
-  open my $perlbuild_file, '>', $perlbuild_path
-      or info_die "Can't write |$perlbuild_path|";
-  print $perlbuild_file q{
-    $INC{"CPAN/Perl/Releases.pm"} = 1;
-
-    my $orig = __FILE__ . '-orig';
-    do $orig;
-  };
-  close $perlbuild_file;
+  save_url $perlbuild_url => $perlbuild_path, max_age => 60*60*24*30;
 } # install_perlbuild;
 
 sub install_perl_by_perlbuild ($) {
   my $perl_version = shift;
   install_perlbuild;
   my $i = 0;
+  my $tarball_path;
   PERLBREW: {
     $i++;
     my $log_file_name;
@@ -1777,15 +1771,16 @@ sub install_perl_by_perlbuild ($) {
 
     if ($PlatformIsMacOSX) {
       make_path "$RootDirName/local/perlbrew-lib/Devel/PatchPerl/Plugin";
-      save_url "https://raw.githubusercontent.com/wakaba/perl-setupenv/staging/lib/Devel/PatchPerl/Plugin/MacOSX.pm" => "$RootDirName/local/perlbrew-lib/Devel/PatchPerl/Plugin/MacOSX.pm", # XXX staging -> master
+      save_url "https://raw.githubusercontent.com/wakaba/perl-setupenv/master/lib/Devel/PatchPerl/Plugin/MacOSX.pm" => "$RootDirName/local/perlbrew-lib/Devel/PatchPerl/Plugin/MacOSX.pm",
           max_age => 10*24*60*60;
       push @patch, qw(MacOSX);
     }
 
     make_path $perl_tar_dir_path;
+    my $output = '';
     run_command ['perl',
                  "$RootDirName/local/perlbuild",
-                 $perl_version,
+                 (defined $tarball_path ? $tarball_path : $perl_version),
                  $perl_dir_path,
                  '-j' => $PerlbrewParallelCount,
                  '-A' => 'ccflags=-fPIC',
@@ -1796,6 +1791,7 @@ sub install_perl_by_perlbuild ($) {
                  @perl_option,
                 ],
                 envs => get_perlbrew_envs,
+                onoutput => sub { $output .= $_[0]; 2 },
                 prefix => "perlbuild($i): ",
                 profiler_name => 'perlbuild'
                     unless -f $perl_path;
@@ -1809,6 +1805,12 @@ sub install_perl_by_perlbuild ($) {
             or info_die "Can't copy libperl.so";
       }
     } else {
+      if ($output =~ m{Cannot get file from (https?://.+?/([a-z][a-zA-Z0-9_.-]+?\.tar\.gz)): 599 Internal Exception at}) {
+        ## HTTP GET timeout
+        $tarball_path = "$perl_tar_dir_path/$2";
+        save_url "$1" => $tarball_path;
+        $redo = 1;
+      }
       if ($redo and $i < 10) {
         info 0, "perlbuild($i): Failed to install perl-$perl_version; retrying...";
         redo PERLBREW;
@@ -6856,6 +6858,8 @@ already installed, this command does nothing.
 Install Apache Subversion into C<local/apache/svn>.  If subversion is
 already installed, this command does nothing.
 
+This option is no longer formally supported.
+
 =item --install-perl-app="[name=]git://url/of/repo.git"
 
 Install a Perl application.  The command argument must be a Git
@@ -7208,7 +7212,7 @@ Thanks to suzak and nobuoka.
 
 =head1 LICENSE
 
-Copyright 2012-2016 Wakaba <wakaba@suikawiki.org>.
+Copyright 2012-2018 Wakaba <wakaba@suikawiki.org>.
 
 Copyright 2012-2017 Hatena <https://www.hatena.ne.jp/company/>.
 

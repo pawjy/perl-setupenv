@@ -24,6 +24,7 @@ env:
     - TARGET=lists
     - TARGET=perl
     - TARGET=perl-old
+    - TARGET=pm-old
     - TARGET=apache
     - TARGET=rrdtool
     - TARGET=mecab
@@ -41,8 +42,10 @@ script: "make test"
 jobs:
   allow_failures:
     - env: TARGET=modperl
-    - os: osx
-      env: TARGET=svn
+    - env: TARGET=svn
+    - env: TARGET=rrdtool
+    - env: TARGET=gd
+    - env: TARGET=pm-old
     - os: osx
       env: TARGET=perl-old
     - os: osx
