@@ -1776,8 +1776,7 @@ sub install_perl_by_perlbuild ($) {
     }
 
     make_path $perl_tar_dir_path;
-    my $stdout = '';
-    my $stderr = '';
+    my $output = '';
     run_command ['perl',
                  "$RootDirName/local/perlbuild",
                  $perl_version,
@@ -1791,8 +1790,7 @@ sub install_perl_by_perlbuild ($) {
                  @perl_option,
                 ],
                 envs => get_perlbrew_envs,
-                onstdout => sub { $stdout .= $_[0]; 2 },
-                onstderr => sub { $stderr .= $_[0]; 2 },
+                onoutput => sub { $output .= $_[0]; 2 },
                 prefix => "perlbuild($i): ",
                 profiler_name => 'perlbuild'
                     unless -f $perl_path;
@@ -1806,8 +1804,7 @@ sub install_perl_by_perlbuild ($) {
             or info_die "Can't copy libperl.so";
       }
     } else {
-      if ($stdout =~ m{Cannot get file from https?://.+.tar.gz: 599 Internal Exception at} or
-          $stderr =~ m{Cannot get file from https?://.+.tar.gz: 599 Internal Exception at}) {
+      if ($output =~ m{Cannot get file from https?://.+.tar.gz: 599 Internal Exception at}) {
         ## HTTP GET timeout
         $redo = 1;
       }
