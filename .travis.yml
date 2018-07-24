@@ -24,6 +24,7 @@ env:
     - TARGET=lists
     - TARGET=perl
     - TARGET=perl-old
+    - TARGET=pm-old
     - TARGET=apache
     - TARGET=rrdtool
     - TARGET=mecab
@@ -47,6 +48,8 @@ jobs:
     - env: TARGET=pm-old
     - os: osx
       env: TARGET=perl-old
+    - os: osx
+      env: TARGET=imagemagick
     - os: osx
       env: TARGET=apache
   include:
