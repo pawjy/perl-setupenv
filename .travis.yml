@@ -43,8 +43,8 @@ jobs:
   allow_failures:
     - env: TARGET=modperl
     - env: TARGET=svn
-    - env: TARGET=rrdtool
-    - env: TARGET=gd
+    #- env: TARGET=rrdtool
+    #- env: TARGET=gd
     - env: TARGET=pm-old
     - os: osx
       env: TARGET=perl-old
