@@ -1753,6 +1753,7 @@ sub install_perl_by_perlbuild ($) {
   my $perl_version = shift;
   install_perlbuild;
   my $i = 0;
+  my $tarball_path;
   PERLBREW: {
     $i++;
     my $log_file_name;
@@ -1779,7 +1780,7 @@ sub install_perl_by_perlbuild ($) {
     my $output = '';
     run_command ['perl',
                  "$RootDirName/local/perlbuild",
-                 $perl_version,
+                 (defined $tarball_path ? $tarball_path : $perl_version),
                  $perl_dir_path,
                  '-j' => $PerlbrewParallelCount,
                  '-A' => 'ccflags=-fPIC',
@@ -1804,8 +1805,10 @@ sub install_perl_by_perlbuild ($) {
             or info_die "Can't copy libperl.so";
       }
     } else {
-      if ($output =~ m{Cannot get file from https?://.+.tar.gz: 599 Internal Exception at}) {
+      if ($output =~ m{Cannot get file from (https?://.+?/([a-z][a-zA-Z0-9_.-]+?\.tar\.gz)): 599 Internal Exception at}) {
         ## HTTP GET timeout
+        $tarball_path = "$perl_tar_dir_path/$2";
+        save_url $1 => $tarball_path;
         $redo = 1;
       }
       if ($redo and $i < 10) {
