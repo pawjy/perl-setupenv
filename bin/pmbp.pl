@@ -724,12 +724,15 @@ sub shellcommand ($) {
   }
 } # shellcommand
 
+my $CommandID = 0;
 sub run_command ($;%) {
   my ($command, %args) = @_;
+  my $id = ++$CommandID;
   local $_;
   my $prefix = defined $args{prefix} ? $args{prefix} : '';
   my $prefix0 = '';
   $prefix0 .= (length $prefix ? ':' : '') . $args{chdir} if defined $args{chdir};
+  $prefix = "$id: $prefix";
   my $envs = $args{envs} || {};
   {
     no warnings 'uninitialized';
@@ -754,10 +757,10 @@ sub run_command ($;%) {
       (defined $args{"2>"} ? ' 2> ' . shellarg $args{"2>"} : ' 2>&1') .
       (defined $args{">"} ? ' > ' . shellarg $args{">"} : '') .
       (($args{accept_input} || defined $args{stdin_value}) ? '' : $PlatformIsWindows ? '< NUL' : ' < /dev/null');
-  info 10, "Run shell command: |$full_command|";
+  info 10, "$id: Run shell command: |$full_command|";
   profiler_start ($args{profiler_name} || 'command');
   my $pid = open my $cmd, "-|", $full_command
-      or info_die "$0: $command->[0]: $!";
+      or info_die "$0: $id: $command->[0]: $!";
   if (defined $args{'$$'}) {
     ${$args{'$$'}} = $pid;
   }
@@ -770,6 +773,7 @@ sub run_command ($;%) {
   if ($args{'$?'}) {
     ${$args{'$?'}} = $?;
   }
+  info 10, "$id: Done (@{[$? >> 8]})";
   profiler_stop ($args{profiler_name} || 'command');
   if (defined $stderr_file_name and -f $stderr_file_name) {
     my $log = info_log_file 3, $stderr_file_name => 'stderr';
@@ -5197,11 +5201,13 @@ my $root_module = PMBP::Module->new_from_package ('.');
       if defined $TimeHiResError;
   my $time = time;
   my $timestamp = get_real_time;
-  my $delta = $time - $timestamp;
-  $delta = -$delta if $delta < 0;
-  if ($delta > 60*10) {
-    info 0, sprintf "Your clock is misconfigured! (Yours = %s, Global = %s, Delta = %s)",
-        $time, $timestamp, $delta;
+  if (defined $timestamp) {
+    my $delta = $time - $timestamp;
+    $delta = -$delta if $delta < 0;
+    if ($delta > 60*10) {
+      info 0, sprintf "Your clock is misconfigured! (Yours = %s, Global = %s, Delta = %s)",
+          $time, $timestamp, $delta;
+    }
   }
 }
 
