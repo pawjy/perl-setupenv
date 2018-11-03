@@ -1809,7 +1809,7 @@ sub install_perl_by_perlbuild ($) {
             or info_die "Can't copy libperl.so";
       }
     } else {
-      if ($output =~ m{Cannot get file from (https?://.+?/([a-z][a-zA-Z0-9_.-]+?\.tar\.gz)): 599 Internal Exception at}) {
+      if ($output =~ m{Cannot get file from (https?://.+?/([a-z][a-zA-Z0-9_.-]+?\.tar\.gz)): 599 Internal Exception}) {
         ## HTTP GET timeout
         $tarball_path = "$perl_tar_dir_path/$2";
         save_url "$1" => $tarball_path;
