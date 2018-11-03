@@ -3329,6 +3329,14 @@ sub rewrite_pm_bin_shebang ($) {
   profiler_stop 'file';
 } # rewrite_pm_bin_shebang
 
+sub get_envs_for_perl ($$) {
+  my ($perl_command, $perl_version) = @_;
+  return {
+    PATH => get_env_path ($perl_version),
+    PERL5LIB => (join ':', (get_lib_dir_names ($perl_command, $perl_version))),
+  };
+} # get_envs_for_perl
+
 sub create_perl_command_shortcut ($$$;%) {
   my ($perl_version, $command => $file_name, %args) = @_;
   $file_name = resolve_path $file_name, $RootDirName;
@@ -3828,8 +3836,7 @@ sub read_install_list ($$$;%) {
       if (-f "$dir_name/Build.PL" and not -f "$dir_name/META.yml") {
         ## Broken by <https://github.com/miyagawa/cpanminus/commit/54f1111211f3fe2f0a35ca41a8664c16ce8305b6>
         info 0, "Generating META.yml...";
-        my $envs = {PATH => get_env_path ($perl_version),
-                    PERL5LIB => (join ':', (get_lib_dir_names ($PerlCommand, $perl_version))),
+        my $envs = {%{get_envs_for_perl ($PerlCommand, $perl_version)},
                     LANG => 'C',
                     MAKEFLAGS => ''};
         run_command
@@ -4078,11 +4085,11 @@ sub install_module ($$$;%) {
   my $force;
   if (has_module ($perl_command, $perl_version, $module, $lib_dir_name)) {
     if ($module->package eq 'Net::SSLeay' and
-        is_net_ssleay_openssl_too_old ($perl_version) or
-        not get_openssl_version ($perl_version) eq get_net_ssleay_openssl_version ($perl_version)) {
+        is_net_ssleay_openssl_too_old ($perl_command, $perl_version) or
+        not get_openssl_version ($perl_version) eq get_net_ssleay_openssl_version ($perl_command, $perl_version)) {
       info 0, "Reinstall Net::SSLeay (1)...";
       info 0, "Platform OpenSSL:\n----\n" . get_openssl_version_details ($perl_version) . "\n----";
-      info 0, "Net::SSLeay OpenSSL:\n----\n" . get_net_ssleay_openssl_version_details ($perl_version) . "\n----";
+      info 0, "Net::SSLeay OpenSSL:\n----\n" . get_net_ssleay_openssl_version_details ($perl_command, $perl_version) . "\n----";
       $force = 1;
     } else {
       info 1, "Module @{[$module->as_short]} is already installed; skipped";
@@ -4097,9 +4104,9 @@ sub install_module ($$$;%) {
 
   if ($module->package eq 'Net::SSLeay') {
     info 0, "Platform OpenSSL:\n----\n" . get_openssl_version_details ($perl_version) . "\n----";
-    info 0, "Net::SSLeay OpenSSL:\n----\n" . get_net_ssleay_openssl_version_details ($perl_version) . "\n----";
-    if (is_net_ssleay_openssl_too_old ($perl_version) or
-        not get_openssl_version ($perl_version) eq get_net_ssleay_openssl_version ($perl_version)) {
+    info 0, "Net::SSLeay OpenSSL:\n----\n" . get_net_ssleay_openssl_version_details ($perl_command, $perl_version) . "\n----";
+    if (is_net_ssleay_openssl_too_old ($perl_command, $perl_version) or
+        not get_openssl_version ($perl_version) eq get_net_ssleay_openssl_version ($perl_command, $perl_version)) {
       info 0, "Reinstall Net::SSLeay (2)...";
       cpanm {perl_version => $perl_version,
              perl_lib_dir_name => $lib_dir_name,
@@ -4119,8 +4126,7 @@ sub get_module_version ($$$) {
   my $return = run_command
       [$perl_command, '-M' . $package,
        '-e', sprintf 'print $%s::VERSION', $package],
-      envs => {PATH => get_env_path ($perl_version),
-               PERL5LIB => (join ':', (get_lib_dir_names ($perl_command, $perl_version)))},
+      envs => get_envs_for_perl ($perl_command, $perl_version),
       info_level => 3,
       discard_stderr => 1,
       onoutput => sub {
@@ -4269,18 +4275,18 @@ sub get_openssl_version_details ($) {
   return $version;
 } # get_openssl_version_details
 
-sub get_net_ssleay_openssl_version ($) {
-  my ($perl_version) = @_;
+sub get_net_ssleay_openssl_version ($$) {
+  my ($perl_command, $perl_version) = @_;
   my $version;
   run_command
       ['perl', '-MNet::SSLeay', '-e', 'print +Net::SSLeay::SSLeay_version'],
-      envs => {PATH => get_env_path ($perl_version)},
+      envs => get_envs_for_perl ($perl_command, $perl_version),
       onoutput => sub { $version = $_[0]; 2 };
   return $version;
 } # get_net_ssleay_openssl_version
 
-sub get_net_ssleay_openssl_version_details ($) {
-  my ($perl_version) = @_;
+sub get_net_ssleay_openssl_version_details ($$) {
+  my ($perl_command, $perl_version) = @_;
   my $version;
   run_command
       ['perl', '-MNet::SSLeay', '-e', '
@@ -4293,7 +4299,7 @@ sub get_net_ssleay_openssl_version_details ($) {
             $Net::SSLeay::VERSION,
             "";
       '],
-      envs => {PATH => get_env_path ($perl_version)},
+      envs => get_envs_for_perl ($perl_command, $perl_version),
       onoutput => sub { $version .= $_[0]; 2 };
   return $version;
 } # get_net_ssleay_openssl_version_details
@@ -4308,9 +4314,9 @@ sub is_openssl_too_old ($) {
   return 0;
 } # is_openssl_too_old
 
-sub is_net_ssleay_openssl_too_old ($) {
-  my ($perl_version) = @_;
-  my $version = get_net_ssleay_openssl_version ($perl_version);
+sub is_net_ssleay_openssl_too_old ($$) {
+  my ($perl_command, $perl_version) = @_;
+  my $version = get_net_ssleay_openssl_version ($perl_command, $perl_version);
   return 1 if not defined $version;
   if ($version =~ /^OpenSSL 0\./) {
     return 1;
