@@ -4080,7 +4080,7 @@ sub install_module ($$$;%) {
     if ($module->package eq 'Net::SSLeay' and
         is_net_ssleay_openssl_too_old ($perl_version) or
         not get_openssl_version ($perl_version) eq get_net_ssleay_openssl_version ($perl_version)) {
-      info 0, "Reinstall Net::SSLeay...";
+      info 0, "Reinstall Net::SSLeay (1)...";
       info 0, "Platform OpenSSL:\n----\n" . get_openssl_version_details ($perl_version) . "\n----";
       info 0, "Net::SSLeay OpenSSL:\n----\n" . get_net_ssleay_openssl_version_details ($perl_version) . "\n----";
       $force = 1;
@@ -4092,8 +4092,21 @@ sub install_module ($$$;%) {
   cpanm {perl_version => $perl_version,
          perl_lib_dir_name => $lib_dir_name,
          module_index_file_name => $args{module_index_file_name},
-         force => 1},
+         force => $force},
         [$module];
+
+  if ($module->package eq 'Net::SSLeay' and
+      is_net_ssleay_openssl_too_old ($perl_version) or
+      not get_openssl_version ($perl_version) eq get_net_ssleay_openssl_version ($perl_version)) {
+    info 0, "Reinstall Net::SSLeay (2)...";
+    info 0, "Platform OpenSSL:\n----\n" . get_openssl_version_details ($perl_version) . "\n----";
+    info 0, "Net::SSLeay OpenSSL:\n----\n" . get_net_ssleay_openssl_version_details ($perl_version) . "\n----";
+    cpanm {perl_version => $perl_version,
+           perl_lib_dir_name => $lib_dir_name,
+           module_index_file_name => $args{module_index_file_name},
+           force => 1},
+           [$module];
+  }
 } # install_module
 
 sub get_module_version ($$$) {
