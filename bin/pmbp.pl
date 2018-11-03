@@ -4108,6 +4108,7 @@ sub install_module ($$$;%) {
     if (is_net_ssleay_openssl_too_old ($perl_command, $perl_version) or
         not get_openssl_version ($perl_version) eq get_net_ssleay_openssl_version ($perl_command, $perl_version)) {
       info 0, "Reinstall Net::SSLeay (2)...";
+      install_openssl ($perl_version);
       cpanm {perl_version => $perl_version,
              perl_lib_dir_name => $lib_dir_name,
              module_index_file_name => $args{module_index_file_name},
