@@ -4078,7 +4078,11 @@ sub install_module ($$$;%) {
   my $force;
   if (has_module ($perl_command, $perl_version, $module, $lib_dir_name)) {
     if ($module->package eq 'Net::SSLeay' and
-        is_net_ssleay_openssl_too_old ($perl_version)) {
+        is_net_ssleay_openssl_too_old ($perl_version) or
+        not get_openssl_version ($perl_version) eq get_net_ssleay_openssl_version ($perl_version)) {
+      info 0, "Reinstall Net::SSLeay...";
+      info 0, "Platform OpenSSL:\n----\n" . get_openssl_version_details ($perl_version) . "\n----";
+      info 0, "Net::SSLeay OpenSSL:\n----\n" . get_net_ssleay_openssl_version_details ($perl_version) . "\n----";
       $force = 1;
     } else {
       info 1, "Module @{[$module->as_short]} is already installed; skipped";
@@ -4240,6 +4244,17 @@ sub get_openssl_version ($) {
   return $_OpenSSLVersion = $version;
 } # get_openssl_version
 
+sub get_openssl_version_details ($) {
+  my ($perl_version) = @_;
+  my $version;
+  run_command
+      ['openssl', 'version', '-a'],
+      envs => {PATH => get_env_path ($perl_version)},
+      onoutput => sub { $version .= $_[0]; 2 };
+  $version =~ s/[\x0D\x0A]+\z// if defined $version;
+  return $version;
+} # get_openssl_version_details
+
 sub get_net_ssleay_openssl_version ($) {
   my ($perl_version) = @_;
   my $version;
@@ -4249,6 +4264,23 @@ sub get_net_ssleay_openssl_version ($) {
       onoutput => sub { $version = $_[0]; 2 };
   return $version;
 } # get_net_ssleay_openssl_version
+
+sub get_net_ssleay_openssl_version_details ($) {
+  my ($perl_version) = @_;
+  my $version;
+  run_command
+      ['perl', '-MNet::SSLeay', '-e', '
+        print join "\n",
+            Net::SSLeay::SSLeay_version (0),
+            Net::SSLeay::SSLeay_version (2),
+            Net::SSLeay::SSLeay_version (3),
+            Net::SSLeay::SSLeay_version (4),
+            "";
+      '],
+      envs => {PATH => get_env_path ($perl_version)},
+      onoutput => sub { $version .= $_[0]; 2 };
+  return $version;
+} # get_net_ssleay_openssl_version_details
 
 sub is_openssl_too_old ($) {
   my ($perl_version) = @_;
@@ -4407,9 +4439,9 @@ sub install_openssl ($) {
 sub install_openssl_if_too_old ($) {
   my ($perl_version) = @_;
   if (is_openssl_too_old ($perl_version)) {
-    my $openssl_version = get_openssl_version ($perl_version);
+    my $openssl_version = get_openssl_version_details ($perl_version);
     if (defined $openssl_version) {
-      info 0, "Your OpenSSL is too old ($openssl_version)";
+      info 0, "Your OpenSSL is too old:\n$openssl_version";
     } else {
       info 0, "You don't have OpenSSL";
     }
