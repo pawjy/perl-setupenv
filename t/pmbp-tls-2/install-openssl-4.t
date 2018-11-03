@@ -17,6 +17,8 @@ $tempdir/perl -MNet::SSLeay -e "
             Net::SSLeay::SSLeay_version (2),
             Net::SSLeay::SSLeay_version (3),
             Net::SSLeay::SSLeay_version (4),
+            \$INC{q{Net/SSLeay.pm}},
+            \$Net::SSLeay::VERSION,
             '';
 "
 

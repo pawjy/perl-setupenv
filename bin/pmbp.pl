@@ -4289,6 +4289,8 @@ sub get_net_ssleay_openssl_version_details ($) {
             Net::SSLeay::SSLeay_version (2),
             Net::SSLeay::SSLeay_version (3),
             Net::SSLeay::SSLeay_version (4),
+            $INC{q{Net/SSLeay.pm}},
+            $Net::SSLeay::VERSION,
             "";
       '],
       envs => {PATH => get_env_path ($perl_version)},
