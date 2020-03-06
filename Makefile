@@ -14,7 +14,7 @@ updatenightly: version/perl.txt version/perl-cpan-path.txt
 
 local/cpan-perl.html:
 	mkdir -p local
-	curl -f -L http://search.cpan.org/dist/perl/ > $@
+	curl -f -L https://metacpan.org/release/perl > $@
 version/perl.txt: bin/extract-latest-perl-version.pl local/cpan-perl.html
 	mkdir -p version
 	perl bin/extract-latest-perl-version.pl < local/cpan-perl.html
