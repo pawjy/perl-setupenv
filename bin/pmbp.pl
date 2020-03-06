@@ -38,7 +38,7 @@ my $PerlbrewParallelCount = $ENV{PMBP_PARALLEL_COUNT} || ($ENV{CI} ? 4 : 1);
 my $SavePerlbrewLog = not $ENV{CI};
 my $CPANMURL = q<https://raw.githubusercontent.com/miyagawa/cpanminus/master/cpanm>; # q<http://cpanmin.us/>;
 my $MakefileURL = q<https://raw.githubusercontent.com/wakaba/perl-setupenv/master/Makefile.pmbp.example>;
-my $ImageMagickURL = q<http://www.imagemagick.org/download/ImageMagick.tar.gz>;
+my $ImageMagickURL = q<https://www.imagemagick.org/download/ImageMagick.tar.gz>;
 my $RootDirName = '.';
 my $FallbackPMTarDirName = $ENV{PMBP_FALLBACK_PMTAR_DIR_NAME};
 my $PMTarDirName = $ENV{PMBP_PMTAR_DIR_NAME};
@@ -1590,16 +1590,16 @@ sub init_perl_version_by_file_name ($) {
   sub get_cpan_top_url () {
     return $CPANTopURL ||= save_url [
       qw<
-        http://www.cpan.org/
+        https://www.cpan.org/
+        https://ftp.riken.jp/lang/CPAN/
+        https://ftp.yz.yamagata-u.ac.jp/pub/lang/cpan/
         http://ftp.nara.wide.ad.jp/pub/CPAN/
         http://ftp.jaist.ac.jp/pub/CPAN/
-        http://ftp.riken.jp/lang/CPAN/
-        http://ftp.yz.yamagata-u.ac.jp/pub/lang/cpan/
-        http://www.perl.com/CPAN/
-        http://www.cpan.dk/
         http://cpan.cpantesters.org/
-        http://search.cpan.org/CPAN/
       >,
+      #http://www.perl.com/CPAN/
+      #http://search.cpan.org/CPAN/
+      #http://www.cpan.dk/
     ] => "$PMBPDirName/tmp/cpan-top", max_redirect => 0, timeout => 5, tries => 1;
   } # get_cpan_top_url
 }
@@ -1649,8 +1649,8 @@ sub install_perlbrew () {
       <$file>;
     };
     my $cpan_top = get_cpan_top_url;
-    $script =~ s{"http://www.cpan.org/src/5.0/"}{"${cpan_top}src/5.0/"}g;
-    $script =~ s{"http://www.cpan.org/src/README.html"}{"${cpan_top}src/README.html"}g;
+    $script =~ s{"https?://www.cpan.org/src/5.0/"}{"${cpan_top}src/5.0/"}g;
+    $script =~ s{"https?://www.cpan.org/src/README.html"}{"${cpan_top}src/README.html"}g;
     open my $file, '>', $perlbrew_file_name
         or info_die "$perlbrew_file_name: $!";
     print $file $script;
@@ -2192,7 +2192,7 @@ sub cpanm ($$) {
             get_cpan_top_url,
             #http://search.cpan.org/CPAN
             qw(
-              http://cpan.metacpan.org/
+              https://cpan.metacpan.org/
               http://backpan.perl.org/
             );
 
@@ -2833,7 +2833,7 @@ sub cpanm ($$) {
           ## module is not distributed at CPAN.  Nevertheless, on some
           ## system the module is not installed...
           my $pm = "$perl_lib_dir_name/lib/perl5/ExtUtils/Embed.pm";
-          save_url q<http://perl5.git.perl.org/perl.git/blob_plain/HEAD:/lib/ExtUtils/Embed.pm> => $pm;
+          save_url q<https://raw.githubusercontent.com/Perl/perl5/blead/lib/ExtUtils/Embed.pm> => $pm;
           undef $install_extutils_embed;
           $redo = 1;
         }
@@ -2850,8 +2850,8 @@ sub cpanm ($$) {
             } elsif ($module->package eq 'ExtUtils::Manifest') {
               my $file_name = "$cpanm_lib_dir_name/lib/perl5/ExtUtils/Manifest.pm";
               save_url q<https://raw.githubusercontent.com/rafl/extutils-manifest/master/lib/ExtUtils/Manifest.pm> => $file_name;
-              save_url q<http://cpansearch.perl.org/src/JPEACOCK/version-0.9908/lib/version.pm> => "$cpanm_lib_dir_name/lib/perl5/version.pm";
-              save_url q<http://cpansearch.perl.org/src/JPEACOCK/version-0.9908/lib/version/regex.pm> => "$cpanm_lib_dir_name/lib/perl5/version/regex.pm";
+              save_url q<https://fastapi.metacpan.org/source/JPEACOCK/version-0.9908/lib/version.pm> => "$cpanm_lib_dir_name/lib/perl5/version.pm";
+              save_url q<https://fastapi.metacpan.org/source/JPEACOCK/version-0.9908/lib/version/regex.pm> => "$cpanm_lib_dir_name/lib/perl5/version/regex.pm";
               next;
             }
             get_local_copy_if_necessary ($module);
@@ -3041,7 +3041,7 @@ sub save_by_pathname ($$) {
     #http://search.cpan.org/CPAN
     @CPANMirror,
     qw(
-      http://cpan.metacpan.org/
+      https://cpan.metacpan.org/
       http://backpan.perl.org/
     ),
   ) {
@@ -3656,7 +3656,7 @@ sub write_module_index ($$) {
   mkdir_for_file $file_name;
   open my $details, '>', $file_name or info_die "$0: $file_name: $!";
   print $details "File: 02packages.details.txt\n";
-  print $details "URL: http://www.perl.com/CPAN/modules/02packages.details.txt\n";
+  print $details "URL: https://www.perl.com/CPAN/modules/02packages.details.txt\n";
   print $details "Description: Package names\n";
   print $details "Columns: package name, version, path\n";
   print $details "Intended-For: Automated fetch routines, namespace documentation.\n";
@@ -6084,8 +6084,7 @@ Perl.
 
 =item --perlbrew-installer-url="URL"
 
-Specify the URL of the perlbrew installer.  The default URL is
-C<http://install.perlbrew.pl/>.
+Specify the URL of the perlbrew installer.
 
 =item --perlbrew-parallel-count="integer"
 
@@ -6102,8 +6101,7 @@ or C<1>.
 
 =item --cpanm-url="URL"
 
-Specify the URL of the cpanm source code.  Unless specified,
-C<http://cpanmin.us/> is used.
+Specify the URL of the cpanm source code.
 
 =back
 
@@ -7273,7 +7271,7 @@ Thanks to suzak and nobuoka.
 
 =head1 LICENSE
 
-Copyright 2012-2018 Wakaba <wakaba@suikawiki.org>.
+Copyright 2012-2020 Wakaba <wakaba@suikawiki.org>.
 
 Copyright 2012-2017 Hatena <https://www.hatena.ne.jp/company/>.
 
