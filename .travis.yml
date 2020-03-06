@@ -36,6 +36,7 @@ env:
     - TARGET=normal
     - TARGET=mysqld
     - TARGET=docker
+    - TARGET=gnuplot
 before_install: "true"
 install: "make test-deps-travis"
 script: "make test"
@@ -50,6 +51,8 @@ jobs:
       env: TARGET=perl-old
     - os: osx
       env: TARGET=apache
+    - os: osx
+      env: TARGET=gnuplot
   include:
     - stage: merge
       before_install: "true"

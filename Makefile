@@ -121,3 +121,6 @@ endif
 ifeq "$(TARGET)" "docker"
 	$(PROVE) --verbose t/pmbp-docker/*.t
 endif
+ifeq "$(TARGET)" "gnuplot"
+	$(PROVE) --verbose t/pmbp-gnuplot/*.t
+endif
