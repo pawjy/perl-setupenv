@@ -4309,7 +4309,7 @@ sub is_openssl_too_old ($) {
   my ($perl_version) = @_;
   my $version = get_openssl_version ($perl_version);
   return 1 if not defined $version;
-  if ($version =~ /^OpenSSL 0\.0\./) {
+  if ($version =~ /^OpenSSL (?:0\.|1\.0\.)/) {
     return 1;
   }
   return 0;
@@ -4319,7 +4319,7 @@ sub is_net_ssleay_openssl_too_old ($$) {
   my ($perl_command, $perl_version) = @_;
   my $version = get_net_ssleay_openssl_version ($perl_command, $perl_version);
   return 1 if not defined $version;
-  if ($version =~ /^OpenSSL 0\.0\./) {
+  if ($version =~ /^OpenSSL (?:0\.|1\.0\.)/) {
     return 1;
   }
   return 0;
@@ -4471,7 +4471,7 @@ sub install_openssl_if_too_old ($) {
     install_openssl ($perl_version);
   } else {
     my $openssl_version = get_openssl_version ($perl_version);
-    info 0, "You have OpenSSL |$openssl_version|";
+    info 0, "You have OpenSSL |$openssl_version| (not too old)";
   }
 } # install_openssl_if_too_old
 
