@@ -282,7 +282,7 @@ GetOptions (
     ("--install-$name" => sub {
        push @Command, {type => 'install-commands', value => [$name]};
     });
-  } qw(git curl wget make gcc mysqld)),
+  } qw(git curl wget make gcc mysqld mysql-client)),
   (map {
     my $n = $_;
     ("--$n" => sub {
@@ -1286,6 +1286,17 @@ $CommandDefs->{mysqld} = {
      #redhat_name => 'MySQL-devel',
      redhat_name => 'mariadb-devel',
      debian_name => 'mariadb-server',
+     homebrew_name => 'mysql'},
+  ],
+};
+
+$CommandDefs->{'mysql-client'} = {
+  bin => 'mysql',
+  packages => [
+    {name => 'mysql-client',
+     redhat_name => 'MariaDB-client',
+     #debian_name => 'mysql-client',
+     debian_name => 'default-mysql-client',
      homebrew_name => 'mysql'},
   ],
 };
@@ -6865,6 +6876,8 @@ the following names:
 =item --install-gcc
 
 =item --install-mysqld
+
+=item --install-mysql-client
 
 These C<--install-NAME> commands are shorthands for
 C<--install-commands NAME>.
