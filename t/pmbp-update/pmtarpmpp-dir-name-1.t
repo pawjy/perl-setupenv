@@ -7,7 +7,10 @@ tempdir=`perl -MFile::Temp=tempdir -e 'print tempdir'`/testapp
 export HOMEBREW_NO_AUTO_UPDATE=1
 
 mkdir -p "$tempdir"
-tempdir=`readlink -f "$tempdir" || ((brew install coreutils || brew upgrade coreutils || true) && greadlink -f "$tempdir")`
+echo "Original tempdir: |$tempdir|"
+echo "New tempdir:"
+echo `readlink -f "$tempdir" || ((brew install coreutils || brew upgrade coreutils || true) && greadlink -f "$tempdir")`
+tempdir=`readlink -f "$tempdir" || greadlink -f "$tempdir"`
 
 perl $pmbp --root-dir-name="$tempdir" \
     --print-pmtar-dir-name --print "
