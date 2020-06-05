@@ -282,7 +282,7 @@ GetOptions (
     ("--install-$name" => sub {
        push @Command, {type => 'install-commands', value => [$name]};
     });
-  } qw(git curl wget make gcc mysqld mysql-client)),
+  } qw(git curl wget make gcc mysqld mysql-client ssh-keygen)),
   (map {
     my $n = $_;
     ("--$n" => sub {
@@ -1298,6 +1298,16 @@ $CommandDefs->{'mysql-client'} = {
      #debian_name => 'mysql-client',
      debian_name => 'default-mysql-client',
      homebrew_name => 'mysql'},
+  ],
+};
+
+$CommandDefs->{'ssh-keygen'} = {
+  bin => 'ssh-keygen',
+  packages => [
+    {name => 'openssh-client',
+     #redhat_name => '',
+     #debian_name => '',
+     homebrew_name => 'openssh'},
   ],
 };
 
@@ -6854,16 +6864,18 @@ platform's package manager or by compiling from source codes.
 Zero or more applications can be specified as space-separated list of
 the following names:
 
-  curl   curl
-  docker Docker
-  gcc    GCC
-  g++    GNU C++ Compiler
-  git    Git
-  make   GNU Make
-  mysqld MySQL (or MariaDB) server
-  tar    tar
-  vim    vim
-  wget   wget
+  curl          curl
+  docker        Docker
+  gcc           GCC
+  g++           GNU C++ Compiler
+  git           Git
+  make          GNU Make
+  mysql-client  MySQL (or MariaDB) client
+  mysqld        MySQL (or MariaDB) server
+  ssh-keygen    ssh-keygen command
+  tar           tar
+  vim           vim
+  wget          wget
 
 =item --install-git
 
@@ -6878,6 +6890,8 @@ the following names:
 =item --install-mysqld
 
 =item --install-mysql-client
+
+=item --install-ssh-keygen
 
 These C<--install-NAME> commands are shorthands for
 C<--install-commands NAME>.
