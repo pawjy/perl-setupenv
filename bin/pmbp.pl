@@ -1772,6 +1772,8 @@ sub install_perlbuild () {
   make_path "$RootDirName/local/perlbrew";
   my $perlbuild_url = q<https://raw.githubusercontent.com/tokuhirom/Perl-Build/master/perl-build>;
   save_url $perlbuild_url => $perlbuild_path, max_age => 60*60*24*30;
+
+  use_perl_core_module 'PerlIO';
 } # install_perlbuild;
 
 sub install_perl_by_perlbuild ($) {
@@ -1829,7 +1831,22 @@ sub install_perl_by_perlbuild ($) {
         run_command ['cp', $created_libperl => $expected_libperl]
             or info_die "Can't copy libperl.so";
       }
-    } else {
+    } else { # perl not installed
+      ## perl-build error message sniffing
+      my @required_installable;
+      if ($output =~ m{^I can't find make or gmake, and my life depends on it.}m) {
+        push @required_installable, 'make';
+        $redo = 1;
+      } elsif ($output =~ m{^You need to find a working C compiler.}m) {
+        push @required_installable, 'gcc';
+        $redo = 1;
+      }
+
+      if (@required_installable) {
+        install_commands \@required_installable;
+        $redo = 1;
+      }
+      
       if ($output =~ m{Cannot get file from (https?://.+?/([a-z][a-zA-Z0-9_.-]+?\.tar\.gz)): 599 Internal Exception}) {
         ## HTTP GET timeout
         $tarball_path = "$perl_tar_dir_path/$2";
@@ -6230,12 +6247,11 @@ file is deleted when the processing has been succeeded.
 =item --dump-info-file-before-die
 
 If the option is specified or at least one of C<PMBP_DUMP_BEFORE_DIE>
-and C<TRAVIS> environment variables is set to a true value, the
-content of the "info file" is printed to the standard error output
-before the script aborts due to some error.  This option is
-particularly useful if you don't have access to the info file but you
-does have access to the output of the script (e.g. in some CI
-environment).
+and C<CI> environment variables is set to a true value, the content of
+the "info file" is printed to the standard error output before the
+script aborts due to some error.  This option is particularly useful
+if you don't have access to the info file but you does have access to
+the output of the script (e.g. in some CI environment).
 
 =back
 
