@@ -42,6 +42,7 @@ install: "make test-deps-travis"
 script: "make test"
 jobs:
   allow_failures:
+    - env: TARGET=imagemagick
     - env: TARGET=modperl
     - env: TARGET=svn
     - env: TARGET=rrdtool
