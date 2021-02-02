@@ -1614,10 +1614,10 @@ sub init_perl_version_by_file_name ($) {
         https://www.cpan.org/
         https://ftp.riken.jp/lang/CPAN/
         https://ftp.yz.yamagata-u.ac.jp/pub/lang/cpan/
-        http://ftp.nara.wide.ad.jp/pub/CPAN/
-        http://ftp.jaist.ac.jp/pub/CPAN/
-        http://cpan.cpantesters.org/
+        https://ftp.jaist.ac.jp/pub/CPAN/
       >,
+      #http://ftp.nara.wide.ad.jp/pub/CPAN/
+      #http://cpan.cpantesters.org/
       #http://www.perl.com/CPAN/
       #http://search.cpan.org/CPAN/
       #http://www.cpan.dk/
