@@ -404,10 +404,26 @@ $PMPPDirName ||= $RootDirName . '/deps/pmpp';
       print STDERR <$info_file>;
       print STDERR "========== End - $InfoFileName ==========\n";
       print STDERR "\n";
-      die "$0 failed\n";
+      print STDERR "$0 failed\n";
     } else {
-      die "$0 failed; See $InfoFileName for details\n";
+      print STDERR "$0 failed; See $InfoFileName for details\n";
     }
+
+    my $dead_file_name = "$RootDirName/config/perl/pmbp-dead.txt";
+    if (-f $dead_file_name) {
+      if (open my $file, '<', $dead_file_name) {
+        print STDERR "\n";
+        while (<$file>) {
+          s/\{InfoFileName\}/$InfoFileName/g;
+          print STDERR $_;
+        }
+        print STDERR "\n";
+      } else {
+        warn "$dead_file_name: $!\n";
+      }
+    }
+
+    exit 1;
   } # info_die
 
   sub info_writing ($$$) {
@@ -7211,6 +7227,20 @@ process.  Although this file is redundant with various sources of
 dependencies, it is expected to be part of the application repository
 (i.e. added to the Git repository of the application).
 
+=head2 config/perl/pmbp-dead.txt
+
+When the pmbp script failed to complete the requested actions, the
+content of this file, if any, is printed to the standard error output.
+The file can contain instructions for non-Perl-skilled members in the
+application development team facing failure of the building process of
+the application on their local development environment, for example.
+
+The file is echoed as is.  Therefore the content must be encoded in
+the terminal's character encoding, usually UTF-8.
+
+Any string C<{InfoFileName}> (including enclosing braces) is replaced
+by the path to the "info file" (as in C<--preserve-info-file>).
+
 =head2 config/perl/pmbp-exclusions.txt
 
 The "pmbp exclusions text" format has the line-based syntax with two
@@ -7345,7 +7375,7 @@ Thanks to suzak and nobuoka.
 
 =head1 LICENSE
 
-Copyright 2012-2020 Wakaba <wakaba@suikawiki.org>.
+Copyright 2012-2021 Wakaba <wakaba@suikawiki.org>.
 
 Copyright 2012-2017 Hatena <https://www.hatena.ne.jp/company/>.
 
