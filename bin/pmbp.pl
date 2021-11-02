@@ -447,23 +447,34 @@ $PMPPDirName ||= $RootDirName . '/deps/pmpp';
   } # profiler_data
 }
 
+sub copy_file ($$);
+sub copy_log_file ($$);
+
 sub get_real_time () {
-  _save_url (q<https://ntp-a1.nict.go.jp/cgi-bin/jst> => "$RootDirName/local/timestamp")
-      or do { info 0, "Can't get current timestamp"; return undef };
-  open my $file, '<', "$RootDirName/local/timestamp" or
-      do { info 0, "Failed to open timestamp file"; return undef };
-  local $/ = undef;
-  my $timestamp = <$file>;
-  if ($timestamp =~ m{<BODY>\s*([0-9.]+)\s*</BODY>}s) {
-    return 0+$1;
+  for my $url (
+    q<https://ntp-a1.nict.go.jp/cgi-bin/jst>,
+    q<https://time.akamai.com/?ms>,
+  ) {
+    my $ts_file_name = "$RootDirName/local/timestamp";
+    _save_url ($url => $ts_file_name)
+        or do { info 0, "Can't get current timestamp"; next };
+    open my $file, '<', $ts_file_name or
+        do { info 0, "Failed to open timestamp file"; next };
+    local $/ = undef;
+    my $timestamp = <$file>;
+    if ($timestamp =~ m{\A([0-9.]+)\z}) { # Akamai format
+      return 0+$1;
+    } elsif ($timestamp =~ m{<BODY>\s*([0-9.]+)\s*</BODY>}s) { # NICT format
+      return 0+$1;
+    } else {
+      info 0, "Timestamp file broken";
+      copy_log_file $ts_file_name => 'timestamp';
+    }
   }
-  info 0, "Timestamp file broken";
   return undef;
 } # get_real_time
 
 ## ------ PMBP ------
-
-sub copy_file ($$);
 
 {
   my $PMBPLibDirName;
@@ -5316,6 +5327,9 @@ my $root_module = PMBP::Module->new_from_package ('.');
     $delta = -$delta if $delta < 0;
     if ($delta > 60*10) {
       info 0, sprintf "Your clock is misconfigured! (Yours = %s, Global = %s, Delta = %s)",
+          $time, $timestamp, $delta;
+    } else {
+      info 6, sprintf "Your clock seems good (Yours = %s, Global = %s, Delta = %s)",
           $time, $timestamp, $delta;
     }
   }
