@@ -2530,7 +2530,7 @@ sub cpanm ($$) {
       }
       if ($log =~ /perl is loading libcrypto in an unsafe way/) {
         ## <https://stackoverflow.com/questions/67003619/mac-m1-homebrew-perl-carton-netssleay-is-loading-libcrypto-in-an-unsafe-way>
-        push @required_cpanm, PMBP::Module->new_from_package
+        push @required_install, PMBP::Module->new_from_package
             ('ExtUtils::MakeMaker~7.58');
       }
       if ($log =~ m{Module::CoreList \S+ \(loaded from .*\) doesn't seem to have entries for perl \S+. You're strongly recommended to upgrade Module::CoreList from CPAN.}m) {
@@ -2882,6 +2882,8 @@ sub cpanm ($$) {
         }
         if (not @required_system and not @required_installable and
             (@required_cpanm or @required_force_cpanm)) {
+          ## |@required_cpanm| - CPAN Perl modules need to be
+          ## installed for running |cpanm|.
           local $CPANMDepth = $CPANMDepth + 1;
           for my $module (@required_cpanm) {
             if ($module->package eq 'Test::Harness') {
@@ -2912,6 +2914,9 @@ sub cpanm ($$) {
           }
           $redo = 1;
         } elsif (@required_install) {
+          ## |@required_install| - CPAN Perl modules need to be
+          ## installed for running the application or build scripts of
+          ## modules.
           if ($perl_lib_dir_name ne $cpanm_lib_dir_name) {
             local $CPANMDepth = $CPANMDepth + 1;
             for my $module (@required_install) {
