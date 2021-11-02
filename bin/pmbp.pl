@@ -2431,7 +2431,7 @@ sub cpanm ($$) {
       }
       if ($level == 1 and
           ($log =~ /! (?:Installing|Configuring) (\S+) failed\. See (.+?) for details\./m or
-           $log =~ /! Configure failed for (\S+). See (.+?) for details\.$/m)) {
+           $log =~ /! Configure failed for (\S+)\. See (.+?) for details\.$/m)) {
         my $log = copy_log_file $2 => $1;
         $scan_errors->($level + 1, $log);
         if ($log =~ m{! You might have to install the following modules first to get --scandeps working correctly.\n!((?:\n! \* \S+)+)}) {
@@ -2527,6 +2527,11 @@ sub cpanm ($$) {
       }
       if ($log =~ /Base class package "(Module::Build::[^"]+)" is empty./m) {
         push @required_cpanm, PMBP::Module->new_from_package ($1);
+      }
+      if ($log =~ /perl is loading libcrypto in an unsafe way/) {
+        ## <https://stackoverflow.com/questions/67003619/mac-m1-homebrew-perl-carton-netssleay-is-loading-libcrypto-in-an-unsafe-way>
+        push @required_cpanm, PMBP::Module->new_from_package
+            ('ExtUtils::MakeMaker~7.58');
       }
       if ($log =~ m{Module::CoreList \S+ \(loaded from .*\) doesn't seem to have entries for perl \S+. You're strongly recommended to upgrade Module::CoreList from CPAN.}m) {
         push @required_force_cpanm, PMBP::Module->new_from_package ('Module::CoreList');
@@ -4123,11 +4128,14 @@ sub install_module ($$$;%) {
   my $force;
   if (has_module ($perl_command, $perl_version, $module, $lib_dir_name)) {
     if ($module->package eq 'Net::SSLeay' and
-        is_net_ssleay_openssl_too_old ($perl_command, $perl_version) or
-        not get_openssl_version ($perl_version) eq get_net_ssleay_openssl_version ($perl_command, $perl_version)) {
+        (is_net_ssleay_openssl_too_old ($perl_command, $perl_version) or
+         not get_openssl_version ($perl_version) eq get_net_ssleay_openssl_version ($perl_command, $perl_version))) {
+      my $v1 = get_openssl_version_details ($perl_version);
+      my $v2 = get_net_ssleay_openssl_version_details
+          ($perl_command, $perl_version);
       info 0, "Reinstall Net::SSLeay (1)...";
-      info 0, "Platform OpenSSL:\n----\n" . get_openssl_version_details ($perl_version) . "\n----";
-      info 0, "Net::SSLeay OpenSSL:\n----\n" . get_net_ssleay_openssl_version_details ($perl_command, $perl_version) . "\n----";
+      info 0, "Platform OpenSSL:\n----\n" . $v1 . "\n----";
+      info 0, "Net::SSLeay OpenSSL:\n----\n" . $v2 . "\n----";
       $force = 1;
     } else {
       info 1, "Module @{[$module->as_short]} is already installed; skipped";
@@ -4141,8 +4149,12 @@ sub install_module ($$$;%) {
         [$module];
 
   if ($module->package eq 'Net::SSLeay') {
-    info 0, "Platform OpenSSL:\n----\n" . get_openssl_version_details ($perl_version) . "\n----";
-    info 0, "Net::SSLeay OpenSSL:\n----\n" . get_net_ssleay_openssl_version_details ($perl_command, $perl_version) . "\n----";
+    my $v1 = get_openssl_version_details ($perl_version);
+    my $v2 = get_net_ssleay_openssl_version_details
+        ($perl_command, $perl_version);
+    info 0, 'Check Net::SSLeay...';
+    info 0, "Platform OpenSSL:\n----\n" . $v1 . "\n----";
+    info 0, "Net::SSLeay OpenSSL:\n----\n" . $v2 . "\n----";
     if (is_net_ssleay_openssl_too_old ($perl_command, $perl_version) or
         not get_openssl_version ($perl_version) eq get_net_ssleay_openssl_version ($perl_command, $perl_version)) {
       info 0, "Reinstall Net::SSLeay (2)...";
