@@ -2560,6 +2560,11 @@ sub cpanm ($$) {
         push @required_install, PMBP::Module->new_from_package
             ('ExtUtils::MakeMaker~7.58');
       }
+      if ($log =~ /and Net::SSLeay\. Mixing and matching compilers is not supported\./) {
+        #"*** Be sure to use the same compiler and options to compile your OpenSSL, perl,"
+        #"    and Net::SSLeay. Mixing and matching compilers is not supported."
+        $required_misc{openssl} = 1 if $redo > 1;
+      }
       if ($log =~ m{Module::CoreList \S+ \(loaded from .*\) doesn't seem to have entries for perl \S+. You're strongly recommended to upgrade Module::CoreList from CPAN.}m) {
         push @required_force_cpanm, PMBP::Module->new_from_package ('Module::CoreList');
       }
