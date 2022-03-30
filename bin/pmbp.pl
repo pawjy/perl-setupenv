@@ -5227,7 +5227,7 @@ sub install_perl_app ($$$;%) {
     $gh_name = $2;
   }
   if (defined $gh_user) {
-    $url = qq<git://github.com/$gh_user/$gh_name.git>;
+    $url = qq<https://github.com/$gh_user/$gh_name>;
   }
 
   my $name = $args{name};
