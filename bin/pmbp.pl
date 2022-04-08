@@ -2258,7 +2258,7 @@ sub cpanm ($$) {
             #http://search.cpan.org/CPAN
             qw(
               https://cpan.metacpan.org/
-              http://backpan.perl.org/
+              https://backpan.perl.org/
             );
 
     if (defined $args->{module_index_file_name} and
@@ -3122,7 +3122,7 @@ sub save_by_pathname ($$) {
     @CPANMirror,
     qw(
       https://cpan.metacpan.org/
-      http://backpan.perl.org/
+      https://backpan.perl.org/
     ),
   ) {
     my $mirror = $_;
@@ -5840,6 +5840,11 @@ sub new_from_indexable ($$) {
 
 sub _set_distname ($) {
   my $self = shift;
+
+  if (defined $self->{url}) {
+    $self->{url} =~ s{^http://wakaba\.github\.com/}{https://wakaba.github.io/};
+    $self->{url} =~ s{^http://(backpan\.perl\.org)/}{https://$1/};
+  }
 
   if (not defined $self->{pathname} and defined $self->{url}) {
     if ($self->{url} =~ m{/authors/id/(.+\.(?:tar\.(?:gz|bz2)|zip|tgz))$}) {
