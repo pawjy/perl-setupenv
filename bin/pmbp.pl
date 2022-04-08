@@ -971,10 +971,8 @@ sub load_json_after_garbage ($) {
 ## ------ Mac OS X ------
 
 sub xcode_select_install () {
-  if ($PlatformIsMacOSX) {
-    info 0, "|xcode-select --install| is requested on non-Mac platform";
-    return 0;
-  }
+  info_die "|xcode-select --install| is requested on non-Mac platform"
+      unless $PlatformIsMacOSX;
 
   return run_system_commands
       [{}, ['xcode-select', '--install'],
@@ -2680,7 +2678,7 @@ sub cpanm ($$) {
       }
       if ($log =~ m{Can't link/include C library 'ssl', 'crypto', aborting.}) {
         # DBD::mysql
-        $required_misc{openssl} = 1;
+        $required_misc{openssl_ld} = 1;
       }
       if ($log =~ /^version.c:.+?: (?:fatal |)error: db.h: No such file or directory/m and
           $log =~ /^-> FAIL Installing DB_File failed/m) {
