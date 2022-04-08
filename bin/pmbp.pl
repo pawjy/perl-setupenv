@@ -1145,7 +1145,10 @@ sub run_system_commands ($) {
              'packagemanager'];
       }
       if (@cask_name) {
-        push @command, [{}, [$BrewCommand, 'cask', 'install', @cask_name],
+        ## Old
+        #push @command, [{}, [$BrewCommand, 'cask', 'install', @cask_name],
+        #                "Installing @cask_name", sub { }, 'packagemanager'];
+        push @command, [{}, [$BrewCommand, 'install', '--cask', @cask_name],
                         "Installing @cask_name", sub { }, 'packagemanager'];
       }
 
