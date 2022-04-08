@@ -571,6 +571,14 @@ sub save_pmbp_tutorial () {
       max_age => 3*24*60*60);
 } # save_pmbp_tutorial
 
+sub install_perldoc () {
+  my $perldoc = which_or_version ('perldoc');
+  unless ($perldoc) {
+    install_system_packages ([{name => 'perldoc', debian_name => 'perl-doc'}])
+        or info_die "Failed to install perldoc";
+  }
+} # install_perldoc
+
 sub exec_show_pmbp_tutorial () {
   exec 'perldoc', $RootDirName.'/local/pmbp/doc/pmbp-tutorial.pod';
 } # exec_show_pmbp_tutorial
@@ -5739,6 +5747,7 @@ while (@Command) {
 
   } elsif ($command->{type} eq 'help-tutorial') {
     save_pmbp_tutorial;
+    install_perldoc;
     info_end;
     info_closing;
     exec_show_pmbp_tutorial;
