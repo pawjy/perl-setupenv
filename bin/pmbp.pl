@@ -5323,12 +5323,19 @@ for my $env (qw(PATH PERL5LIB PERL5OPT)) {
 info 6, '$ ' . join ' ', $0, @Argument;
 info 6, sprintf '%s %vd (%s / %s)', $^X, $^V, $Config{archname}, $^O;
 info 6, '@INC = ' . join ' ', @INC;
+info 6, '$RootDirName=' . $RootDirName;
 my $perl_version;
 my $get_perl_version = sub {
-  $perl_version =
-    defined $SpecifiedPerlVersion ? init_perl_version $SpecifiedPerlVersion :
-    -f "$RootDirName/config/perl/version.txt" ? init_perl_version_by_file_name "$RootDirName/config/perl/version.txt" :
-    init_perl_version undef;
+  if (defined $SpecifiedPerlVersion) {
+    info 6, "Use specified perl version: |$SpecifiedPerlVersion|";
+    $perl_version = init_perl_version $SpecifiedPerlVersion;
+  } elsif (-f "$RootDirName/config/perl/version.txt") {
+    info 6, "Use perl version from config/perl/version.txt";
+    $perl_version = init_perl_version_by_file_name "$RootDirName/config/perl/version.txt";
+  } else {
+    info 6, "Use default perl version";
+    $perl_version = init_perl_version undef;
+  }
   info 1, "Target Perl version: $perl_version";
 }; # $get_perl_version;
 my $dep_graph = [];
