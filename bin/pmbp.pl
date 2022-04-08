@@ -968,9 +968,9 @@ sub xcode_select_install () {
       unless $PlatformIsMacOSX;
 
   return run_system_commands
-      ([{}, ['xcode-select', '--install'],
-        'Installing Xcode command line developer tools', sub { },
-        'packagemanager']);
+      ([[{}, ['xcode-select', '--install'],
+         'Installing Xcode command line developer tools', sub { },
+         'packagemanager']]);
 } # xcode_select_install
 
 sub install_homebrew () {
