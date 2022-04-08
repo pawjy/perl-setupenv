@@ -163,7 +163,7 @@
                   },
                   {
                      "env_TARGET" : "gd",
-                     "experimental" : false,
+                     "experimental" : true,
                      "os" : "ubuntu-latest"
                   },
                   {
@@ -288,7 +288,7 @@
                   },
                   {
                      "env_TARGET" : "gd",
-                     "experimental" : false,
+                     "experimental" : true,
                      "os" : "macos-latest"
                   },
                   {
