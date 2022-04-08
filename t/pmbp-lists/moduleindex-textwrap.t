@@ -14,6 +14,6 @@ perl $pmbp --root-dir-name="$tempdir" \
 
 (grep Text::Wrap "$packstxt" > /dev/null && echo "ok 1") || echo "not ok 1"
 (grep Text::Wrap "$pmbtxt" > /dev/null && echo "ok 2") || echo "not ok 2"
-(grep modules/Text-Tabs+Wrap "$packstxt" > /dev/null && echo "ok 3") || echo "not ok 3"
+(grep Text-Tabs+Wrap "$packstxt" > /dev/null && echo "ok 3") || echo "not ok 3"
 
 rm -fr $tempdir

@@ -3919,11 +3919,30 @@ sub read_install_list ($$$;%) {
         my $envs = {%{get_envs_for_perl ($PerlCommand, $perl_version)},
                     LANG => 'C',
                     MAKEFLAGS => ''};
-        run_command
-            [$PerlCommand, 'Build.PL'],
-            envs => $envs,
-            chdir => $dir_name
-                or info_die "Build.PL failed";
+        {
+          my $out = '';
+          my $r = run_command
+              [$PerlCommand, 'Build.PL'],
+              envs => $envs,
+              chdir => $dir_name,
+              onoutput => sub {
+                $out .= $_[0];
+              };
+          if (not $r) {
+            if ($out =~ m{^Can't locate Module/Build.pm}) {
+              install_module ($PerlCommand, $perl_version,
+                  PMBP::Module->new_from_package ('Module::Build'));
+              $envs = {%{get_envs_for_perl ($PerlCommand, $perl_version)},
+                       LANG => 'C',
+                       MAKEFLAGS => ''};
+              run_command
+                  [$PerlCommand, 'Build.PL'],
+                  envs => $envs,
+                  chdir => $dir_name
+                  or info_die "Build.PL failed";
+            }
+          }
+        }
         run_command
             [$PerlCommand, 'Build', 'distmeta'],
             envs => $envs,
@@ -5720,6 +5739,8 @@ while (@Command) {
 
   } elsif ($command->{type} eq 'help-tutorial') {
     save_pmbp_tutorial;
+    info_end;
+    info_closing;
     exec_show_pmbp_tutorial;
 
   } else {
