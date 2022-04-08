@@ -17,6 +17,13 @@ PATH=$tempdir/local/perlbrew/perls/perl-5.12.0/bin:$PATH perl $pmbp \
 $tempdir/perl -e '(sprintf "%vd", $^V) eq "5.12.0" ? print "ok 3\n" : print "not ok 3"'
 
 ## Test perl-latest symlink
+
+#debug
+echo local
+ls "$tempdir/local"
+echo local/perl-*
+ls "$tempdir/local/perl-*"
+
 touch "$tempdir/local/perl-5.12.0/hoge"
 
 (ls "$tempdir/local/perl-latest/hoge" > /dev/null && echo "ok 4") || echo "not ok 4"
