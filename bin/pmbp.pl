@@ -2678,6 +2678,10 @@ sub cpanm ($$) {
              homebrew_name => 'mysql'};
         $failed = 1;
       }
+      if ($log =~ m{Can't link/include C library 'ssl', 'crypto', aborting.}) {
+        # DBD::mysql
+        $required_misc{openssl} = 1;
+      }
       if ($log =~ /^version.c:.+?: (?:fatal |)error: db.h: No such file or directory/m and
           $log =~ /^-> FAIL Installing DB_File failed/m) {
         push @required_system,
