@@ -2906,7 +2906,7 @@ sub cpanm ($$) {
         }
         if ($required_misc{openssl_ld}) {
           if ($PlatformIsMacOSX) {
-            $redo = 1 if xcode_select_install;
+            $redo = 1 if xcode_select_install or install_openssl ($perl_version);
           } else {
             $redo = 1 if install_openssl ($perl_version);
           }
