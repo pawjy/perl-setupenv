@@ -1,5 +1,5 @@
 #!/bin/sh
-echo "1..5"
+echo "1..3"
 basedir=`dirname $0`/../..
 pmbp=$basedir/bin/pmbp.pl
 tempdir=`perl -MFile::Temp=tempdir -e 'print tempdir'`/testapp
@@ -15,19 +15,5 @@ PATH=$tempdir/local/perlbrew/perls/perl-5.12.0/bin:$PATH perl $pmbp \
     --create-perl-command-shortcut perl
 
 $tempdir/perl -e '(sprintf "%vd", $^V) eq "5.12.0" ? print "ok 3\n" : print "not ok 3"'
-
-## Test perl-latest symlink
-
-#debug
-echo local
-ls "$tempdir/local"
-echo local/perl-*
-ls "$tempdir/local/perl-*"
-
-touch "$tempdir/local/perl-5.12.0/hoge"
-
-(ls "$tempdir/local/perl-latest/hoge" > /dev/null && echo "ok 4") || echo "not ok 4"
-
-($tempdir/local/perlbrew/perls/perl-latest/bin/perl -e '$^V eq "v5.12.0" ? print "ok 5\n" : print "not ok 5\n"') || echo "not ok 5"
 
 rm -fr $tempdir
