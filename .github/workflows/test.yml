@@ -54,7 +54,6 @@
          "continue-on-error" : "${{ matrix.experimental }}",
          "env" : {
             "CIRCLE_ARTIFACTS" : "/tmp/circle-artifacts/test",
-            "PMBP_PERL_VERSION" : "${{ matrix.perl_version }}",
             "TARGET" : "${{ matrix.env_TARGET }}"
          },
          "runs-on" : "${{ matrix.os }}",
@@ -85,302 +84,252 @@
                   {
                      "env_TARGET" : "imagemagick",
                      "experimental" : true,
-                     "os" : "ubuntu-latest",
-                     "perl_version" : "latest"
+                     "os" : "ubuntu-latest"
                   },
                   {
                      "env_TARGET" : "modperl",
                      "experimental" : true,
-                     "os" : "ubuntu-latest",
-                     "perl_version" : "latest"
+                     "os" : "ubuntu-latest"
                   },
                   {
                      "env_TARGET" : "tls",
                      "experimental" : false,
-                     "os" : "ubuntu-latest",
-                     "perl_version" : "latest"
+                     "os" : "ubuntu-latest"
                   },
                   {
                      "env_TARGET" : "tls-2",
                      "experimental" : false,
-                     "os" : "ubuntu-latest",
-                     "perl_version" : "latest"
+                     "os" : "ubuntu-latest"
                   },
                   {
                      "env_TARGET" : "tls-3",
                      "experimental" : false,
-                     "os" : "ubuntu-latest",
-                     "perl_version" : "latest"
+                     "os" : "ubuntu-latest"
                   },
                   {
                      "env_TARGET" : "tls-4",
                      "experimental" : false,
-                     "os" : "ubuntu-latest",
-                     "perl_version" : "latest"
+                     "os" : "ubuntu-latest"
                   },
                   {
                      "env_TARGET" : "tls-5",
                      "experimental" : false,
-                     "os" : "ubuntu-latest",
-                     "perl_version" : "latest"
+                     "os" : "ubuntu-latest"
                   },
                   {
                      "env_TARGET" : "svn",
                      "experimental" : true,
-                     "os" : "ubuntu-latest",
-                     "perl_version" : "latest"
+                     "os" : "ubuntu-latest"
                   },
                   {
                      "env_TARGET" : "scan",
                      "experimental" : false,
-                     "os" : "ubuntu-latest",
-                     "perl_version" : "latest"
+                     "os" : "ubuntu-latest"
                   },
                   {
                      "env_TARGET" : "lists",
                      "experimental" : false,
-                     "os" : "ubuntu-latest",
-                     "perl_version" : "latest"
+                     "os" : "ubuntu-latest"
                   },
                   {
                      "env_TARGET" : "perl",
                      "experimental" : false,
-                     "os" : "ubuntu-latest",
-                     "perl_version" : "latest"
+                     "os" : "ubuntu-latest"
                   },
                   {
                      "env_TARGET" : "perl-old",
                      "experimental" : false,
-                     "os" : "ubuntu-latest",
-                     "perl_version" : "latest"
+                     "os" : "ubuntu-latest"
                   },
                   {
                      "env_TARGET" : "pm-old",
                      "experimental" : true,
-                     "os" : "ubuntu-latest",
-                     "perl_version" : "latest"
+                     "os" : "ubuntu-latest"
                   },
                   {
                      "env_TARGET" : "apache",
                      "experimental" : false,
-                     "os" : "ubuntu-latest",
-                     "perl_version" : "latest"
+                     "os" : "ubuntu-latest"
                   },
                   {
                      "env_TARGET" : "rrdtool",
                      "experimental" : true,
-                     "os" : "ubuntu-latest",
-                     "perl_version" : "latest"
+                     "os" : "ubuntu-latest"
                   },
                   {
                      "env_TARGET" : "mecab",
                      "experimental" : false,
-                     "os" : "ubuntu-latest",
-                     "perl_version" : "latest"
+                     "os" : "ubuntu-latest"
                   },
                   {
                      "env_TARGET" : "gd",
                      "experimental" : false,
-                     "os" : "ubuntu-latest",
-                     "perl_version" : "latest"
+                     "os" : "ubuntu-latest"
                   },
                   {
                      "env_TARGET" : "env",
                      "experimental" : false,
-                     "os" : "ubuntu-latest",
-                     "perl_version" : "latest"
+                     "os" : "ubuntu-latest"
                   },
                   {
                      "env_TARGET" : "git",
                      "experimental" : false,
-                     "os" : "ubuntu-latest",
-                     "perl_version" : "latest"
+                     "os" : "ubuntu-latest"
                   },
                   {
                      "env_TARGET" : "update",
                      "experimental" : false,
-                     "os" : "ubuntu-latest",
-                     "perl_version" : "latest"
+                     "os" : "ubuntu-latest"
                   },
                   {
                      "env_TARGET" : "install-1",
                      "experimental" : false,
-                     "os" : "ubuntu-latest",
-                     "perl_version" : "latest"
+                     "os" : "ubuntu-latest"
                   },
                   {
                      "env_TARGET" : "normal",
                      "experimental" : false,
-                     "os" : "ubuntu-latest",
-                     "perl_version" : "latest"
+                     "os" : "ubuntu-latest"
                   },
                   {
                      "env_TARGET" : "mysqld",
                      "experimental" : false,
-                     "os" : "ubuntu-latest",
-                     "perl_version" : "latest"
+                     "os" : "ubuntu-latest"
                   },
                   {
                      "env_TARGET" : "docker",
                      "experimental" : false,
-                     "os" : "ubuntu-latest",
-                     "perl_version" : "latest"
+                     "os" : "ubuntu-latest"
                   },
                   {
                      "env_TARGET" : "gnuplot",
                      "experimental" : false,
-                     "os" : "ubuntu-latest",
-                     "perl_version" : "latest"
+                     "os" : "ubuntu-latest"
                   },
                   {
                      "env_TARGET" : "imagemagick",
                      "experimental" : true,
-                     "os" : "macos-latest",
-                     "perl_version" : "latest"
+                     "os" : "macos-latest"
                   },
                   {
                      "env_TARGET" : "modperl",
                      "experimental" : true,
-                     "os" : "macos-latest",
-                     "perl_version" : "latest"
+                     "os" : "macos-latest"
                   },
                   {
                      "env_TARGET" : "tls",
                      "experimental" : false,
-                     "os" : "macos-latest",
-                     "perl_version" : "latest"
+                     "os" : "macos-latest"
                   },
                   {
                      "env_TARGET" : "tls-2",
                      "experimental" : false,
-                     "os" : "macos-latest",
-                     "perl_version" : "latest"
+                     "os" : "macos-latest"
                   },
                   {
                      "env_TARGET" : "tls-3",
                      "experimental" : false,
-                     "os" : "macos-latest",
-                     "perl_version" : "latest"
+                     "os" : "macos-latest"
                   },
                   {
                      "env_TARGET" : "tls-4",
                      "experimental" : false,
-                     "os" : "macos-latest",
-                     "perl_version" : "latest"
+                     "os" : "macos-latest"
                   },
                   {
                      "env_TARGET" : "tls-5",
                      "experimental" : false,
-                     "os" : "macos-latest",
-                     "perl_version" : "latest"
+                     "os" : "macos-latest"
                   },
                   {
                      "env_TARGET" : "svn",
                      "experimental" : true,
-                     "os" : "macos-latest",
-                     "perl_version" : "latest"
+                     "os" : "macos-latest"
                   },
                   {
                      "env_TARGET" : "scan",
                      "experimental" : false,
-                     "os" : "macos-latest",
-                     "perl_version" : "latest"
+                     "os" : "macos-latest"
                   },
                   {
                      "env_TARGET" : "lists",
                      "experimental" : false,
-                     "os" : "macos-latest",
-                     "perl_version" : "latest"
+                     "os" : "macos-latest"
                   },
                   {
                      "env_TARGET" : "perl",
                      "experimental" : false,
-                     "os" : "macos-latest",
-                     "perl_version" : "latest"
+                     "os" : "macos-latest"
                   },
                   {
                      "env_TARGET" : "perl-old",
                      "experimental" : true,
-                     "os" : "macos-latest",
-                     "perl_version" : "latest"
+                     "os" : "macos-latest"
                   },
                   {
                      "env_TARGET" : "pm-old",
                      "experimental" : true,
-                     "os" : "macos-latest",
-                     "perl_version" : "latest"
+                     "os" : "macos-latest"
                   },
                   {
                      "env_TARGET" : "apache",
                      "experimental" : true,
-                     "os" : "macos-latest",
-                     "perl_version" : "latest"
+                     "os" : "macos-latest"
                   },
                   {
                      "env_TARGET" : "rrdtool",
                      "experimental" : true,
-                     "os" : "macos-latest",
-                     "perl_version" : "latest"
+                     "os" : "macos-latest"
                   },
                   {
                      "env_TARGET" : "mecab",
                      "experimental" : false,
-                     "os" : "macos-latest",
-                     "perl_version" : "latest"
+                     "os" : "macos-latest"
                   },
                   {
                      "env_TARGET" : "gd",
                      "experimental" : false,
-                     "os" : "macos-latest",
-                     "perl_version" : "latest"
+                     "os" : "macos-latest"
                   },
                   {
                      "env_TARGET" : "env",
                      "experimental" : false,
-                     "os" : "macos-latest",
-                     "perl_version" : "latest"
+                     "os" : "macos-latest"
                   },
                   {
                      "env_TARGET" : "git",
                      "experimental" : false,
-                     "os" : "macos-latest",
-                     "perl_version" : "latest"
+                     "os" : "macos-latest"
                   },
                   {
                      "env_TARGET" : "update",
                      "experimental" : false,
-                     "os" : "macos-latest",
-                     "perl_version" : "latest"
+                     "os" : "macos-latest"
                   },
                   {
                      "env_TARGET" : "install-1",
                      "experimental" : false,
-                     "os" : "macos-latest",
-                     "perl_version" : "latest"
+                     "os" : "macos-latest"
                   },
                   {
                      "env_TARGET" : "normal",
                      "experimental" : false,
-                     "os" : "macos-latest",
-                     "perl_version" : "latest"
+                     "os" : "macos-latest"
                   },
                   {
                      "env_TARGET" : "mysqld",
                      "experimental" : false,
-                     "os" : "macos-latest",
-                     "perl_version" : "latest"
+                     "os" : "macos-latest"
                   },
                   {
                      "env_TARGET" : "docker",
                      "experimental" : false,
-                     "os" : "macos-latest",
-                     "perl_version" : "latest"
+                     "os" : "macos-latest"
                   },
                   {
                      "env_TARGET" : "gnuplot",
                      "experimental" : true,
-                     "os" : "macos-latest",
-                     "perl_version" : "latest"
+                     "os" : "macos-latest"
                   }
                ]
             }
