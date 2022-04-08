@@ -2895,6 +2895,9 @@ sub cpanm ($$) {
         if (@required_system) {
           $redo = 1 if install_system_packages \@required_system;
         }
+        for (keys %required_misc) {
+          info 6, "Sniffed required misc dependency: |$_|";
+        }
         if ($required_misc{openssl}) {
           $redo = 1 if install_openssl ($perl_version);
         }
