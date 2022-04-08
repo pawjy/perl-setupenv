@@ -1809,6 +1809,7 @@ sub install_perl_by_perlbuild ($) {
   my $perl_version = shift;
   install_perlbuild;
   my $i = 0;
+  my $empty_retry = 0;
   my $tarball_path;
   PERLBREW: {
     $i++;
@@ -1882,6 +1883,8 @@ sub install_perl_by_perlbuild ($) {
         save_url "$1" => $tarball_path;
         $redo = 1;
       }
+      ## Workaround for unstable platforms (e.g. Mac OS X)
+      $redo = 1 if not $redo and not $empty_retry++;
       if ($redo and $i < 10) {
         info 0, "perlbuild($i): Failed to install perl-$perl_version; retrying...";
         redo PERLBREW;
