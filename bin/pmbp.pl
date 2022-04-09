@@ -1809,7 +1809,7 @@ sub install_perl_by_perlbuild ($) {
   my $perl_version = shift;
   install_perlbuild;
   my $i = 0;
-  my $empty_retry = 0;
+  my $parallel_count = $PerlbrewParallelCount;
   my $tarball_path;
   PERLBREW: {
     $i++;
@@ -1839,7 +1839,7 @@ sub install_perl_by_perlbuild ($) {
                  "$RootDirName/local/perlbuild",
                  (defined $tarball_path ? $tarball_path : $perl_version),
                  $perl_dir_path,
-                 '-j' => $PerlbrewParallelCount,
+                 '-j' => $parallel_count,
                  '-A' => 'ccflags=-fPIC',
                  '-D' => 'usethreads',
                  (map { ('--patches' => $_) } @patch),
@@ -1884,7 +1884,10 @@ sub install_perl_by_perlbuild ($) {
         $redo = 1;
       }
       ## Workaround for unstable platforms (e.g. Mac OS X)
-      $redo = 1 if not $redo and not $empty_retry++;
+      if (not $redo and $parallel_count != 1) {
+        $parallel_count = 1;
+        $redo = 1;
+      }
       if ($redo and $i < 10) {
         info 0, "perlbuild($i): Failed to install perl-$perl_version; retrying...";
         redo PERLBREW;
