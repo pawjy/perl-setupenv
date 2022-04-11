@@ -2211,6 +2211,7 @@ sub cpanm ($$) {
   my $archname = $args->{info} ? $Config{archname} : get_perl_archname $perl_command, $perl_version;
   my @additional_path;
   my @additional_option;
+  my $retry_with_openssl = 0;
 
   my $redo = 0;
   COMMAND: {
@@ -2311,7 +2312,8 @@ sub cpanm ($$) {
       $envs->{OPENSSL_INCLUDE} = "$RootDirName/local/common/include";
       $envs->{OPENSSL_LIB} = "$RootDirName/local/common/lib";
 
-      if (@module_arg and $module_arg[0] eq 'DBD::mysql') {
+      if ($retry_with_openssl) {
+        ## For DBD::mysql
         $envs->{LIBRARY_PATH} = "$RootDirName/local/common/lib";
       }
     }
@@ -2909,9 +2911,11 @@ sub cpanm ($$) {
           info 6, "Sniffed required misc dependency: |$_|";
         }
         if ($required_misc{openssl}) {
+          $retry_with_openssl = 1;
           $redo = 1 if install_openssl ($perl_version);
         }
         if ($required_misc{openssl_ld}) {
+          $retry_with_openssl = 1;
           if ($PlatformIsMacOSX) {
             $redo = 1 if xcode_select_install or install_openssl ($perl_version);
           } else {
