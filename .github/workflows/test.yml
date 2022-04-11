@@ -323,7 +323,7 @@
                   },
                   {
                      "env_TARGET" : "docker",
-                     "experimental" : false,
+                     "experimental" : true,
                      "os" : "macos-latest"
                   },
                   {

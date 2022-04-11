@@ -1,0 +1,51 @@
+{
+  "github": {
+    "build": ["make test-deps-gha"],
+    "tests": ["make test"],
+    "macos": true,
+    "env_matrix": {
+      "TARGET": [
+        "imagemagick",
+        "modperl",
+        "tls",
+        "tls-2",
+        "tls-3",
+        "tls-4",
+        "tls-5",
+        "svn",
+        "scan",
+        "lists",
+        "perl",
+        "perl-old",
+        "pm-old",
+        "apache",
+        "rrdtool",
+        "mecab",
+        "gd",
+        "env",
+        "git",
+        "update",
+        "install-1",
+        "normal",
+        "mysqld",
+        "docker",
+        "gnuplot"
+      ]
+    },
+    "matrix_allow_failure": [
+      {"env_TARGET": "imagemagick"},
+      {"env_TARGET": "modperl"},
+      {"env_TARGET": "svn"},
+      {"env_TARGET": "rrdtool"},
+      {"env_TARGET": "gd"},
+      {"env_TARGET": "pm-old"},
+      {"env_TARGET": "perl-old", "os": "macos-latest"},
+      {"env_TARGET": "apache", "os": "macos-latest"},
+      {"env_TARGET": "gnuplot", "os": "macos-latest"},
+      
+      {"env_TARGET": "docker", "os": "macos-latest"}
+    ],
+    "gaa": true,
+    "merger": true
+  }
+}
