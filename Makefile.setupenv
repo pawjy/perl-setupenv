@@ -157,7 +157,7 @@ $(CARTON_SUPPORT_BIN_PATH)/carton: $(CARTON_SUPPORT_BIN_PATH)/cpanm \
 #	    Dist::Metadata::Archive \
 #	    inc::Module::Install Module::Install::ReadmeFromPod \
 #	    Module::Install::Repository
-	#$(GIT) clone git://github.com/masaki/carton.git $(CARTON_SUPPORT_BIN_PATH)/../carton || (cd $(CARTON_SUPPORT_BIN_PATH)/../carton && $(GIT) pull)
+	#$(GIT) clone https://github.com/masaki/carton $(CARTON_SUPPORT_BIN_PATH)/../carton || (cd $(CARTON_SUPPORT_BIN_PATH)/../carton && $(GIT) pull)
 	#$(CARTON_ENV) $(CPANM_) --reinstall $(CARTON_SUPPORT_BIN_PATH)/../carton
 	#$(CARTON_ENV) $(CPANM_) --reinstall Carton
 	$(CARTON_ENV) $(CPANM_) --reinstall MIYAGAWA/carton-v0.9.4.tar.gz
@@ -605,7 +605,7 @@ pmbp-lplackup: local/bin/pmbp.pl pmbp-self-update
 local-phantomjs: local-phantomjs-repo local-phantomjs-build
 
 local-phantomjs-repo:
-	$(GIT) clone git://github.com/ariya/phantomjs.git local/phantomjs || \
+	$(GIT) clone https://github.com/ariya/phantomjs local/phantomjs || \
 	(cd local/phantomjs && $(GIT) pull)
 	cd local/phantomjs && ($(GIT) checkout 1.6 || $(GIT) checkout -b 1.6)
 	cd local/phantomjs && $(GIT) submodule update --init
@@ -624,7 +624,7 @@ local/remotedev/remote-directory-name.txt:
 config/remotedev/getreponame.pl:
 	mkdir -p config/remotedev
 	echo 'my $$repo = `$(GIT) config --get remote.origin.url` or die "No origin URL";' > $@
-	echo '$$repo =~ s{git\@github.com:}{git://github.com/};' >> $@
+	echo '$$repo =~ s{git\@github.com:}{https://github.com/};' >> $@
 	echo '$$repo =~ tr/\x0D\x0A//d;' >> $@
 	echo 'print $$repo;' >> $@
 
@@ -649,13 +649,13 @@ generatepm: local/generatepm/bin/generate-pm-package
 
 local/generatepm/bin/generate-pm-package: always
 	mkdir -p local
-	$(GIT) clone git://github.com/wakaba/generate-pm-package.git local/generatepm || (cd local/generatepm && $(GIT) pull)
+	$(GIT) clone https://github.com/wakaba/generate-pm-package local/generatepm || (cd local/generatepm && $(GIT) pull)
 	cd local/generatepm && $(GIT) submodule update --init
 	cd local/generatepm && $(MAKE) all
 
 # ------ cinnamon - Deployment tool ------
 
-CINNAMON_GIT_REPOSITORY = git://github.com/wakaba/cinnamon.git
+CINNAMON_GIT_REPOSITORY = https://github.com/wakaba/cinnamon
 CINNAMON_PMB_PMTAR_REPO_URL = 
 CINNAMON_PMB_PMPP_REPO_URL = 
 

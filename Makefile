@@ -1,4 +1,5 @@
 GIT = git
+CURL = curl
 
 all:
 
@@ -11,10 +12,11 @@ updatenightly: version/perl.txt version/perl-cpan-path.txt
 	perl bin/pmbp.pl --print-openssl-stable-branch > version/openssl-stable-branch.txt
 	perl bin/pmbp.pl --print-libressl-stable-branch > version/libressl-stable-branch.txt
 	$(GIT) add version/*.txt
+	$(CURL) -sSLf https://raw.githubusercontent.com/wakaba/ciconfig/master/ciconfig | RUN_GIT=1 REMOVE_UNUSED=1 perl
 
 local/cpan-perl.html:
 	mkdir -p local
-	curl -f -L https://metacpan.org/release/perl > $@
+	$(CURL) -f -L https://metacpan.org/release/perl > $@
 version/perl.txt: bin/extract-latest-perl-version.pl local/cpan-perl.html
 	mkdir -p version
 	perl bin/extract-latest-perl-version.pl < local/cpan-perl.html
@@ -29,9 +31,9 @@ lib/perl58perlbrewdeps.pm: Makefile
 	echo '$$INC{"Devel/InnerPackage.pm"} = 1;' >> $@
 	echo '}' >> $@
 	cat lib/IPC/Cmd.pm >> $@
-	curl http://cpansearch.perl.org/src/SIMONW/Module-Pluggable-4.7/lib/Module/Pluggable.pm >> $@
-	curl http://cpansearch.perl.org/src/SIMONW/Module-Pluggable-4.7/lib/Module/Pluggable/Object.pm >> $@
-	curl http://cpansearch.perl.org/src/SIMONW/Module-Pluggable-4.7/lib/Devel/InnerPackage.pm >> $@
+	$(CURL) http://cpansearch.perl.org/src/SIMONW/Module-Pluggable-4.7/lib/Module/Pluggable.pm >> $@
+	$(CURL) http://cpansearch.perl.org/src/SIMONW/Module-Pluggable-4.7/lib/Module/Pluggable/Object.pm >> $@
+	$(CURL) http://cpansearch.perl.org/src/SIMONW/Module-Pluggable-4.7/lib/Devel/InnerPackage.pm >> $@
 
 ## ------ Tests ------
 
@@ -41,7 +43,7 @@ test: test-deps test-main
 
 test-deps: git-submodules deps
 
-test-deps-travis: test-deps
+test-deps-gha: test-deps
 	$(GIT) config --global user.email "temp@travis.test"
 	$(GIT) config --global user.name "Travis CI"
 
@@ -124,3 +126,5 @@ endif
 ifeq "$(TARGET)" "gnuplot"
 	$(PROVE) --verbose t/pmbp-gnuplot/*.t
 endif
+
+## License: Public Domain.

@@ -571,6 +571,7 @@ sub save_pmbp_tutorial () {
       max_age => 3*24*60*60);
 } # save_pmbp_tutorial
 
+
 sub exec_show_pmbp_tutorial () {
   exec 'perldoc', $RootDirName.'/local/pmbp/doc/pmbp-tutorial.pod';
 } # exec_show_pmbp_tutorial
@@ -963,15 +964,13 @@ sub load_json_after_garbage ($) {
 ## ------ Mac OS X ------
 
 sub xcode_select_install () {
-  if ($PlatformIsMacOSX) {
-    info 0, "|xcode-select --install| is requested on non-Mac platform";
-    return 0;
-  }
+  info_die "|xcode-select --install| is requested on non-Mac platform"
+      unless $PlatformIsMacOSX;
 
   return run_system_commands
-      [{}, ['xcode-select', '--install'],
-       'Installing Xcode command line developer tools', sub { },
-       'packagemanager'];
+      ([[{}, ['xcode-select', '--install'],
+         'Installing Xcode command line developer tools', sub { },
+         'packagemanager']]);
 } # xcode_select_install
 
 sub install_homebrew () {
@@ -1146,7 +1145,10 @@ sub run_system_commands ($) {
              'packagemanager'];
       }
       if (@cask_name) {
-        push @command, [{}, [$BrewCommand, 'cask', 'install', @cask_name],
+        ## Old
+        #push @command, [{}, [$BrewCommand, 'cask', 'install', @cask_name],
+        #                "Installing @cask_name", sub { }, 'packagemanager'];
+        push @command, [{}, [$BrewCommand, 'install', '--cask', @cask_name],
                         "Installing @cask_name", sub { }, 'packagemanager'];
       }
 
@@ -1807,6 +1809,7 @@ sub install_perl_by_perlbuild ($) {
   my $perl_version = shift;
   install_perlbuild;
   my $i = 0;
+  my $parallel_count = $PerlbrewParallelCount;
   my $tarball_path;
   PERLBREW: {
     $i++;
@@ -1836,7 +1839,7 @@ sub install_perl_by_perlbuild ($) {
                  "$RootDirName/local/perlbuild",
                  (defined $tarball_path ? $tarball_path : $perl_version),
                  $perl_dir_path,
-                 '-j' => $PerlbrewParallelCount,
+                 '-j' => $parallel_count,
                  '-A' => 'ccflags=-fPIC',
                  '-D' => 'usethreads',
                  (map { ('--patches' => $_) } @patch),
@@ -1878,6 +1881,11 @@ sub install_perl_by_perlbuild ($) {
         ## HTTP GET timeout
         $tarball_path = "$perl_tar_dir_path/$2";
         save_url "$1" => $tarball_path;
+        $redo = 1;
+      }
+      ## Workaround for unstable platforms (e.g. Mac OS X)
+      if (not $redo and $parallel_count != 1) {
+        $parallel_count = 1;
         $redo = 1;
       }
       if ($redo and $i < 10) {
@@ -2203,6 +2211,7 @@ sub cpanm ($$) {
   my $archname = $args->{info} ? $Config{archname} : get_perl_archname $perl_command, $perl_version;
   my @additional_path;
   my @additional_option;
+  my $retry_with_openssl = 0;
 
   my $redo = 0;
   COMMAND: {
@@ -2258,7 +2267,7 @@ sub cpanm ($$) {
             #http://search.cpan.org/CPAN
             qw(
               https://cpan.metacpan.org/
-              http://backpan.perl.org/
+              https://backpan.perl.org/
             );
 
     if (defined $args->{module_index_file_name} and
@@ -2302,6 +2311,11 @@ sub cpanm ($$) {
       ## For Crypt::SSLeay's Makefile.PL
       $envs->{OPENSSL_INCLUDE} = "$RootDirName/local/common/include";
       $envs->{OPENSSL_LIB} = "$RootDirName/local/common/lib";
+
+      if ($retry_with_openssl) {
+        ## For DBD::mysql
+        $envs->{LIBRARY_PATH} = "$RootDirName/local/common/lib";
+      }
     }
      
     if (@module_arg and $module_arg[0] eq 'Crypt::OpenSSL::Random' and
@@ -2670,6 +2684,10 @@ sub cpanm ($$) {
              homebrew_name => 'mysql'};
         $failed = 1;
       }
+      if ($log =~ m{Can't link/include C library 'ssl', 'crypto', aborting.}) {
+        # DBD::mysql
+        $required_misc{openssl_ld} = 1;
+      }
       if ($log =~ /^version.c:.+?: (?:fatal |)error: db.h: No such file or directory/m and
           $log =~ /^-> FAIL Installing DB_File failed/m) {
         push @required_system,
@@ -2889,12 +2907,17 @@ sub cpanm ($$) {
         if (@required_system) {
           $redo = 1 if install_system_packages \@required_system;
         }
+        for (keys %required_misc) {
+          info 6, "Sniffed required misc dependency: |$_|";
+        }
         if ($required_misc{openssl}) {
+          $retry_with_openssl = 1;
           $redo = 1 if install_openssl ($perl_version);
         }
         if ($required_misc{openssl_ld}) {
+          $retry_with_openssl = 1;
           if ($PlatformIsMacOSX) {
-            $redo = 1 if xcode_select_install;
+            $redo = 1 if xcode_select_install or install_openssl ($perl_version);
           } else {
             $redo = 1 if install_openssl ($perl_version);
           }
@@ -3122,7 +3145,7 @@ sub save_by_pathname ($$) {
     @CPANMirror,
     qw(
       https://cpan.metacpan.org/
-      http://backpan.perl.org/
+      https://backpan.perl.org/
     ),
   ) {
     my $mirror = $_;
@@ -3919,11 +3942,30 @@ sub read_install_list ($$$;%) {
         my $envs = {%{get_envs_for_perl ($PerlCommand, $perl_version)},
                     LANG => 'C',
                     MAKEFLAGS => ''};
-        run_command
-            [$PerlCommand, 'Build.PL'],
-            envs => $envs,
-            chdir => $dir_name
-                or info_die "Build.PL failed";
+        {
+          my $out = '';
+          my $r = run_command
+              [$PerlCommand, 'Build.PL'],
+              envs => $envs,
+              chdir => $dir_name,
+              onoutput => sub {
+                $out .= $_[0];
+              };
+          if (not $r) {
+            if ($out =~ m{^Can't locate Module/Build.pm}) {
+              install_module ($PerlCommand, $perl_version,
+                  PMBP::Module->new_from_package ('Module::Build'));
+              $envs = {%{get_envs_for_perl ($PerlCommand, $perl_version)},
+                       LANG => 'C',
+                       MAKEFLAGS => ''};
+              run_command
+                  [$PerlCommand, 'Build.PL'],
+                  envs => $envs,
+                  chdir => $dir_name
+                  or info_die "Build.PL failed";
+            }
+          }
+        }
         run_command
             [$PerlCommand, 'Build', 'distmeta'],
             envs => $envs,
@@ -5302,6 +5344,13 @@ sub install_perl_app ($$$;%) {
   }
 } # install_perl_app
 
+sub install_perldoc () {
+  unless (run_command ['perldoc', 'perldoc']) {
+    install_system_packages ([{name => 'perldoc', debian_name => 'perl-doc'}])
+        or info_die "Failed to install perldoc";
+  }
+} # install_perldoc
+
 ## ------ Cleanup ------
 
 sub destroy () {
@@ -5323,12 +5372,19 @@ for my $env (qw(PATH PERL5LIB PERL5OPT)) {
 info 6, '$ ' . join ' ', $0, @Argument;
 info 6, sprintf '%s %vd (%s / %s)', $^X, $^V, $Config{archname}, $^O;
 info 6, '@INC = ' . join ' ', @INC;
+info 6, '$RootDirName=' . $RootDirName;
 my $perl_version;
 my $get_perl_version = sub {
-  $perl_version =
-    defined $SpecifiedPerlVersion ? init_perl_version $SpecifiedPerlVersion :
-    -f "$RootDirName/config/perl/version.txt" ? init_perl_version_by_file_name "$RootDirName/config/perl/version.txt" :
-    init_perl_version undef;
+  if (defined $SpecifiedPerlVersion) {
+    info 6, "Use specified perl version: |$SpecifiedPerlVersion|";
+    $perl_version = init_perl_version $SpecifiedPerlVersion;
+  } elsif (-f "$RootDirName/config/perl/version.txt") {
+    info 6, "Use perl version from config/perl/version.txt";
+    $perl_version = init_perl_version_by_file_name "$RootDirName/config/perl/version.txt";
+  } else {
+    info 6, "Use default perl version";
+    $perl_version = init_perl_version undef;
+  }
   info 1, "Target Perl version: $perl_version";
 }; # $get_perl_version;
 my $dep_graph = [];
@@ -5713,6 +5769,9 @@ while (@Command) {
 
   } elsif ($command->{type} eq 'help-tutorial') {
     save_pmbp_tutorial;
+    install_perldoc;
+    info_end;
+    info_closing;
     exec_show_pmbp_tutorial;
 
   } else {
@@ -5833,6 +5892,11 @@ sub new_from_indexable ($$) {
 
 sub _set_distname ($) {
   my $self = shift;
+
+  if (defined $self->{url}) {
+    $self->{url} =~ s{^http://wakaba\.github\.com/}{https://wakaba.github.io/};
+    $self->{url} =~ s{^http://(backpan\.perl\.org)/}{https://$1/};
+  }
 
   if (not defined $self->{pathname} and defined $self->{url}) {
     if ($self->{url} =~ m{/authors/id/(.+\.(?:tar\.(?:gz|bz2)|zip|tgz))$}) {
