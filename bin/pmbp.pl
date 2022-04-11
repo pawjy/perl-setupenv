@@ -2310,6 +2310,10 @@ sub cpanm ($$) {
       ## For Crypt::SSLeay's Makefile.PL
       $envs->{OPENSSL_INCLUDE} = "$RootDirName/local/common/include";
       $envs->{OPENSSL_LIB} = "$RootDirName/local/common/lib";
+
+      if (@module_arg and $module_arg[0] eq 'DBD::mysql') {
+        $envs->{LIBRARY_PATH} = "$RootDirName/local/common/lib";
+      }
     }
      
     if (@module_arg and $module_arg[0] eq 'Crypt::OpenSSL::Random' and
