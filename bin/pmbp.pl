@@ -5359,8 +5359,12 @@ sub install_pip () {
   my $commands = [];
   unless (which 'python3') {
     $commands = construct_install_system_packages_commands
-        [{name => 'python3'}, {name => 'python3-distutils'}];
+        [{name => 'python3'}, {name => 'python3-distutils',
+                               homebrew_name => 'python3'}];
+  } else {
     #ModuleNotFoundError: No module named 'distutils.cmd'
+    $commands = construct_install_system_packages_commands
+        [{name => 'python3-distutils', homebrew_name => 'python3'}];
   }
 
   my $temp_file_name = "$PMBPDirName/tmp/get-pip.py";
