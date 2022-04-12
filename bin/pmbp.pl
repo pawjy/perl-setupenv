@@ -295,7 +295,7 @@ GetOptions (
     print-perl-archname print-libs
     print-pmtar-dir-name print-pmpp-dir-name print-perl-path
     print-submodule-components
-    install-mecab install-svn
+    install-mecab install-svn install-awscli
     install-openssl install-openssl-if-mac install-openssl-if-old
     print-openssl-stable-branch print-openssl-version
     print-libressl-stable-branch
@@ -5351,6 +5351,44 @@ sub install_perldoc () {
   }
 } # install_perldoc
 
+## ------ Python applications ------
+
+sub install_pip () {
+  return if which 'pip';
+
+  my $commands = [];
+  unless (which 'python3') {
+    $commands = construct_install_system_packages_commands
+        [{name => 'python3'}, {name => 'python3-distutils'}];
+    #ModuleNotFoundError: No module named 'distutils.cmd'
+  }
+
+  my $temp_file_name = "$PMBPDirName/tmp/get-pip.py";
+  save_url
+      qq<https://bootstrap.pypa.io/get-pip.py> => $temp_file_name,
+      max_age => 24*60*60;
+
+  push @$commands, [{}, (wrap_by_sudo ['python3', $temp_file_name]),
+                    'Installing pip', sub { }, 'packagemanager'];
+
+  run_system_commands $commands;
+
+  info_die "Failed to install pip" unless which 'pip';
+} # install_pip
+
+sub install_awscli () {
+  return if run_command ['aws', '--version'];
+  
+  install_pip;
+
+  my $commands = [];
+  push @$commands, [{}, (wrap_by_sudo ['pip', 'install', 'awscli']),
+                    'Installing awscli', sub { }, 'packagemanager'];
+  run_system_commands $commands;
+
+  info_die "Failed to install awscli" unless run_command ['aws', '--version'];
+} # install_awscli
+
 ## ------ Cleanup ------
 
 sub destroy () {
@@ -5760,6 +5798,8 @@ while (@Command) {
     install_mecab;
   } elsif ($command->{type} eq 'install-svn') {
     install_svn;
+  } elsif ($command->{type} eq 'install-awscli') {
+    install_awscli;
 
   } elsif ($command->{type} eq 'install-perl-app') {
     $get_perl_version->() unless defined $perl_version;
@@ -7077,6 +7117,11 @@ Install Apache Subversion into C<local/apache/svn>.  If subversion is
 already installed, this command does nothing.
 
 This option is no longer formally supported.
+
+=item --install-awscli
+
+Install AWS CLI to the system.  If it is already installed, this
+command does nothing.
 
 =item --install-perl-app="[name=]git://url/of/repo.git"
 
