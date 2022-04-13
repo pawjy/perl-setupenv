@@ -611,6 +611,33 @@ sub create_bootstrap_script ($$) {
   profiler_stop 'file';
 } # create_bootstrap_script
 
+{
+  my $Cached = {};
+  sub get_version_from_pmbp_repo ($) {
+    my $name = shift;
+    return $Cached->{$name} if defined $Cached->{$name};
+
+    my $repo = 'pawjy/perl-setupenv';
+    my $ref = 'master';
+    if ($ENV{GITHUB_REPOSITORY} and
+        $ENV{GITHUB_REPOSITORY} eq 'pawjy/perl-setupenv' and
+        $ENV{GITHUB_SHA}) {
+      $repo = $ENV{GITHUB_REPOSITORY};
+      $ref = $ENV{GITHUB_SHA};
+    }
+    
+    my $file_name = "$PMBPDirName/tmp/$name.txt";
+    save_url (qq<https://raw.githubusercontent.com/$repo/$ref/version/$name> => $file_name,
+              max_age => 60*60*24*100);
+    open my $file, '<', $file_name or info_die "Can't open file |$file_name|";
+    my $text = <$file>;
+    info_die "Bad |$file_name| content: |$text|" unless $text;
+
+    info 6, "Version |$name| (|$repo|, |$ref|) is: |$text|";
+    return $Cached->{$name} = $text;
+  } # get_version_from_pmbp_repo
+}
+
 ## ------ Files and directories ------
 
 sub abs_path ($) {
@@ -823,8 +850,16 @@ sub _save_url {
   my ($url => $file_name, %args) = @_;
 
   if (defined $args{max_age}) {
-    return 1 if -f $file_name and -s $file_name and
-        [stat $file_name]->[9] + $args{max_age} > time;
+    if (-f $file_name and -s $file_name) {
+      info 6, "Cached file for <$url> found: |$file_name|";
+      my $ts = [stat $file_name]->[9];
+      my $now = time;
+      info 6, "Timestamp: $ts (max-age: $args{max_age}, now: $now)";
+      if ($ts + $args{max_age} > $now) {
+        info 6, "Use cached file";
+        return 1;
+      }
+    }
   }
 
   my $fetcher;
@@ -1592,18 +1627,9 @@ sub add_git_submodule ($$;%) {
 
 ## ------ Perl ------
 
-{
-  my $LatestPerlVersion;
-  sub get_latest_perl_version () {
-    return $LatestPerlVersion if $LatestPerlVersion;
-
-    my $file_name = qq<$PMBPDirName/latest-perl-version.txt>;
-    save_url q<https://raw.githubusercontent.com/wakaba/perl-setupenv/master/version/perl.txt> => $file_name,
-        max_age => 24*60*60;
-    open my $file, '<', $file_name or info_die "Failed to open |$file_name|";
-    $LatestPerlVersion = <$file>;
-  } # get_latest_perl_version
-}
+sub get_latest_perl_version () {
+  return get_version_from_pmbp_repo 'perl.txt';
+} # get_latest_perl_version
 
 sub get_perl_version ($) {
   my $perl_command = shift;
@@ -4341,14 +4367,7 @@ sub get_openssl_branches_by_api () {
 } # get_openssl_branches_by_api
 
 sub get_openssl_branch () {
-  my $branch_file_name = "$PMBPDirName/tmp/openssl-branch.txt";
-  save_url q<https://raw.githubusercontent.com/wakaba/perl-setupenv/master/version/openssl-stable-branch.txt> => $branch_file_name,
-      max_age => 60*60*24*100;
-  open my $branch_file, '<', $branch_file_name
-      or info_die "Can't open file |$branch_file_name|";
-  my $branch = <$branch_file>;
-  info_die "Bad branch file |$branch|" unless $branch;
-  return $branch;
+  return get_version_from_pmbp_repo 'openssl-stable-branch.txt';
 } # get_openssl_branch
 
 sub get_libressl_stable_branch_by_api () {
@@ -4371,14 +4390,7 @@ sub get_libressl_stable_branch_by_api () {
 } # get_libressl_stable_branch_by_api
 
 sub get_libressl_branch () {
-  my $branch_file_name = "$PMBPDirName/tmp/libressl-branch.txt";
-  save_url q<https://raw.githubusercontent.com/wakaba/perl-setupenv/master/version/libressl-stable-branch.txt> => $branch_file_name,
-      max_age => 60*60*24*100;
-  open my $branch_file, '<', $branch_file_name
-      or info_die "Can't open file |$branch_file_name|";
-  my $branch = <$branch_file>;
-  info_die "Bad branch file |$branch|" unless $branch;
-  return $branch;
+  return get_version_from_pmbp_repo 'libressl-stable-branch.txt';
 } # get_libressl_branch
 
 my $_OpenSSLVersion = undef;
