@@ -616,15 +616,24 @@ sub create_bootstrap_script ($$) {
   sub get_version_from_pmbp_repo ($) {
     my $name = shift;
     return $Cached->{$name} if defined $Cached->{$name};
+
+    my $repo = 'pawjy/perl-setupenv';
+    my $ref = 'master';
+    if ($ENV{GITHUB_REPOSITORY} and
+        $ENV{GITHUB_REPOSITORY} eq 'pawjy/perl-setupenv' and
+        $ENV{GITHUB_SHA}) {
+      $repo = $ENV{GITHUB_REPOSITORY};
+      $ref = $ENV{GITHUB_SHA};
+    }
     
     my $file_name = "$PMBPDirName/tmp/$name.txt";
-    save_url (qq<https://raw.githubusercontent.com/wakaba/perl-setupenv/master/version/$name> => $file_name,
+    save_url (qq<https://raw.githubusercontent.com/$repo/$ref/version/$name> => $file_name,
               max_age => 60*60*24*100);
     open my $file, '<', $file_name or info_die "Can't open file |$file_name|";
     my $text = <$file>;
     info_die "Bad |$file_name| content: |$text|" unless $text;
 
-    info 6, "Version |$name| is: |$text|";
+    info 6, "Version |$name| (|$repo|, |$ref|) is: |$text|";
     return $Cached->{$name} = $text;
   } # get_version_from_pmbp_repo
 }
