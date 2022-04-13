@@ -619,7 +619,8 @@ sub create_bootstrap_script ($$) {
 
     my $repo = 'pawjy/perl-setupenv';
     my $ref = 'master';
-    if ($ENV{GITHUB_REPOSITORY} and
+    if ($ENV{CI} and
+        $ENV{GITHUB_REPOSITORY} and
         $ENV{GITHUB_REPOSITORY} eq 'pawjy/perl-setupenv' and
         $ENV{GITHUB_SHA}) {
       $repo = $ENV{GITHUB_REPOSITORY};
@@ -2599,6 +2600,10 @@ sub cpanm ($$) {
         ## <https://stackoverflow.com/questions/67003619/mac-m1-homebrew-perl-carton-netssleay-is-loading-libcrypto-in-an-unsafe-way>
         push @required_install, PMBP::Module->new_from_package
             ('ExtUtils::MakeMaker~7.58');
+      }
+      if ($log =~ /COULD NOT FIND LIBSSL HEADERS/) {
+        ## Net::SSLeay
+        $required_misc{openssl_ld} = 1;
       }
       if ($log =~ /and Net::SSLeay\. Mixing and matching compilers is not supported\./) {
         #"*** Be sure to use the same compiler and options to compile your OpenSSL, perl,"
