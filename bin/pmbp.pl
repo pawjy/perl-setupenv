@@ -391,7 +391,7 @@ $PMPPDirName ||= $RootDirName . '/deps/pmpp';
     info 0, $_[0];
     info 0, "($location)\n";
     print $InfoFile Carp::longmess (), "\n";
-    info_next_system_commands ();
+    my $has_next = info_next_system_commands ();
     close $InfoFile;
     if ($DumpInfoFileBeforeDie) {
       open my $info_file, '<', $InfoFileName
@@ -408,7 +408,7 @@ $PMPPDirName ||= $RootDirName . '/deps/pmpp';
     }
 
     my $dead_file_name = "$RootDirName/config/perl/pmbp-dead.txt";
-    if (-f $dead_file_name) {
+    if (not $has_next and -f $dead_file_name) {
       if (open my $file, '<', $dead_file_name) {
         print STDERR "\n";
         while (<$file>) {
@@ -1082,7 +1082,7 @@ sub install_homebrew () {
   } # run_system_commands
 
   sub info_next_system_commands () {
-    return unless @expected_system_command;
+    return 0 unless @expected_system_command;
     info 0, '';
     info 0, "Execute following command and retry:";
     info 0, '';
@@ -1090,6 +1090,7 @@ sub install_homebrew () {
       info 0, join " && \\\n  ", @$cc;
     }
     info 0, '';
+    return 1;
   } # info_next_system_commands
 }
 
