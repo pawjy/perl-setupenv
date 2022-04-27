@@ -4427,7 +4427,8 @@ sub get_openssl_version ($) {
   run_command
       ['openssl', 'version'],
       envs => {PATH => get_env_path ($perl_version)},
-      onoutput => sub { $version = $_[0]; 2 };
+      onoutput => sub { $version = $_[0]; 2 }
+      or $version = undef;
   $version =~ s/[\x0D\x0A]+\z// if defined $version;
   return $_OpenSSLVersion = $version;
 } # get_openssl_version
@@ -4438,7 +4439,8 @@ sub get_openssl_version_details ($) {
   run_command
       ['openssl', 'version', '-a'],
       envs => {PATH => get_env_path ($perl_version)},
-      onoutput => sub { $version .= $_[0]; 2 };
+      onoutput => sub { $version .= $_[0]; 2 }
+      or $version = undef;
   $version =~ s/[\x0D\x0A]+\z// if defined $version;
   return $version;
 } # get_openssl_version_details
@@ -4449,7 +4451,8 @@ sub get_net_ssleay_openssl_version ($$) {
   run_command
       ['perl', '-MNet::SSLeay', '-e', 'print +Net::SSLeay::SSLeay_version'],
       envs => get_envs_for_perl ($perl_command, $perl_version),
-      onoutput => sub { $version = $_[0]; 2 };
+      onoutput => sub { $version = $_[0]; 2 }
+      or $version = undef;
   return $version;
 } # get_net_ssleay_openssl_version
 
@@ -4468,7 +4471,8 @@ sub get_net_ssleay_openssl_version_details ($$) {
             "";
       '],
       envs => get_envs_for_perl ($perl_command, $perl_version),
-      onoutput => sub { $version .= $_[0]; 2 };
+      onoutput => sub { $version .= $_[0]; 2 }
+      or $version = undef;
   return $version;
 } # get_net_ssleay_openssl_version_details
 
