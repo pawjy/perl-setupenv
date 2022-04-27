@@ -4260,13 +4260,15 @@ sub install_module ($$$;%) {
   if (has_module ($perl_command, $perl_version, $module, $lib_dir_name)) {
     if ($module->package eq 'Net::SSLeay' and
         (is_net_ssleay_openssl_too_old ($perl_command, $perl_version) or
+         not defined get_openssl_version ($perl_version) or
+         not defined get_net_ssleay_openssl_version ($perl_command, $perl_version) or
          not get_openssl_version ($perl_version) eq get_net_ssleay_openssl_version ($perl_command, $perl_version))) {
       my $v1 = get_openssl_version_details ($perl_version);
       my $v2 = get_net_ssleay_openssl_version_details
           ($perl_command, $perl_version);
       info 0, "Reinstall Net::SSLeay (1)...";
-      info 0, "Platform OpenSSL:\n----\n" . $v1 . "\n----";
-      info 0, "Net::SSLeay OpenSSL:\n----\n" . $v2 . "\n----";
+      info 0, "Platform OpenSSL:\n----\n" . (defined $v1 ? $v1 : '') . "\n----";
+      info 0, "Net::SSLeay OpenSSL:\n----\n" . (defined $v2 ? $v2 : '') . "\n----";
       $force = 1;
     } else {
       info 1, "Module @{[$module->as_short]} is already installed; skipped";
