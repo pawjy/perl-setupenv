@@ -1326,6 +1326,11 @@ $CommandDefs->{'g++'} = {
   packages => [{name => 'g++', redhat_name => 'gcc-c++'}],
 };
 
+$CommandDefs->{patch} = {
+  bin => 'patch',
+  packages => [{name => 'patch'}],
+};
+
 $CommandDefs->{tar} = {
   bin => 'tar',
   packages => [{name => 'tar'}],
@@ -1909,6 +1914,9 @@ sub install_perl_by_perlbuild ($) {
         $redo = 1;
       } elsif ($output =~ m{^You need to find a working C compiler.}m) {
         push @required_installable, 'gcc';
+        $redo = 1;
+      } elsif ($output =~ m{^No patch utility found}m) {
+        push @required_installable, 'patch';
         $redo = 1;
       }
 
