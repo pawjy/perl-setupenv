@@ -386,14 +386,12 @@ $PMPPDirName ||= $RootDirName . '/deps/pmpp';
   } # info
   
   sub info_die ($) {
-    $InfoNeedNewline--, print STDERR "\n" if $InfoNeedNewline;
     my (undef, $error_file_name, $error_line, $error_sub) = caller 1;
     my $location = "at $error_file_name line $error_line = $error_sub";
-    print $InfoFile $_[0] =~ /\n\z/ ? $_[0] : "$_[0]\n";
-    print $InfoFile "($location)\n";
+    info 0, $_[0];
+    info 0, "($location)\n";
     print $InfoFile Carp::longmess (), "\n";
-    print STDERR $_[0] =~ /\n\z/ ? $_[0] : "$_[0]\n";
-    print STDERR "($location)\n";
+    info_next_system_commands ();
     close $InfoFile;
     if ($DumpInfoFileBeforeDie) {
       open my $info_file, '<', $InfoFileName
@@ -1041,45 +1039,59 @@ sub install_homebrew () {
   } # wrap_by_sudo
 }
 
-sub run_system_commands ($) {
-  my $commands = $_[0];
-  ## Array reference of
-  ##   Array reference:
-  ##     0  Hash reference of environment variables
-  ##     1  Array reference of command and arguments
-  ##     2  Info text before start, if any, or |undef|
-  ##     3  Code reference invoked after success
+{
+  my @expected_system_command;
+  
+  sub run_system_commands ($) {
+    my $commands = $_[0];
+    ## Array reference of
+    ##   Array reference:
+    ##     0  Hash reference of environment variables
+    ##     1  Array reference of command and arguments
+    ##     2  Info text before start, if any, or |undef|
+    ##     3  Code reference invoked after success
 
-  unless ($ExecuteSystemPackageInstaller) {
+    unless ($ExecuteSystemPackageInstaller) {
+      my @c;
+      for my $c (@$commands) {
+        push @c, join ' ',
+            (grep { length $_ } join ' ', map { shellarg ($_) . '=' .shellarg $c->[0]->{$_} } keys %{$c->[0]}),
+            (join ' ', map { shellarg $_ } @{$c->[1]});
+      }
+      info 7, 'Expected command (not executed):';
+      info 7, '  $ ' . join " && \\\n    ", @c;
+      push @expected_system_command, \@c;
+      return 0;
+    } else {
+      for my $c (@$commands) {
+        my ($envs, $cmd, $label, $done, $pn) = @$c;
+        info 0, "$label..." if defined $label;
+        my $result = run_command $cmd,
+            envs => $envs,
+            info_level => 1,
+            info_command_level => 1,
+            profiler_name => $pn;
+        if ($result) {
+          $done->();
+        } else {
+          return 0;
+        }
+      }
+      return 1;
+    }
+  } # run_system_commands
+
+  sub info_next_system_commands () {
+    return unless @expected_system_command;
+    info 0, '';
     info 0, "Execute following command and retry:";
     info 0, '';
-    my @c;
-    for my $c (@$commands) {
-      push @c, join ' ',
-          (grep { length $_ } join ' ', map { shellarg ($_) . '=' .shellarg $c->[0]->{$_} } keys %{$c->[0]}),
-          (join ' ', map { shellarg $_ } @{$c->[1]});
+    for my $cc (@expected_system_command) {
+      info 0, join " && \\\n  ", @$cc;
     }
-    info 0, '  $ ' . join " && \\\n    ", @c;
     info 0, '';
-    return 0;
-  } else {
-    for my $c (@$commands) {
-      my ($envs, $cmd, $label, $done, $pn) = @$c;
-      info 0, "$label..." if defined $label;
-      my $result = run_command $cmd,
-          envs => $envs,
-          info_level => 1,
-          info_command_level => 1,
-          profiler_name => $pn;
-      if ($result) {
-        $done->();
-      } else {
-        return 0;
-      }
-    }
-    return 1;
-  }
-} # run_system_commands
+  } # info_next_system_commands
+}
 
 {
   my $HasAPT;
