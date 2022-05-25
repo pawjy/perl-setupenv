@@ -386,14 +386,12 @@ $PMPPDirName ||= $RootDirName . '/deps/pmpp';
   } # info
   
   sub info_die ($) {
-    $InfoNeedNewline--, print STDERR "\n" if $InfoNeedNewline;
     my (undef, $error_file_name, $error_line, $error_sub) = caller 1;
     my $location = "at $error_file_name line $error_line = $error_sub";
-    print $InfoFile $_[0] =~ /\n\z/ ? $_[0] : "$_[0]\n";
-    print $InfoFile "($location)\n";
+    info 0, $_[0];
+    info 0, "($location)\n";
     print $InfoFile Carp::longmess (), "\n";
-    print STDERR $_[0] =~ /\n\z/ ? $_[0] : "$_[0]\n";
-    print STDERR "($location)\n";
+    my $has_next = info_next_system_commands ();
     close $InfoFile;
     if ($DumpInfoFileBeforeDie) {
       open my $info_file, '<', $InfoFileName
@@ -410,7 +408,7 @@ $PMPPDirName ||= $RootDirName . '/deps/pmpp';
     }
 
     my $dead_file_name = "$RootDirName/config/perl/pmbp-dead.txt";
-    if (-f $dead_file_name) {
+    if (not $has_next and -f $dead_file_name) {
       if (open my $file, '<', $dead_file_name) {
         print STDERR "\n";
         while (<$file>) {
@@ -1041,45 +1039,60 @@ sub install_homebrew () {
   } # wrap_by_sudo
 }
 
-sub run_system_commands ($) {
-  my $commands = $_[0];
-  ## Array reference of
-  ##   Array reference:
-  ##     0  Hash reference of environment variables
-  ##     1  Array reference of command and arguments
-  ##     2  Info text before start, if any, or |undef|
-  ##     3  Code reference invoked after success
+{
+  my @expected_system_command;
+  
+  sub run_system_commands ($) {
+    my $commands = $_[0];
+    ## Array reference of
+    ##   Array reference:
+    ##     0  Hash reference of environment variables
+    ##     1  Array reference of command and arguments
+    ##     2  Info text before start, if any, or |undef|
+    ##     3  Code reference invoked after success
 
-  unless ($ExecuteSystemPackageInstaller) {
+    unless ($ExecuteSystemPackageInstaller) {
+      my @c;
+      for my $c (@$commands) {
+        push @c, join ' ',
+            (grep { length $_ } join ' ', map { shellarg ($_) . '=' .shellarg $c->[0]->{$_} } keys %{$c->[0]}),
+            (join ' ', map { shellarg $_ } @{$c->[1]});
+      }
+      info 7, 'Expected command (not executed):';
+      info 7, '  $ ' . join " && \\\n    ", @c;
+      push @expected_system_command, \@c;
+      return 0;
+    } else {
+      for my $c (@$commands) {
+        my ($envs, $cmd, $label, $done, $pn) = @$c;
+        info 0, "$label..." if defined $label;
+        my $result = run_command $cmd,
+            envs => $envs,
+            info_level => 1,
+            info_command_level => 1,
+            profiler_name => $pn;
+        if ($result) {
+          $done->();
+        } else {
+          return 0;
+        }
+      }
+      return 1;
+    }
+  } # run_system_commands
+
+  sub info_next_system_commands () {
+    return 0 unless @expected_system_command;
+    info 0, '';
     info 0, "Execute following command and retry:";
     info 0, '';
-    my @c;
-    for my $c (@$commands) {
-      push @c, join ' ',
-          (grep { length $_ } join ' ', map { shellarg ($_) . '=' .shellarg $c->[0]->{$_} } keys %{$c->[0]}),
-          (join ' ', map { shellarg $_ } @{$c->[1]});
+    for my $cc (@expected_system_command) {
+      info 0, join " && \\\n  ", @$cc;
     }
-    info 0, '  $ ' . join " && \\\n    ", @c;
     info 0, '';
-    return 0;
-  } else {
-    for my $c (@$commands) {
-      my ($envs, $cmd, $label, $done, $pn) = @$c;
-      info 0, "$label..." if defined $label;
-      my $result = run_command $cmd,
-          envs => $envs,
-          info_level => 1,
-          info_command_level => 1,
-          profiler_name => $pn;
-      if ($result) {
-        $done->();
-      } else {
-        return 0;
-      }
-    }
     return 1;
-  }
-} # run_system_commands
+  } # info_next_system_commands
+}
 
 {
   my $HasAPT;
@@ -1311,6 +1324,11 @@ $CommandDefs->{gcc} = {
 $CommandDefs->{'g++'} = {
   bin => 'g++',
   packages => [{name => 'g++', redhat_name => 'gcc-c++'}],
+};
+
+$CommandDefs->{patch} = {
+  bin => 'patch',
+  packages => [{name => 'patch'}],
 };
 
 $CommandDefs->{tar} = {
@@ -1896,6 +1914,9 @@ sub install_perl_by_perlbuild ($) {
         $redo = 1;
       } elsif ($output =~ m{^You need to find a working C compiler.}m) {
         push @required_installable, 'gcc';
+        $redo = 1;
+      } elsif ($output =~ m{^No patch utility found}m) {
+        push @required_installable, 'patch';
         $redo = 1;
       }
 
@@ -4239,13 +4260,15 @@ sub install_module ($$$;%) {
   if (has_module ($perl_command, $perl_version, $module, $lib_dir_name)) {
     if ($module->package eq 'Net::SSLeay' and
         (is_net_ssleay_openssl_too_old ($perl_command, $perl_version) or
+         not defined get_openssl_version ($perl_version) or
+         not defined get_net_ssleay_openssl_version ($perl_command, $perl_version) or
          not get_openssl_version ($perl_version) eq get_net_ssleay_openssl_version ($perl_command, $perl_version))) {
       my $v1 = get_openssl_version_details ($perl_version);
       my $v2 = get_net_ssleay_openssl_version_details
           ($perl_command, $perl_version);
       info 0, "Reinstall Net::SSLeay (1)...";
-      info 0, "Platform OpenSSL:\n----\n" . $v1 . "\n----";
-      info 0, "Net::SSLeay OpenSSL:\n----\n" . $v2 . "\n----";
+      info 0, "Platform OpenSSL:\n----\n" . (defined $v1 ? $v1 : '') . "\n----";
+      info 0, "Net::SSLeay OpenSSL:\n----\n" . (defined $v2 ? $v2 : '') . "\n----";
       $force = 1;
     } else {
       info 1, "Module @{[$module->as_short]} is already installed; skipped";
@@ -4406,7 +4429,8 @@ sub get_openssl_version ($) {
   run_command
       ['openssl', 'version'],
       envs => {PATH => get_env_path ($perl_version)},
-      onoutput => sub { $version = $_[0]; 2 };
+      onoutput => sub { $version = $_[0]; 2 }
+      or $version = undef;
   $version =~ s/[\x0D\x0A]+\z// if defined $version;
   return $_OpenSSLVersion = $version;
 } # get_openssl_version
@@ -4417,7 +4441,8 @@ sub get_openssl_version_details ($) {
   run_command
       ['openssl', 'version', '-a'],
       envs => {PATH => get_env_path ($perl_version)},
-      onoutput => sub { $version .= $_[0]; 2 };
+      onoutput => sub { $version .= $_[0]; 2 }
+      or $version = undef;
   $version =~ s/[\x0D\x0A]+\z// if defined $version;
   return $version;
 } # get_openssl_version_details
@@ -4428,7 +4453,8 @@ sub get_net_ssleay_openssl_version ($$) {
   run_command
       ['perl', '-MNet::SSLeay', '-e', 'print +Net::SSLeay::SSLeay_version'],
       envs => get_envs_for_perl ($perl_command, $perl_version),
-      onoutput => sub { $version = $_[0]; 2 };
+      onoutput => sub { $version = $_[0]; 2 }
+      or $version = undef;
   return $version;
 } # get_net_ssleay_openssl_version
 
@@ -4447,7 +4473,8 @@ sub get_net_ssleay_openssl_version_details ($$) {
             "";
       '],
       envs => get_envs_for_perl ($perl_command, $perl_version),
-      onoutput => sub { $version .= $_[0]; 2 };
+      onoutput => sub { $version .= $_[0]; 2 }
+      or $version = undef;
   return $version;
 } # get_net_ssleay_openssl_version_details
 
