@@ -2306,8 +2306,12 @@ sub cpanm ($$) {
       push @configure_args, '--ssl';
     }
 
+    unless ($args->{force}) {
+      push @option,
+          '--mirror' => pmtar_dir_name ();
+    }
+
     push @option,
-        '--mirror' => pmtar_dir_name (),
         map { ('--mirror' => $_) }
             @CPANMirror,
             #qw(http://cpan.mirrors.travis-ci.org/) if $ENV{TRAVIS};
@@ -2318,7 +2322,8 @@ sub cpanm ($$) {
               https://backpan.perl.org/
             );
 
-    if (defined $args->{module_index_file_name} and
+    if (not $args->{force} and
+        defined $args->{module_index_file_name} and
         -f $args->{module_index_file_name}) {
       my $mi = abs_path $args->{module_index_file_name};
       push @option, '--mirror-index' => $mi if defined $mi;
@@ -2327,7 +2332,9 @@ sub cpanm ($$) {
       unshift @option, '--mirror' => abs_path $CPANMDirName;
     }
 
-    push @option, '--mirror' => abs_path supplemental_module_index ();
+    unless ($args->{force}) {
+      push @option, '--mirror' => abs_path supplemental_module_index ();
+    }
 
     ## Let cpanm not use Web API, as it slows down operations.
     push @option, '--mirror-only';
