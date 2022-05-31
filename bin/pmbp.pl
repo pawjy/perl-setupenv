@@ -627,7 +627,7 @@ sub create_bootstrap_script ($$) {
     
     my $file_name = "$PMBPDirName/tmp/$name.txt";
     save_url (qq<https://raw.githubusercontent.com/$repo/$ref/version/$name> => $file_name,
-              max_age => 60*60*24*100);
+              max_age => 60*60*100);
     open my $file, '<', $file_name or info_die "Can't open file |$file_name|";
     my $text = <$file>;
     info_die "Bad |$file_name| content: |$text|" unless $text;
