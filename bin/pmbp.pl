@@ -2671,6 +2671,10 @@ sub cpanm ($$) {
         ## can no longer reproduce the problem.)
         push @required_install, PMBP::Module->new_from_module_arg
             ('Net::SSLeay~1.36='.get_cpan_top_url.'/authors/id/F/FL/FLORA/Net-SSLeay-1.36.tar.gz');
+      } elsif ($log =~ /error: dereferencing pointer to incomplete type 'OCSP_SINGLERESP {aka struct ocsp_single_response_st}'/ and
+               @module_arg and $module_arg[0] eq 'Net::SSLeay') {
+        push @required_install, PMBP::Module->new_from_module_arg
+            ('Net::SSLeay~1.93_01='.get_cpan_top_url.'/authors/id/C/CH/CHRISN/Net-SSLeay-1.93_01.tar.gz');
       }
       if ($log =~ m{^lib/Params/Validate/XS.xs:.+?: error: .*?cvgv.*? undeclared \(first use in this function\)}m) {
         ## Downgrade Params::Validate 1.12 -> 1.11
