@@ -4602,6 +4602,8 @@ sub install_openssl ($) {
 #      If this token and others are legitimate, please use m4_pattern_allow.
 #      See the Autoconf documentation.
             $needs->{libtool} = 1;
+          } elsif ($_[0] =~ m{error: Autoconf version 2.64 or higher is required}) {
+            $needs->{autoconf} = 1;
           #} elsif ($_[0] =~ m{/openbsd/src/.+?': No such file or directory}) {
           #} elsif ($_[0] =~ m{\d+ out of \d+ hunks FAILED}) {
           }
