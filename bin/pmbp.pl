@@ -1423,7 +1423,12 @@ sub install_commands ($) {
     my $def = $CommandDefs->{$item};
     info_die "Command |$item| is not defined" unless defined $def;
 
-    if (defined $def->{check_command}) {
+    if ($item eq 'docker') {
+      if (not is_docker_too_old ()) {
+        info 2, "You have command |$item|";
+        next ITEM;
+      }
+    } elsif (defined $def->{check_command}) {
       if (run_command $def->{check_command}, info_level => 9) {
         info 2, "You have command |$item|";
         next ITEM;
@@ -5242,6 +5247,32 @@ sub install_mecab () {
 } # install_mecab
 
 ## ------ Docker ------
+
+sub get_docker_version () {
+  #docker version  --format '{{ .Server.Version }}'
+  #17.09.0-ce
+  my $version;
+  run_command
+      ['docker', 'version', '--format', '{{ .Server.Version }}'],
+      onoutput => sub { $version = $_[0]; 2 }
+      or $version = undef;
+  $version =~ s/[\x0D\x0A]+\z// if defined $version;
+  return $version;
+} # get_docker_version
+
+sub is_docker_too_old () {
+  my $version = get_docker_version;
+
+  ## <https://github.com/MariaDB/mariadb-docker/issues/434>
+  if ($version =~ /^([0-9]+)\./) {
+    return 1 if $1 < 20;
+  }
+  if ($version =~ /^20\.([0-9]+)\./) {
+    return 1 if $1 < 10;
+  }
+
+  return 0;
+} # is_docker_too_old
 
 sub before_apt_for_docker () {
   ## <https://docs.docker.com/engine/installation/linux/docker-ce/debian/>
