@@ -5366,7 +5366,7 @@ sub is_libseccomp2_broken () {
   run_command
       ['docker', 'run', 'debian:sid',
        'bash', '-c',
-       'test -e /bin/bash && echo -n "e"; test -x /bin/bash && echo -n "x"'],
+       'test -e /bin/bash && echo -n "e"; test -x /bin/bash && echo -n "x"; true'],
       onoutput => sub { $r = $_[0]; 2 }
       or do {
         info 8, "Failed to run |docker|, libseccomp2 brokenness is unknown";
