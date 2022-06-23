@@ -5270,6 +5270,9 @@ sub is_docker_too_old () {
   if ($version =~ /^20\.([0-9]+)\./) {
     return 1 if $1 < 10;
   }
+  if ($version =~ /^20\.10\.([0-9]+)/) {
+    return 1 if $1 < 10;
+  }
 
   return 0;
 } # is_docker_too_old
