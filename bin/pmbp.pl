@@ -1472,6 +1472,11 @@ sub install_commands ($) {
         }
       }
     }
+
+    if (is_libseccomp2_broken ()) {
+      install_system_packages [{name => 'libseccomp2'}]
+          or info_die "Failed to update |libseccomp2|";
+    }
   } # docker
 } # install_commands
 
@@ -5353,6 +5358,25 @@ sub after_brew_for_docker () {
                     undef, sub { }, undef];
   return $commands;
 } # after_brew_for_docker
+
+sub is_libseccomp2_broken () {
+  ## <https://wiki.suikawiki.org/n/libseccomp2>
+
+  my $r;
+  run_command
+      ['docker', 'run', 'debian:sid',
+       'bash', '-c',
+       'test -e /bin/bash && echo -n "e"; test -x /bin/bash && echo -n "x"'],
+      onoutput => sub { $r = $_[0]; 2 }
+      or do {
+        info 8, "Failed to run |docker|, libseccomp2 brokenness is unknown";
+        return 0;
+      };
+  info 8, "File test results: |$r|";
+  
+  return 1 unless $r =~ /x/;
+  return 0;
+} # is_libseccomp2_broken
 
 ## ------ Perl application ------
 
