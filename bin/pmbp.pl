@@ -5267,6 +5267,7 @@ sub get_docker_version () {
 
 sub is_docker_too_old () {
   my $version = get_docker_version;
+  return 1 if not defined $version;
 
   ## <https://github.com/MariaDB/mariadb-docker/issues/434>
   if ($version =~ /^([0-9]+)\./) {
