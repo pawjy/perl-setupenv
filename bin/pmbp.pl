@@ -1239,7 +1239,10 @@ sub use_perl_core_module ($) {
 
   install_system_packages [$sys]; # or die at require
 
-  eval qq{ require $package } or die $@; # not info_die
+  eval qq{ require $package } or do {
+    info_next_system_commands ();
+    die $@; # not info_die
+  };
 } # use_perl_core_module
 
 {
@@ -3139,6 +3142,12 @@ sub cpanm ($$) {
         } else {
           info_die "OpenSSL or Net::SSLeay is broken ($CPANMDepth/$redo)";
         }
+
+        ## XXX perl should be installed locally (platform's perl is unusablen)
+        #Can't load '/path/to/local/perl-5.16.3/pm/lib/perl5/x86_64-linux-thread-multi/auto/Net/SSLeay/SSLeay.so' for module Net::SSLeay: libssl.so.50: 共有オブジェクトファイルを開けません: そのようなファイルやディレクトリはありません at /usr/lib64/perl5/DynaLoader.pm line 190.
+        # at -e line 0.
+        #Compilation failed in require.
+        #BEGIN failed--compilation aborted.
       }
     }
 
@@ -4584,13 +4593,15 @@ sub install_openssl ($) {
     }
   }
 
-  my $autogen_sed_failed = 0;
-  my $autogen_failed = 0;
+  my $make_failed = 0;
   {
-    info 0, "Installing LibreSSL revision:";
-    run_command [git, 'rev-parse', 'HEAD'],
-        chdir => $repo_dir_name,
-        onoutput => sub { 0 };
+    my $autogen_sed_failed = 0;
+    my $autogen_failed = 0;
+    {
+      info 0, "($make_failed,$autogen_failed) Installing LibreSSL revision:";
+      run_command [git, 'rev-parse', 'HEAD'],
+          chdir => $repo_dir_name,
+          onoutput => sub { 0 };
 
     my $needs = {};
     my $ok = run_command ['./autogen.sh'],
@@ -4644,11 +4655,11 @@ sub install_openssl ($) {
           chdir => $repo_dir_name;
       run_command [git, 'checkout', 'HEAD~1'],
           chdir => $repo_dir_name
-          or info_die "Failed autogen and git checkout ($autogen_failed)";
+          or info_die "Failed openssl autogen and git checkout ($autogen_failed)";
       $autogen_failed++;
       redo;
     }
-    info_die "Failed autogen" unless $ok;
+    info_die "Failed openssl autogen" unless $ok;
   }
   run_command ['./configure',
                "--help"],
@@ -4658,9 +4669,32 @@ sub install_openssl ($) {
                "--prefix=$common_dir_name"],
       chdir => $repo_dir_name
       or info_die "Can't build the package";
-  run_command ['make'],
-      chdir => $repo_dir_name
-      or info_die "Can't build the package";
+    my $can_retry = 0;
+    my $ok = run_command ['make'],
+        chdir => $repo_dir_name,
+        onoutput => sub {
+          my $log = $_[0];
+          #collect2: error: ld returned 1 exit status
+          if ($log =~ /collect2: error: ld returned 1 exit status/) {
+            ## You might want to check df
+            #
+          }
+          return 6;
+        };
+    if (not $ok and $can_retry and $make_failed < $max_retry) {
+      run_command [git, 'add', '.'],
+          chdir => $repo_dir_name;
+      run_command [git, 'reset', '--hard'],
+          chdir => $repo_dir_name;
+      run_command [git, 'checkout', 'HEAD~1'],
+          chdir => $repo_dir_name
+          or info_die "Failed openssl make and git checkout ($make_failed)";
+      $make_failed++;
+      redo;
+    } elsif (not $ok) {
+      info_die "Failed openssl make ($make_failed)";
+    }
+  }
   run_command ['make', 'install'],
       chdir => $repo_dir_name
       or info_die "Can't install the package";
