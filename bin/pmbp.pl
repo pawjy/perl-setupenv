@@ -2635,6 +2635,9 @@ sub cpanm ($$) {
       if ($log =~ /Checking if you have Module::Build [0-9.]+ ... No \([0-9.]+ < ([0-9.]+)\)/m) {
         push @required_cpanm, PMBP::Module->new_from_package ('Module::Build~' . $1);
       }
+      if ($log =~ /Base class package "(Module::Build)" is empty./m) {
+        push @required_cpanm, PMBP::Module->new_from_package ($1);
+      }
       if ($log =~ /Base class package "(Module::Build::[^"]+)" is empty./m) {
         push @required_cpanm, PMBP::Module->new_from_package ($1);
       }
@@ -2761,7 +2764,8 @@ sub cpanm ($$) {
              #redhat_name => 'MySQL-devel',
              redhat_name => 'mariadb-devel',
              #debian_name => 'libmysqlclient-dev',
-             debian_name => 'libmariadbclient-dev',
+             #debian_name => 'libmariadbclient-dev',
+             debian_name => 'libmariadbclient-dev-compat',
              homebrew_name => 'mysql'};
         $failed = 1;
       }
