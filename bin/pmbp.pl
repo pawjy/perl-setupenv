@@ -4298,6 +4298,67 @@ sub write_dep_graph ($$;%) {
 
 ## ------ Perl module installation ------
 
+my $MMDLoaded;
+sub require_module_metadata () {
+  return if $MMDLoaded;
+  install_pmbp_module PMBP::Module->new_from_package ('Module::Metadata');
+  install_pmbp_module PMBP::Module->new_from_package ('version');
+  ## Since the currently loaded version of |version| module might be
+  ## older than the one required by the |Module::Metadata|, clear the
+  ## module's loaded flag.
+  delete $INC{'Module/Metadata.pm'};
+  delete $INC{'version.pm'};
+  require Module::Metadata;
+  require version;
+  $MMDLoaded = 1;
+} # require_module_metadata
+
+sub has_module ($$$$) {
+  my ($perl_command, $perl_version, $module, $dir_name) = @_;
+  my $package = $module->package;
+  return 0 unless defined $package;
+  my $version = $module->version;
+
+  my $file_name = $package . '.pm';
+  $file_name =~ s{::}{/}g;
+  
+  my $archname = get_perl_archname $perl_command, $perl_version;
+  for (qq{$dir_name/lib/perl5/$archname/$file_name},
+       qq{$dir_name/lib/perl5/$file_name},
+       map { "$_/$file_name" } (get_perl_core_lib_paths $perl_command, $perl_version)) {
+    next unless -f $_;
+    return 1 if not defined $version;
+    
+    require_module_metadata;
+
+    profiler_start 'version_sniffing';
+    my $meta = Module::Metadata->new_from_file ($_) or next;
+    my $actual_version = $meta->version;
+    my $ver = eval { version->new ($version) };
+    if (defined $ver and $actual_version >= $ver) {
+      profiler_stop 'version_sniffing';
+      return 1;
+    } else {
+      profiler_stop 'version_sniffing';
+    }
+  }
+  
+  return 0;
+} # has_module
+
+sub can_start_dbi ($$$$) {
+  my ($perl_command, $perl_version, $lib_dir_name, $dbd_name) = @_;
+
+  my @lib = get_lib_dir_names_of ($perl_command, $perl_version, $lib_dir_name);
+  my $return = run_command
+      [$perl_command,
+       (map { '-I' . $_ } @lib),
+       '-MDBI',
+       '-e', 'DBI->connect ("dbi:" . shift . ":")', $dbd_name],
+      info_level => 3;
+  return ! $return;
+} # can_start_dbi
+
 sub install_module ($$$;%) {
   my ($perl_command, $perl_version, $module, %args) = @_;
   get_local_copy_if_necessary $module;
@@ -4316,6 +4377,11 @@ sub install_module ($$$;%) {
       info 0, "Reinstall Net::SSLeay (1)...";
       info 0, "Platform OpenSSL:\n----\n" . (defined $v1 ? $v1 : '') . "\n----";
       info 0, "Net::SSLeay OpenSSL:\n----\n" . (defined $v2 ? $v2 : '') . "\n----";
+      $force = 1;
+    } elsif ($module->package =~ /^DBD::(Pg|mysql)$/ and
+             can_start_dbi ($perl_command, $perl_version, $lib_dir_name,
+                            $1)) {
+      info 0, "Reinstall @{[$module->package]} (1)...";
       $force = 1;
     } else {
       info 1, "Module @{[$module->as_short]} is already installed; skipped";
@@ -4368,53 +4434,7 @@ sub get_module_version ($$$) {
   return $result;
 } # get_module_version
 
-my $MMDLoaded;
-sub require_module_metadata () {
-  return if $MMDLoaded;
-  install_pmbp_module PMBP::Module->new_from_package ('Module::Metadata');
-  install_pmbp_module PMBP::Module->new_from_package ('version');
-  ## Since the currently loaded version of |version| module might be
-  ## older than the one required by the |Module::Metadata|, clear the
-  ## module's loaded flag.
-  delete $INC{'Module/Metadata.pm'};
-  delete $INC{'version.pm'};
-  require Module::Metadata;
-  require version;
-  $MMDLoaded = 1;
-} # require_module_metadata
-
-sub has_module ($$$$) {
-  my ($perl_command, $perl_version, $module, $dir_name) = @_;
-  my $package = $module->package;
-  return 0 unless defined $package;
-  my $version = $module->version;
-
-  my $file_name = $package . '.pm';
-  $file_name =~ s{::}{/}g;
-  
-  my $archname = get_perl_archname $perl_command, $perl_version;
-  for (qq{$dir_name/lib/perl5/$archname/$file_name},
-       qq{$dir_name/lib/perl5/$file_name},
-       map { "$_/$file_name" } (get_perl_core_lib_paths $perl_command, $perl_version)) {
-    next unless -f $_;
-    return 1 if not defined $version;
-    
-    require_module_metadata;
-
-    profiler_start 'version_sniffing';
-    my $meta = Module::Metadata->new_from_file ($_) or next;
-    my $actual_version = $meta->version;
-    my $ver = eval { version->new ($version) };
-    if (defined $ver and $actual_version >= $ver) {
-      profiler_stop 'version_sniffing';
-      return 1;
-    } else {
-      profiler_stop 'version_sniffing';
-    }
-  }
-  
-  return 0;
-} # has_module
+## ------ OpenSSL ------
 
 sub get_openssl_branches_by_api () {
   ## This can fail due to GitHub's API rate limits.
