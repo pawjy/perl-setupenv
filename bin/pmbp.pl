@@ -4298,76 +4298,6 @@ sub write_dep_graph ($$;%) {
 
 ## ------ Perl module installation ------
 
-sub install_module ($$$;%) {
-  my ($perl_command, $perl_version, $module, %args) = @_;
-  get_local_copy_if_necessary $module;
-  my $lib_dir_name = $args{pmpp}
-      ? pmpp_dir_name : get_pm_dir_name ($perl_version);
-  my $force;
-  if (has_module ($perl_command, $perl_version, $module, $lib_dir_name)) {
-    if ($module->package eq 'Net::SSLeay' and
-        (is_net_ssleay_openssl_too_old ($perl_command, $perl_version) or
-         not defined get_openssl_version ($perl_version) or
-         not defined get_net_ssleay_openssl_version ($perl_command, $perl_version) or
-         not get_openssl_version ($perl_version) eq get_net_ssleay_openssl_version ($perl_command, $perl_version))) {
-      my $v1 = get_openssl_version_details ($perl_version);
-      my $v2 = get_net_ssleay_openssl_version_details
-          ($perl_command, $perl_version);
-      info 0, "Reinstall Net::SSLeay (1)...";
-      info 0, "Platform OpenSSL:\n----\n" . (defined $v1 ? $v1 : '') . "\n----";
-      info 0, "Net::SSLeay OpenSSL:\n----\n" . (defined $v2 ? $v2 : '') . "\n----";
-      $force = 1;
-    } else {
-      info 1, "Module @{[$module->as_short]} is already installed; skipped";
-      return;
-    }
-  }
-  cpanm {perl_version => $perl_version,
-         perl_lib_dir_name => $lib_dir_name,
-         module_index_file_name => $args{module_index_file_name},
-         force => $force},
-        [$module];
-
-  if ($module->package eq 'Net::SSLeay') {
-    my $v1 = get_openssl_version_details ($perl_version);
-    my $v2 = get_net_ssleay_openssl_version_details
-        ($perl_command, $perl_version);
-    info 0, 'Check Net::SSLeay...';
-    info 0, "Platform OpenSSL:\n----\n" . $v1 . "\n----";
-    info 0, "Net::SSLeay OpenSSL:\n----\n" . $v2 . "\n----";
-    if (is_net_ssleay_openssl_too_old ($perl_command, $perl_version) or
-        not get_openssl_version ($perl_version) eq get_net_ssleay_openssl_version ($perl_command, $perl_version)) {
-      info 0, "Reinstall Net::SSLeay (2)...";
-      install_openssl ($perl_version);
-      cpanm {perl_version => $perl_version,
-             perl_lib_dir_name => $lib_dir_name,
-             module_index_file_name => $args{module_index_file_name},
-             force => 1},
-             [$module];
-    }
-  }
-} # install_module
-
-sub get_module_version ($$$) {
-  my ($perl_command, $perl_version, $module) = @_;
-  my $package = $module->package;
-  return undef unless defined $package;
-  
-  my $result;
-  my $return = run_command
-      [$perl_command, '-M' . $package,
-       '-e', sprintf 'print $%s::VERSION', $package],
-      envs => get_envs_for_perl ($perl_command, $perl_version),
-      info_level => 3,
-      discard_stderr => 1,
-      onoutput => sub {
-        $result = $_[0];
-        return 3;
-      };
-  return undef unless $return;
-  return $result;
-} # get_module_version
-
 my $MMDLoaded;
 sub require_module_metadata () {
   return if $MMDLoaded;
@@ -4415,6 +4345,117 @@ sub has_module ($$$$) {
   
   return 0;
 } # has_module
+
+sub can_start_dbi ($$$$) {
+  my ($perl_command, $perl_version, $lib_dir_name, $dbd_name) = @_;
+
+  my @lib = get_lib_dir_names_of ($perl_command, $perl_version, $lib_dir_name);
+  my $return = run_command
+      [$perl_command,
+       (map { '-I' . $_ } @lib),
+       '-MDBI',
+       '-e', 'DBI->connect ("dbi:" . shift . ":")', $dbd_name],
+      info_level => 3;
+  return ! $return;
+} # can_start_dbi
+
+sub get_module_version ($$$;%) {
+  my ($perl_command, $perl_version, $module, %args) = @_;
+  my $package = $module->package;
+  return undef unless defined $package;
+
+  my @lib;
+  @lib = get_lib_dir_names_of ($perl_command, $perl_version, $args{lib_dir_name})
+      if defined $args{lib_dir_name};
+  my $envs;
+  $envs = get_envs_for_perl ($perl_command, $perl_version)
+      if not defined $args{lib_dir_name};
+  
+  my $result;
+  my $return = run_command
+      [$perl_command,
+       (map { '-I' . $_ } @lib),
+       '-M' . $package,
+       '-e', sprintf 'print $%s::VERSION', $package],
+      envs => $envs,
+      info_level => 3,
+      discard_stderr => 1,
+      onoutput => sub {
+        $result = $_[0];
+        return 3;
+      };
+  return undef unless $return;
+  return $result;
+} # get_module_version
+
+sub install_module ($$$;%) {
+  my ($perl_command, $perl_version, $module, %args) = @_;
+  get_local_copy_if_necessary $module;
+  my $lib_dir_name = $args{pmpp}
+      ? pmpp_dir_name : get_pm_dir_name ($perl_version);
+  my $force;
+  if (has_module ($perl_command, $perl_version, $module, $lib_dir_name)) {
+    if ($module->package eq 'Net::SSLeay' and
+        (is_net_ssleay_openssl_too_old ($perl_command, $perl_version) or
+         not defined get_openssl_version ($perl_version) or
+         not defined get_net_ssleay_openssl_version ($perl_command, $perl_version) or
+         not get_openssl_version ($perl_version) eq get_net_ssleay_openssl_version ($perl_command, $perl_version))) {
+      my $v1 = get_openssl_version_details ($perl_version);
+      my $v2 = get_net_ssleay_openssl_version_details
+          ($perl_command, $perl_version);
+      info 0, "Reinstall Net::SSLeay (1)...";
+      info 0, "Platform OpenSSL:\n----\n" . (defined $v1 ? $v1 : '') . "\n----";
+      info 0, "Net::SSLeay OpenSSL:\n----\n" . (defined $v2 ? $v2 : '') . "\n----";
+      $force = 1;
+    } elsif ($module->package =~ /^DBD::(Pg|mysql)$/ and
+             can_start_dbi ($perl_command, $perl_version, $lib_dir_name,
+                            $1)) {
+      info 0, "Reinstall @{[$module->package]} (1)...";
+      $force = 1;
+    } else {
+      info 1, "Module @{[$module->as_short]} is already installed; skipped";
+      return;
+    }
+  }
+  cpanm {perl_version => $perl_version,
+         perl_lib_dir_name => $lib_dir_name,
+         module_index_file_name => $args{module_index_file_name},
+         force => $force},
+        [$module];
+
+  if ($module->package eq 'Net::SSLeay') {
+    my $v1 = get_openssl_version_details ($perl_version);
+    my $v2 = get_net_ssleay_openssl_version_details
+        ($perl_command, $perl_version);
+    info 0, 'Check Net::SSLeay...';
+    info 0, "Platform OpenSSL:\n----\n" . $v1 . "\n----";
+    info 0, "Net::SSLeay OpenSSL:\n----\n" . $v2 . "\n----";
+    if (is_net_ssleay_openssl_too_old ($perl_command, $perl_version) or
+        not get_openssl_version ($perl_version) eq get_net_ssleay_openssl_version ($perl_command, $perl_version)) {
+      info 0, "Reinstall Net::SSLeay (2)...";
+      install_openssl ($perl_version);
+      cpanm {perl_version => $perl_version,
+             perl_lib_dir_name => $lib_dir_name,
+             module_index_file_name => $args{module_index_file_name},
+             force => 1},
+             [$module];
+    }
+  } elsif ($module->package eq 'Crypt::SSLeay') {
+    my $v1 = get_module_version $perl_command, $perl_version, $module,
+        lib_dir_name => $lib_dir_name;
+    if (not $v1) {
+      info 0, "Reinstall Crypt::SSLeay (2)...";
+      install_openssl ($perl_version);
+      cpanm {perl_version => $perl_version,
+             perl_lib_dir_name => $lib_dir_name,
+             module_index_file_name => $args{module_index_file_name},
+             force => 1},
+             [$module];
+    }
+  }
+} # install_module
+
+## ------ OpenSSL ------
 
 sub get_openssl_branches_by_api () {
   ## This can fail due to GitHub's API rate limits.

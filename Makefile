@@ -46,6 +46,7 @@ test-deps: git-submodules deps
 test-deps-gha: test-deps
 	$(GIT) config --global user.email "temp@travis.test"
 	$(GIT) config --global user.name "Travis CI"
+	$(GIT) config --global protocol.file.allow always
 
 test-main:
 ifeq "$(TARGET)" ""
