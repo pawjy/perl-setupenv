@@ -15,7 +15,7 @@ libs=`perl $pmbp --root-dir-name="$tempdir" --print-libs`
   -e '$'DBD::Pg'::VERSION or die "No VERSION"' && \
   echo "ok 1") || echo "not ok 1"
 
-rm -f $tempdir/local/perl-*/pm/lib/perl5/*/auto/DBD/Pg/Pg.so
+rm -fr $tempdir/local/perl-*/pm/lib/perl5/*/auto/DBD/Pg
 
 (PERL5LIB="$libs" perl -MDBD::Pg \
   -e '$'DBD::Pg'::VERSION or die "No VERSION"' && \
