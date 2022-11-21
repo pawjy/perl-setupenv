@@ -4359,6 +4359,35 @@ sub can_start_dbi ($$$$) {
   return ! $return;
 } # can_start_dbi
 
+sub get_module_version ($$$;%) {
+  my ($perl_command, $perl_version, $module, %args) = @_;
+  my $package = $module->package;
+  return undef unless defined $package;
+
+  my @lib;
+  @lib = get_lib_dir_names_of ($perl_command, $perl_version, $args{lib_dir_name})
+      if defined $args{lib_dir_name};
+  my $envs;
+  $envs = get_envs_for_perl ($perl_command, $perl_version)
+      if not defined $args{lib_dir_name};
+  
+  my $result;
+  my $return = run_command
+      [$perl_command,
+       (map { '-I' . $_ } @lib),
+       '-M' . $package,
+       '-e', sprintf 'print $%s::VERSION', $package],
+      envs => $envs,
+      info_level => 3,
+      discard_stderr => 1,
+      onoutput => sub {
+        $result = $_[0];
+        return 3;
+      };
+  return undef unless $return;
+  return $result;
+} # get_module_version
+
 sub install_module ($$$;%) {
   my ($perl_command, $perl_version, $module, %args) = @_;
   get_local_copy_if_necessary $module;
@@ -4411,28 +4440,20 @@ sub install_module ($$$;%) {
              force => 1},
              [$module];
     }
+  } elsif ($module->package eq 'Crypt::SSLeay') {
+    my $v1 = get_module_version $perl_command, $perl_version, $module,
+        lib_dir_name => $lib_dir_name;
+    if (not $v1) {
+      info 0, "Reinstall Crypt::SSLeay (2)...";
+      install_openssl ($perl_version);
+      cpanm {perl_version => $perl_version,
+             perl_lib_dir_name => $lib_dir_name,
+             module_index_file_name => $args{module_index_file_name},
+             force => 1},
+             [$module];
+    }
   }
 } # install_module
-
-sub get_module_version ($$$) {
-  my ($perl_command, $perl_version, $module) = @_;
-  my $package = $module->package;
-  return undef unless defined $package;
-  
-  my $result;
-  my $return = run_command
-      [$perl_command, '-M' . $package,
-       '-e', sprintf 'print $%s::VERSION', $package],
-      envs => get_envs_for_perl ($perl_command, $perl_version),
-      info_level => 3,
-      discard_stderr => 1,
-      onoutput => sub {
-        $result = $_[0];
-        return 3;
-      };
-  return undef unless $return;
-  return $result;
-} # get_module_version
 
 ## ------ OpenSSL ------
 
