@@ -12,6 +12,7 @@
         "tls-3",
         "tls-4",
         "tls-5",
+        "tls-old",
         "svn",
         "scan",
         "lists",
@@ -40,6 +41,7 @@
       {"env_TARGET": "gd"},
       {"env_TARGET": "pm-old"},
       {"env_TARGET": "perl-old", "os": "macos-latest"},
+      {"env_TARGET": "tls-old", "os": "macos-latest"},
       {"env_TARGET": "apache", "os": "macos-latest"},
       {"env_TARGET": "gnuplot", "os": "macos-latest"},
       
