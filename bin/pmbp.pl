@@ -1227,7 +1227,9 @@ sub install_system_packages ($;%) {
 
 sub use_perl_core_module ($) {
   my $package = $_[0];
+  info 8, "Load Perl core module |$package|...";
   eval qq{ require $package } and return;
+  info 2, "Failed to load |$package|: |$@|";
 
   my $sys = {
     'File::Path' => {name => 'perl-File-Path', debian_name => 'libfile-path-perl'},
@@ -1239,6 +1241,7 @@ sub use_perl_core_module ($) {
 
   install_system_packages [$sys]; # or die at require
 
+  info 8, "Load Perl core module |$package| (retry)...";
   eval qq{ require $package } or do {
     info_next_system_commands ();
     die $@; # not info_die
@@ -1669,7 +1672,7 @@ sub get_perl_version ($) {
   run_command [$perl_command, '-e', 'printf "%vd", $^V'],
       discard_stderr => 1,
       onoutput => sub { $perl_version = $_[0]; 2 };
-  $perl_version =~ s/^v//;
+  $perl_version =~ s/^v// if defined $perl_version;
   return $perl_version;
 } # get_perl_version
 
@@ -1871,6 +1874,7 @@ sub install_perl_by_perlbuild ($) {
   my $tarball_path;
   PERLBREW: {
     $i++;
+    info 2, "perlbuild($i): Install |$perl_version|...";
     my $log_file_name;
     my $redo;
     my @perl_option;
@@ -1961,10 +1965,17 @@ sub install_perl_by_perlbuild ($) {
 } # install_perl_by_perlbuild
 
 sub install_perl ($) {
+  my $perl_version = $_[0];
+
+  info 0, "Installing Perl version |$perl_version|...";
+
   if ($PlatformIsWindows) {
     info_die "|install-perl| is not supported on Windows";
   }
-  return install_perl_by_perlbuild ($_[0]);
+
+  install_perl_by_perlbuild $perl_version;
+
+  info 2, "Perl version |$perl_version| installed";
 } # install_perl
 
 sub create_perlbrew_perl_latest_symlink ($) {
@@ -1997,7 +2008,7 @@ sub get_perl_path ($) {
       if ($actual_perl_version eq $perl_version) {
         $PerlVersionChecked->{$path, $perl_command} = 1;
       } else {
-        info 0, "Perl version mismatch: $actual_perl_version ($perl_version expected)" . Carp::longmess ();
+        info 0, "Perl version mismatch: $actual_perl_version ($perl_version expected)";
         return 0;
       }
     }
@@ -5812,7 +5823,6 @@ while (@Command) {
     print get_perl_archname $PerlCommand, $perl_version;
   } elsif ($command->{type} eq 'install-perl') {
     $get_perl_version->() unless defined $perl_version;
-    info 0, "Installing Perl $perl_version...";
     install_perl $perl_version;
   } elsif ($command->{type} eq 'install-perl-if-necessary') {
     my $actual_perl_version = get_perl_version $PerlCommand || '?';
@@ -5821,7 +5831,6 @@ while (@Command) {
       $actual_perl_version = 'broken';
     }
     unless ($actual_perl_version eq $perl_version) {
-      info 0, "Installing Perl $perl_version...";
       install_perl $perl_version;
     }
   } elsif ($command->{type} eq 'create-perlbrew-perl-latest-symlink') {
