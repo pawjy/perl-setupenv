@@ -1997,9 +1997,11 @@ sub get_perl_path ($) {
       if ($actual_perl_version eq $perl_version) {
         $PerlVersionChecked->{$path, $perl_command} = 1;
       } else {
-        info_die "Perl version mismatch: $actual_perl_version ($perl_version expected)" . Carp::longmess ();
+        info 0, "Perl version mismatch: $actual_perl_version ($perl_version expected)" . Carp::longmess ();
+        return 0;
       }
     }
+    return 1;
   } # _check_perl_version
 }
 
@@ -2011,7 +2013,9 @@ sub get_perl_path ($) {
     return $PerlConfig->{$path, $perl_command, $key}
         if $PerlConfig->{$path, $perl_command, $key};
 
-    _check_perl_version $perl_command, $perl_version;
+    unless (_check_perl_version $perl_command, $perl_version) {
+      info_die "Bad |perl|";
+    }
     my $perl_config;
     run_command
         [$perl_command, '-MConfig', '-e', 'print $Config{'.$key.'}'],
@@ -2035,6 +2039,30 @@ sub get_perl_path ($) {
     );
   } # get_perl_core_lib_paths
 }
+
+sub is_perl_broken ($$) {
+  my ($perl_command, $perl_version) = @_;
+
+  my $path = get_env_path ($perl_version);
+
+  unless (_check_perl_version $perl_command, $perl_version) {
+    info 2, "Perl version mismatch, it need to be reinstalled";
+    return 1;
+  }
+  
+  my $perl_config;
+  run_command
+      [$perl_command, '-MConfig', '-e', 'print $Config{archname}'],
+      envs => {PATH => $path},
+      discard_stderr => 1,
+      onoutput => sub { $perl_config = $_[0]; 2 };
+  unless ($perl_config) {
+    info 2, "Failed to run perl, it need to be reinstalled";
+    return 1;
+  }
+
+  return 0;
+} # is_perl_broken
 
 sub install_cpan_config ($$$) {
   my ($perl_command, $perl_version, $perl_lib_dir_name) = @_;
@@ -2261,7 +2289,11 @@ sub cpanm ($$) {
     }
   }
 
-  _check_perl_version $perl_command, $perl_version unless $args->{info};
+  unless ($args->{info}) {
+    unless (_check_perl_version $perl_command, $perl_version) {
+      info_die "Bad |perl|";
+    }
+  }
   install_cpanm_wrapper;
   if (not $args->{version} and not $CPANMInvoked++) {
     my $r = cpanm ({%$args, info => 0, scandeps => 0, version => 1}, []);
@@ -5785,6 +5817,9 @@ while (@Command) {
   } elsif ($command->{type} eq 'install-perl-if-necessary') {
     my $actual_perl_version = get_perl_version $PerlCommand || '?';
     $get_perl_version->() unless defined $perl_version;
+    if (is_perl_broken $PerlCommand || '?', $perl_version) {
+      $actual_perl_version = 'broken';
+    }
     unless ($actual_perl_version eq $perl_version) {
       info 0, "Installing Perl $perl_version...";
       install_perl $perl_version;
