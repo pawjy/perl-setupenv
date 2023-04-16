@@ -2299,6 +2299,7 @@ sub cpanm ($$) {
     my $package = $modules->[0]->package;
     if (defined $package) {
       if ($package eq 'Net::SSLeay' or
+          $package eq 'IO::Socket::SSL' or
           $package eq 'Crypt::SSLeay' or
           $package =~ /^Crypt::OpenSSL::/) {
         info 1, "Net::SSLeay requires OpenSSL (or equivalent)";
