@@ -5337,7 +5337,8 @@ sub install_tarball ($$$;%) {
 ## ------ MeCab ------
 
 sub mecab_version () {
-  return '0.996';
+  return 'github';
+  #return '0.996';
 } # mecab_version
 
 sub mecab_charset () {
@@ -5366,17 +5367,42 @@ sub install_mecab () {
   my $dest_dir_name = "$RootDirName/local/mecab-@{[mecab_version]}-@{[mecab_charset]}";
   
   install_commands ['g++'];
-  
-  return 0 unless install_tarball
-      q<https://drive.google.com/uc?export=download&id=0B4y35FiV1wh7cENtOXlicTFaRUE>
-      => 'mecab' => $dest_dir_name,
-      name => 'mecab-' . mecab_version,
-      configure_args => [
-        '--with-charset=' . $mecab_charset,
-      ],
-      check => sub { -x "@{[mecab_bin_dir_name]}/mecab-config" };
+
+  my $repo_dir_name = create_temp_dir_name;
+  unless (-d "$repo_dir_name/.git") {
+    my $url = q<https://github.com/taku910/mecab>;
+    run_command [git, 'clone', $url, $repo_dir_name, '--depth', 1]
+        or info_die "|git clone| failed";
+  }
+
+  run_command
+      ['sh', 'configure',
+       "--prefix=$dest_dir_name",
+       '--with-charset=' . $mecab_charset],
+      chdir => "$repo_dir_name/mecab"
+      or info_die "mecab ./configure failed";
+  run_command
+      ['make'],
+      chdir => "$repo_dir_name/mecab"
+      or info_die "mecab make failed";
+  run_command
+      ['make', 'install'],
+      chdir => "$repo_dir_name/mecab"
+      or info_die "mecab make install failed";
+
+  #return 0 unless install_tarball
+  #    q<https://drive.google.com/uc?export=download&id=0B4y35FiV1wh7cENtOXlicTFaRUE>
+  #    => 'mecab' => $dest_dir_name,
+  #    name => 'mecab-' . mecab_version,
+  #    configure_args => [
+  #    ],
+  #    check => sub { -x "@{[mecab_bin_dir_name]}/mecab-config" };
+
+  -x "@{[mecab_bin_dir_name]}/mecab-config"
+      or info_die "Installing mecab-config failed";
+
   return install_tarball [
-    q<https://drive.google.com/uc?export=download&id=0B4y35FiV1wh7MWVlSDBCSXZMTXM>,
+    #q<https://drive.google.com/uc?export=download&id=0B4y35FiV1wh7MWVlSDBCSXZMTXM>,
     q<https://downloads.sourceforge.net/project/mecab/mecab-ipadic/2.7.0-20070801/mecab-ipadic-2.7.0-20070801.tar.gz>,
   ] => 'mecab' => $dest_dir_name,
       name => 'mecab-ipadic-2.7.0-20070801',
