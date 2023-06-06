@@ -292,6 +292,7 @@ GetOptions (
     update install
     print-pmbp-pl-etag print-cpan-top-url
     install-perl print-latest-perl-version print-selected-perl-version
+    print-actual-perl-version
     print-perl-archname print-libs
     print-pmtar-dir-name print-pmpp-dir-name print-perl-path
     print-submodule-components
@@ -1666,12 +1667,16 @@ sub get_latest_perl_version () {
   return get_version_from_pmbp_repo 'perl.txt';
 } # get_latest_perl_version
 
-sub get_perl_version ($) {
+sub get_perl_version ($;$) {
   my $perl_command = shift;
+  my $path = shift;
+  my $envs = {};
+  $envs->{PATH} = $path if defined $path;
   my $perl_version;
   run_command [$perl_command, '-e', 'printf "%vd", $^V'],
       discard_stderr => 1,
-      onoutput => sub { $perl_version = $_[0]; 2 };
+      onoutput => sub { $perl_version = $_[0]; 2 },
+      envs => $envs;
   $perl_version =~ s/^v// if defined $perl_version;
   return $perl_version;
 } # get_perl_version
@@ -2012,9 +2017,8 @@ sub get_perl_path ($) {
 
 {
   my $PerlVersionChecked = {};
-  sub _check_perl_version ($$) {
-    my ($perl_command, $perl_version) = @_;
-    my $path = get_env_path $perl_version;
+  sub _check_perl_version ($$$) {
+    my ($perl_command, $perl_version, $path) = @_;
     unless ($PerlVersionChecked->{$path, $perl_command}) {
       my $actual_perl_version = get_perl_version ($perl_command) || '?';
       if ($actual_perl_version eq $perl_version) {
@@ -2036,7 +2040,7 @@ sub get_perl_path ($) {
     return $PerlConfig->{$path, $perl_command, $key}
         if $PerlConfig->{$path, $perl_command, $key};
 
-    unless (_check_perl_version $perl_command, $perl_version) {
+    unless (_check_perl_version $perl_command, $perl_version, $path) {
       info_die "Bad |perl|";
     }
     my $perl_config;
@@ -2068,7 +2072,7 @@ sub is_perl_broken ($$) {
 
   my $path = get_env_path ($perl_version);
 
-  unless (_check_perl_version $perl_command, $perl_version) {
+  unless (_check_perl_version $perl_command, $perl_version, $path) {
     info 2, "Perl version mismatch, it need to be reinstalled";
     return 1;
   }
@@ -2314,7 +2318,7 @@ sub cpanm ($$) {
   }
 
   unless ($args->{info}) {
-    unless (_check_perl_version $perl_command, $perl_version) {
+    unless (_check_perl_version $perl_command, $perl_version, $path) {
       info_die "Bad |perl|";
     }
   }
@@ -5826,6 +5830,11 @@ while (@Command) {
 
   } elsif ($command->{type} eq 'print-cpan-top-url') {
     print get_cpan_top_url;
+  } elsif ($command->{type} eq 'print-actual-perl-version') {
+    $get_perl_version->() unless defined $perl_version;
+    my $path = get_env_path $perl_version;
+    my $actual_perl_version = get_perl_version $PerlCommand || '?', $path;
+    print $actual_perl_version;
   } elsif ($command->{type} eq 'print-latest-perl-version') {
     print get_latest_perl_version;
   } elsif ($command->{type} eq 'print-selected-perl-version') {
@@ -6860,6 +6869,11 @@ An example of template file:
 
 =over 4
 
+=item --print-actual-perl-version
+
+Print the version number of the currently available C<perl> to the
+standard output.
+
 =item --print-latest-perl-version
 
 Print the version number of the latest stable release of Perl to the
@@ -7766,7 +7780,7 @@ Thanks to suzak and nobuoka.
 
 =head1 LICENSE
 
-Copyright 2012-2021 Wakaba <wakaba@suikawiki.org>.
+Copyright 2012-2023 Wakaba <wakaba@suikawiki.org>.
 
 Copyright 2012-2017 Hatena <https://www.hatena.ne.jp/company/>.
 
