@@ -1371,12 +1371,12 @@ $CommandDefs->{mysqld} = {
      redhat_name => 'mariadb-devel',
      #debian_name => 'libmysqld-dev',
      debian_name => 'libmariadbd-dev',
-     homebrew_name => 'mysql'},
+     homebrew_name => 'mariadb'},
     {name => 'mysql-server-devel',
      #redhat_name => 'MySQL-devel',
      redhat_name => 'mariadb-devel',
      debian_name => 'mariadb-server',
-     homebrew_name => 'mysql'},
+     homebrew_name => 'mariadb'},
   ],
 };
 
