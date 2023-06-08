@@ -1387,7 +1387,7 @@ $CommandDefs->{'mysql-client'} = {
      redhat_name => 'MariaDB-client',
      #debian_name => 'mysql-client',
      debian_name => 'default-mysql-client',
-     homebrew_name => 'mysql'},
+     homebrew_name => 'mariadb'},
   ],
 };
 
@@ -2828,7 +2828,7 @@ sub cpanm ($$) {
              #debian_name => 'libmysqlclient-dev',
              #debian_name => 'libmariadbclient-dev',
              debian_name => 'libmariadbclient-dev-compat',
-             homebrew_name => 'mysql'};
+             homebrew_name => 'mariadb'};
         $failed = 1;
       }
       if ($log =~ m{Can't link/include C library 'ssl', 'crypto', aborting.}) {
