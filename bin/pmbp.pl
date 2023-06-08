@@ -292,6 +292,7 @@ GetOptions (
     update install
     print-pmbp-pl-etag print-cpan-top-url
     install-perl print-latest-perl-version print-selected-perl-version
+    print-actual-perl-version
     print-perl-archname print-libs
     print-pmtar-dir-name print-pmpp-dir-name print-perl-path
     print-submodule-components
@@ -1370,12 +1371,12 @@ $CommandDefs->{mysqld} = {
      redhat_name => 'mariadb-devel',
      #debian_name => 'libmysqld-dev',
      debian_name => 'libmariadbd-dev',
-     homebrew_name => 'mysql'},
+     homebrew_name => 'mariadb'},
     {name => 'mysql-server-devel',
      #redhat_name => 'MySQL-devel',
      redhat_name => 'mariadb-devel',
      debian_name => 'mariadb-server',
-     homebrew_name => 'mysql'},
+     homebrew_name => 'mariadb'},
   ],
 };
 
@@ -1386,7 +1387,7 @@ $CommandDefs->{'mysql-client'} = {
      redhat_name => 'MariaDB-client',
      #debian_name => 'mysql-client',
      debian_name => 'default-mysql-client',
-     homebrew_name => 'mysql'},
+     homebrew_name => 'mariadb'},
   ],
 };
 
@@ -1666,12 +1667,16 @@ sub get_latest_perl_version () {
   return get_version_from_pmbp_repo 'perl.txt';
 } # get_latest_perl_version
 
-sub get_perl_version ($) {
+sub get_perl_version ($;$) {
   my $perl_command = shift;
+  my $path = shift;
+  my $envs = {};
+  $envs->{PATH} = $path if defined $path;
   my $perl_version;
   run_command [$perl_command, '-e', 'printf "%vd", $^V'],
       discard_stderr => 1,
-      onoutput => sub { $perl_version = $_[0]; 2 };
+      onoutput => sub { $perl_version = $_[0]; 2 },
+      envs => $envs;
   $perl_version =~ s/^v// if defined $perl_version;
   return $perl_version;
 } # get_perl_version
@@ -2012,9 +2017,8 @@ sub get_perl_path ($) {
 
 {
   my $PerlVersionChecked = {};
-  sub _check_perl_version ($$) {
-    my ($perl_command, $perl_version) = @_;
-    my $path = get_env_path $perl_version;
+  sub _check_perl_version ($$$) {
+    my ($perl_command, $perl_version, $path) = @_;
     unless ($PerlVersionChecked->{$path, $perl_command}) {
       my $actual_perl_version = get_perl_version ($perl_command) || '?';
       if ($actual_perl_version eq $perl_version) {
@@ -2036,7 +2040,7 @@ sub get_perl_path ($) {
     return $PerlConfig->{$path, $perl_command, $key}
         if $PerlConfig->{$path, $perl_command, $key};
 
-    unless (_check_perl_version $perl_command, $perl_version) {
+    unless (_check_perl_version $perl_command, $perl_version, $path) {
       info_die "Bad |perl|";
     }
     my $perl_config;
@@ -2068,7 +2072,7 @@ sub is_perl_broken ($$) {
 
   my $path = get_env_path ($perl_version);
 
-  unless (_check_perl_version $perl_command, $perl_version) {
+  unless (_check_perl_version $perl_command, $perl_version, $path) {
     info 2, "Perl version mismatch, it need to be reinstalled";
     return 1;
   }
@@ -2314,7 +2318,7 @@ sub cpanm ($$) {
   }
 
   unless ($args->{info}) {
-    unless (_check_perl_version $perl_command, $perl_version) {
+    unless (_check_perl_version $perl_command, $perl_version, $path) {
       info_die "Bad |perl|";
     }
   }
@@ -2757,9 +2761,11 @@ sub cpanm ($$) {
       if ($log =~ /Can't configure the distribution. You probably need to have 'make'/m) {
         push @required_installable, 'make';
       }
-      if ($log =~ /cannot find -lz/m) {
+      if ($log =~ /cannot find -lz/m or
+          $log =~ m{Can't link/include C library 'zlib', aborting.}m) {
         push @required_system,
-            {name => 'zlib-devel', debian_name => 'zlib1g-dev'};
+            {name => 'zlib-devel', debian_name => 'zlib1g-dev',
+             homebrew_name => 'zlib'};
       }
       if ($log =~ m{error: openssl/\w+.h: No such file or directory}m or
           $log =~ m{error: 'openssl/\w+.h' file not found}m or
@@ -2822,7 +2828,7 @@ sub cpanm ($$) {
              #debian_name => 'libmysqlclient-dev',
              #debian_name => 'libmariadbclient-dev',
              debian_name => 'libmariadbclient-dev-compat',
-             homebrew_name => 'mysql'};
+             homebrew_name => 'mariadb'};
         $failed = 1;
       }
       if ($log =~ m{Can't link/include C library 'ssl', 'crypto', aborting.}) {
@@ -5333,7 +5339,8 @@ sub install_tarball ($$$;%) {
 ## ------ MeCab ------
 
 sub mecab_version () {
-  return '0.996';
+  return 'github';
+  #return '0.996';
 } # mecab_version
 
 sub mecab_charset () {
@@ -5362,17 +5369,42 @@ sub install_mecab () {
   my $dest_dir_name = "$RootDirName/local/mecab-@{[mecab_version]}-@{[mecab_charset]}";
   
   install_commands ['g++'];
-  
-  return 0 unless install_tarball
-      q<https://drive.google.com/uc?export=download&id=0B4y35FiV1wh7cENtOXlicTFaRUE>
-      => 'mecab' => $dest_dir_name,
-      name => 'mecab-' . mecab_version,
-      configure_args => [
-        '--with-charset=' . $mecab_charset,
-      ],
-      check => sub { -x "@{[mecab_bin_dir_name]}/mecab-config" };
+
+  my $repo_dir_name = create_temp_dir_name;
+  unless (-d "$repo_dir_name/.git") {
+    my $url = q<https://github.com/taku910/mecab>;
+    run_command [git, 'clone', $url, $repo_dir_name, '--depth', 1]
+        or info_die "|git clone| failed";
+  }
+
+  run_command
+      ['sh', 'configure',
+       "--prefix=$dest_dir_name",
+       '--with-charset=' . $mecab_charset],
+      chdir => "$repo_dir_name/mecab"
+      or info_die "mecab ./configure failed";
+  run_command
+      ['make'],
+      chdir => "$repo_dir_name/mecab"
+      or info_die "mecab make failed";
+  run_command
+      ['make', 'install'],
+      chdir => "$repo_dir_name/mecab"
+      or info_die "mecab make install failed";
+
+  #return 0 unless install_tarball
+  #    q<https://drive.google.com/uc?export=download&id=0B4y35FiV1wh7cENtOXlicTFaRUE>
+  #    => 'mecab' => $dest_dir_name,
+  #    name => 'mecab-' . mecab_version,
+  #    configure_args => [
+  #    ],
+  #    check => sub { -x "@{[mecab_bin_dir_name]}/mecab-config" };
+
+  -x "@{[mecab_bin_dir_name]}/mecab-config"
+      or info_die "Installing mecab-config failed";
+
   return install_tarball [
-    q<https://drive.google.com/uc?export=download&id=0B4y35FiV1wh7MWVlSDBCSXZMTXM>,
+    #q<https://drive.google.com/uc?export=download&id=0B4y35FiV1wh7MWVlSDBCSXZMTXM>,
     q<https://downloads.sourceforge.net/project/mecab/mecab-ipadic/2.7.0-20070801/mecab-ipadic-2.7.0-20070801.tar.gz>,
   ] => 'mecab' => $dest_dir_name,
       name => 'mecab-ipadic-2.7.0-20070801',
@@ -5826,6 +5858,11 @@ while (@Command) {
 
   } elsif ($command->{type} eq 'print-cpan-top-url') {
     print get_cpan_top_url;
+  } elsif ($command->{type} eq 'print-actual-perl-version') {
+    $get_perl_version->() unless defined $perl_version;
+    my $path = get_env_path $perl_version;
+    my $actual_perl_version = get_perl_version $PerlCommand || '?', $path;
+    print $actual_perl_version;
   } elsif ($command->{type} eq 'print-latest-perl-version') {
     print get_latest_perl_version;
   } elsif ($command->{type} eq 'print-selected-perl-version') {
@@ -6860,6 +6897,11 @@ An example of template file:
 
 =over 4
 
+=item --print-actual-perl-version
+
+Print the version number of the currently available C<perl> to the
+standard output.
+
 =item --print-latest-perl-version
 
 Print the version number of the latest stable release of Perl to the
@@ -7766,7 +7808,7 @@ Thanks to suzak and nobuoka.
 
 =head1 LICENSE
 
-Copyright 2012-2021 Wakaba <wakaba@suikawiki.org>.
+Copyright 2012-2023 Wakaba <wakaba@suikawiki.org>.
 
 Copyright 2012-2017 Hatena <https://www.hatena.ne.jp/company/>.
 
