@@ -1154,7 +1154,7 @@ sub install_homebrew () {
           my $ok = run_command ['apt-cache', 'show', $_],
               onoutput => sub { $result .= $_[0]; 2 };
           unless ($ok and $result =~ m{^\Q$_\E }m) {
-            push @command, [{}, wrap_by_sudo [$AptGetCommand, 'update'],
+            push @command, [{}, wrap_by_sudo [$AptGetCommand, 'update', '--allow-releaseinfo-change'],
                             undef, sub { $AptGetUpdated = 1 }, 'network'];
             last;
           }
@@ -5500,7 +5500,7 @@ sub before_apt_for_docker () {
        undef, sub { }, undef];
 
   push @$commands,
-      [{}, wrap_by_sudo [$AptGetCommand, 'update'], undef, sub { }, 'network'];
+      [{}, wrap_by_sudo [$AptGetCommand, 'update', '--allow-releaseinfo-change'], undef, sub { }, 'network'];
   
   return $commands;
 } # before_apt_for_docker
