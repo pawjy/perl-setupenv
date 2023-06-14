@@ -2020,7 +2020,7 @@ sub get_perl_path ($) {
   sub _check_perl_version ($$$) {
     my ($perl_command, $perl_version, $path) = @_;
     unless ($PerlVersionChecked->{$path, $perl_command}) {
-      my $actual_perl_version = get_perl_version ($perl_command) || '?';
+      my $actual_perl_version = get_perl_version ($perl_command, $path) || '?';
       if ($actual_perl_version eq $perl_version) {
         $PerlVersionChecked->{$path, $perl_command} = 1;
       } else {
