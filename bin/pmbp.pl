@@ -2355,6 +2355,7 @@ sub cpanm ($$) {
                   ($args->{skip_satisfied} ? '--skip-satisfied' : ()),
                   qw(--notest --cascade-search),
                   ($args->{scandeps} ? ('--scandeps', '--format=json', '--force') : ()));
+    push @option, '--dev' if $args->{dev};
     push @option, '--force' if $args->{force};
     push @option, '--info' if $args->{info};
     push @option, '--verbose' if $Verbose > 1 and
@@ -3126,13 +3127,15 @@ sub cpanm ($$) {
                 scandeps ($args->{scandeps}->{module_index},
                           $perl_version, $module,
                           skip_if_found => 1,
-                          module_index_file_name => $args->{module_index_file_name});
+                          module_index_file_name => $args->{module_index_file_name},
+                          dev => 1);
                 push @{$result->{additional_deps} ||= []}, $module;
               }
               cpanm ({perl_command => $perl_command,
                       perl_version => $perl_version,
                       perl_lib_dir_name => $perl_lib_dir_name,
-                      module_index_file_name => $args->{module_index_file_name}}, [$module])
+                      module_index_file_name => $args->{module_index_file_name},
+                      dev => 1}, [$module])
                   unless $args->{no_install};
             }
             $redo = 1 unless $args->{no_install};
@@ -3142,7 +3145,8 @@ sub cpanm ($$) {
               cpanm ({perl_command => $perl_command,
                       perl_version => $perl_version,
                       perl_lib_dir_name => $perl_lib_dir_name,
-                      module_index_file_name => $args->{module_index_file_name}}, [$module]);
+                      module_index_file_name => $args->{module_index_file_name},
+                      dev => 1}, [$module]);
             }
             $redo = 1;
           }
@@ -3716,7 +3720,8 @@ sub scandeps ($$$;%) {
                       perl_lib_dir_name => $temp_dir_name,
                       temp_dir_name => $temp_dir_name,
                       module_index_file_name => $args{module_index_file_name},
-                      scandeps => {module_index => $module_index}}, [$module];
+                      scandeps => {module_index => $module_index},
+                      dev => $args{dev}}, [$module];
 
   _scandeps_write_result ($result, $module, $module_index);
 } # scandeps
@@ -4456,6 +4461,7 @@ sub install_module ($$$;%) {
   my $lib_dir_name = $args{pmpp}
       ? pmpp_dir_name : get_pm_dir_name ($perl_version);
   my $force;
+  my $dev;
   if (has_module ($perl_command, $perl_version, $module, $lib_dir_name)) {
     if ($module->package eq 'Net::SSLeay' and
         (is_net_ssleay_openssl_too_old ($perl_command, $perl_version) or
@@ -4469,6 +4475,7 @@ sub install_module ($$$;%) {
       info 0, "Platform OpenSSL:\n----\n" . (defined $v1 ? $v1 : '') . "\n----";
       info 0, "Net::SSLeay OpenSSL:\n----\n" . (defined $v2 ? $v2 : '') . "\n----";
       $force = 1;
+      $dev = 1;
     } elsif ($module->package =~ /^DBD::(Pg|mysql)$/ and
              can_start_dbi ($perl_command, $perl_version, $lib_dir_name,
                             $1)) {
@@ -4482,7 +4489,7 @@ sub install_module ($$$;%) {
   cpanm {perl_version => $perl_version,
          perl_lib_dir_name => $lib_dir_name,
          module_index_file_name => $args{module_index_file_name},
-         force => $force},
+         force => $force, dev => $dev},
         [$module];
 
   if ($module->package eq 'Net::SSLeay') {
@@ -4499,7 +4506,7 @@ sub install_module ($$$;%) {
       cpanm {perl_version => $perl_version,
              perl_lib_dir_name => $lib_dir_name,
              module_index_file_name => $args{module_index_file_name},
-             force => 1},
+             force => 1, dev => 1},
              [$module];
     }
   } elsif ($module->package eq 'Crypt::SSLeay') {
@@ -4511,7 +4518,7 @@ sub install_module ($$$;%) {
       cpanm {perl_version => $perl_version,
              perl_lib_dir_name => $lib_dir_name,
              module_index_file_name => $args{module_index_file_name},
-             force => 1},
+             force => 1, dev => 1},
              [$module];
     }
   }
