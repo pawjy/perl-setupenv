@@ -2355,7 +2355,7 @@ sub cpanm ($$) {
                   ($args->{skip_satisfied} ? '--skip-satisfied' : ()),
                   qw(--notest --cascade-search),
                   ($args->{scandeps} ? ('--scandeps', '--format=json', '--force') : ()));
-    push @option, '--dev'; # if $args->{dev};
+    push @option, '--dev' if $args->{dev};
     push @option, '--force' if $args->{force};
     push @option, '--info' if $args->{info};
     push @option, '--verbose' if $Verbose > 1 and
@@ -2412,7 +2412,8 @@ sub cpanm ($$) {
     }
 
     ## Let cpanm not use Web API, as it slows down operations.
-    push @option, '--mirror-only';
+    ## This option forces |--dev| ignored.
+    push @option, '--mirror-only' unless $args->{dev};
 
     ## Don't rely on LWP
     push @option, '--no-lwp';
