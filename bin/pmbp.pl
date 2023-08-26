@@ -4486,6 +4486,8 @@ sub install_module ($$$;%) {
       info 1, "Module @{[$module->as_short]} is already installed; skipped";
       return;
     }
+  } elsif ($module->package eq 'Net::SSLeay') {
+    $dev = 1;
   }
   cpanm {perl_version => $perl_version,
          perl_lib_dir_name => $lib_dir_name,
