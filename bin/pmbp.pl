@@ -3198,7 +3198,7 @@ sub cpanm ($$) {
            (map { '-I' . $_ } @lib),
            '-MNet::SSLeay',
            '-e', 'print scalar Net::SSLeay::ST_OK ()'],
-          envs => {PATH => get_env_path ($perl_version)},
+          envs => get_envs_for_perl ($perl_command, $perl_version),
           info_level => 3,
           onoutput => sub {
             $result = $_[0];
@@ -3598,11 +3598,21 @@ sub rewrite_pm_bin_shebang ($) {
   profiler_stop 'file';
 } # rewrite_pm_bin_shebang
 
+sub get_ld_library_path_names ($) {
+  my $perl_version = shift;
+  my @lib_path;
+  push @lib_path, get_pm_dir_name ($perl_version) . "/lib";
+  push @lib_path, resolve_path "local/common/lib", $RootDirName;
+  push @lib_path, mecab_lib_dir_name ();
+  return @lib_path;
+} # get_ld_library_path_names
+
 sub get_envs_for_perl ($$) {
   my ($perl_command, $perl_version) = @_;
   return {
     PATH => get_env_path ($perl_version),
     PERL5LIB => (join ':', (get_lib_dir_names ($perl_command, $perl_version))),
+    LD_LIBRARY_PATH => (join ':', (get_ld_library_path_names $perl_version)),
   };
 } # get_envs_for_perl
 
@@ -3621,10 +3631,7 @@ sub create_perl_command_shortcut ($$$;%) {
   push @bin_path, get_pm_dir_name ($perl_version) . "/bin";
   push @bin_path, resolve_path "local/common/bin", $RootDirName;
   push @bin_path, mecab_bin_dir_name ();
-  my @lib_path;
-  push @lib_path, get_pm_dir_name ($perl_version) . "/lib";
-  push @lib_path, resolve_path "local/common/lib", $RootDirName;
-  push @lib_path, mecab_lib_dir_name ();
+  my @lib_path = get_ld_library_path_names ($perl_version);
   open my $file, '>', $file_name or info_die "$0: $file_name: $!";
   my $paths;
   if ($args{relocatable}) {
