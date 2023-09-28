@@ -3721,6 +3721,10 @@ sub scandeps ($$$;%) {
     }
   }
 
+  if ($module->package eq 'Net::SSLeay') {
+    $args{dev} = 1;
+  }
+
   my $temp_dir_name = $args{temp_dir_name} || create_temp_dir_name;
 
   get_local_copy_if_necessary $module;
