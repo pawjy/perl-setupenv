@@ -2333,6 +2333,7 @@ sub cpanm ($$) {
   my @additional_path;
   my @additional_option;
   my $retry_with_openssl = 0;
+  my $dbd_mysql_ssl_dropped;
 
   my $redo = 0;
   COMMAND: {
@@ -2345,6 +2346,7 @@ sub cpanm ($$) {
     my @required_installable;
     my %required_misc;
     my %diag;
+    my $can_retry;
 
     my $cpanm_lib_dir_name = "$RootDirName/local/perl-$perl_version/cpanm";
     my @perl_option = ("-I$cpanm_lib_dir_name/lib/perl5/$archname",
@@ -2378,7 +2380,8 @@ sub cpanm ($$) {
 
     my @configure_args;
     if (@module_arg and $module_arg[0] eq 'DBD::mysql' and not $args->{info}) {
-      push @configure_args, '--ssl';
+      push @configure_args, '--ssl'
+          unless $dbd_mysql_ssl_dropped;
     }
 
     unless ($args->{force}) {
@@ -2837,6 +2840,11 @@ sub cpanm ($$) {
         # DBD::mysql
         $required_misc{openssl_ld} = 1;
       }
+      if ($log =~ m{Unknown option: ssl}) {
+        # DBD::mysql configure --ssl
+        $dbd_mysql_ssl_dropped = 1;
+        $can_retry = 1;
+      }
       if ($log =~ /^version.c:.+?: (?:fatal |)error: db.h: No such file or directory/m and
           $log =~ /^-> FAIL Installing DB_File failed/m) {
         push @required_system,
@@ -3175,6 +3183,7 @@ sub cpanm ($$) {
             info 0, "Can't detect why cpanm failed";
           }
         }
+        $redo = 1 if $can_retry;
         redo COMMAND if $redo;
       }
       if ($args->{info}) {
