@@ -6406,7 +6406,11 @@ sub as_cpanm_arg ($$) {
       $p =~ s/^inc:://;
       return $p;
     } else {
-      return $self->{package};
+      if (defined $self->{op}) {
+        return $self->{package} . $self->{op} . $self->{version};
+      } else {
+        return $self->{package};
+      }
     }
   }
 } # as_cpanm_arg
