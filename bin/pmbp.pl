@@ -2848,6 +2848,10 @@ sub cpanm ($$) {
         $dbd_mysql_ssl_dropped = 1;
         $can_retry = 1;
       }
+      if ($log =~ m{DBD::mysql requires MySQL 8.x for building.}) {
+        push @required_install,
+            PMBP::Module->new_from_module_arg ('DBD::mysql@4.051');
+      }
       if ($log =~ /^version.c:.+?: (?:fatal |)error: db.h: No such file or directory/m and
           $log =~ /^-> FAIL Installing DB_File failed/m) {
         push @required_system,
