@@ -3733,6 +3733,9 @@ sub scandeps ($$$;%) {
   if ($module->package eq 'Net::SSLeay') {
     $args{dev} = 1;
   }
+  if ($module->as_short eq 'DBD::mysql') {
+    $module = PMBP::Module->new_from_module_arg ('DBD::mysql@4.051');
+  }
 
   my $temp_dir_name = $args{temp_dir_name} || create_temp_dir_name;
 
@@ -4508,6 +4511,9 @@ sub install_module ($$$;%) {
     }
   } elsif ($module->package eq 'Net::SSLeay') {
     $dev = 1;
+  }
+  if ($module->as_short eq 'DBD::mysql') {
+    $module = PMBP::Module->new_from_module_arg ('DBD::mysql@4.051');
   }
   cpanm {perl_version => $perl_version,
          perl_lib_dir_name => $lib_dir_name,
@@ -6216,17 +6222,18 @@ sub new_from_module_arg ($$) {
     croak "Module argument is not specified";
   } elsif ($arg =~ /\A([0-9A-Za-z_:]+)\z/) {
     return bless {package => $PackageCompat->{$1} || $1}, $class;
-  } elsif ($arg =~ /\A([0-9A-Za-z_:]+)~([0-9A-Za-z_.-]+)\z/) {
+  } elsif ($arg =~ /\A([0-9A-Za-z_:]+)([~\@])([0-9A-Za-z_.-]+)\z/) {
     return bless {package => $PackageCompat->{$1} || $1,
-                  version => $2}, $class;
+                  version => $3, op => $2}, $class;
   } elsif ($arg =~ m{\A([0-9A-Za-z_:]+)=([Hh][Tt][Tt][Pp][Ss]?://.+)\z}) {
     my $self = bless {package => $PackageCompat->{$1} || $1,
                       url => $2}, $class;
     $self->_set_distname;
     return $self;
-  } elsif ($arg =~ m{\A([0-9A-Za-z_:]+)~([0-9A-Za-z_.-]+)=([Hh][Tt][Tt][Pp][Ss]?://.+)\z}) {
+  } elsif ($arg =~ m{\A([0-9A-Za-z_:]+)([~\@])([0-9A-Za-z_.-]+)=([Hh][Tt][Tt][Pp][Ss]?://.+)\z}) {
     my $self = bless {package => $PackageCompat->{$1} || $1,
-                      version => $2, url => $3}, $class;
+                      version => $3, url => $4,
+                      op => $2}, $class;
     $self->_set_distname;
     return $self;
   } elsif ($arg =~ m{\A([Hh][Tt][Tt][Pp][Ss]?://.+)\z}) {
@@ -6355,6 +6362,9 @@ sub is_equal_module ($$) {
   return 0 if not defined $m1->{version} and defined $m2->{version};
   return 0 if defined $m1->{version} and defined $m2->{version} and
               $m1->{version} ne $m2->{version};
+  return 0 if not defined $m1->{op} and defined $m2->{op};
+  return 0 if defined $m1->{op} and not defined $m2->{op};
+  return 0 if defined $m1->{op} and defined $m2->{op} and not $m1->{op} eq $m2->{op};
   return 1;
 } # is_equal_module
 
@@ -6363,6 +6373,7 @@ sub merge_input_data ($$) {
   if (not defined $m1->{package}) {
     $m1->{package} = $m2->{package};
     $m1->{version} = $m2->{version};
+    $m1->{op} ||= $m2->{op};
     $m1->{distvname} ||= $m2->{distvname} if defined $m2->{distvname};
     $m1->{pathname} ||= $m2->{pathname} if defined $m2->{pathname};
     $m1->{url} ||= $m2->{url} if defined $m2->{url};
@@ -6371,7 +6382,7 @@ sub merge_input_data ($$) {
 
 sub as_short ($) {
   my $self = shift;
-  return (defined $self->{package} ? $self->{package} : '') . (defined $self->{version} ? '~' . $self->{version} : '');
+  return (defined $self->{package} ? $self->{package} : '') . (defined $self->{version} ? $self->{op} . $self->{version} : '');
 } # as_short
 
 sub as_cpanm_arg ($$) {
