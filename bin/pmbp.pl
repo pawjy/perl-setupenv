@@ -2675,7 +2675,7 @@ sub cpanm ($$) {
       if ($log =~ /^\s*\+ Module::Install$/m) {
         push @required_install, PMBP::Module->new_from_package ('Module::Install');
       }
-      if ($log =~ /^String found where operator expected at Makefile.PL line [0-9]+, near \"([0-9A-Za-z_]+)/m) {
+      if ($log =~ /^String found where operator expected (?:\([^()]+\) |)at Makefile.PL line [0-9]+, near \"([0-9A-Za-z_]+)/m) {
         my $module_name = {
           author_tests => 'Module::Install::AuthorTests',
           readme_from => 'Module::Install::ReadmeFromPod',
