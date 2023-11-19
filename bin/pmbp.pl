@@ -2417,7 +2417,7 @@ sub cpanm ($$) {
     ## Let cpanm not use Web API, as it slows down operations.
     ## This option forces |--dev| ignored.
     if (not $args->{dev} and
-        not grep { defined $_->{op} and $_->{op} eq '@' } @$modules) {
+        not grep { ref $_ and defined $_->{op} and $_->{op} eq '@' } @$modules) {
       push @option, '--mirror-only';
     }
 
