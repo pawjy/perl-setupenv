@@ -2333,6 +2333,7 @@ sub cpanm ($$) {
   my @additional_path;
   my @additional_option;
   my $retry_with_openssl = 0;
+  my $dbd_mysql_ssl_dropped;
 
   my $redo = 0;
   COMMAND: {
@@ -2345,6 +2346,7 @@ sub cpanm ($$) {
     my @required_installable;
     my %required_misc;
     my %diag;
+    my $can_retry;
 
     my $cpanm_lib_dir_name = "$RootDirName/local/perl-$perl_version/cpanm";
     my @perl_option = ("-I$cpanm_lib_dir_name/lib/perl5/$archname",
@@ -2378,7 +2380,8 @@ sub cpanm ($$) {
 
     my @configure_args;
     if (@module_arg and $module_arg[0] eq 'DBD::mysql' and not $args->{info}) {
-      push @configure_args, '--ssl';
+      push @configure_args, '--ssl'
+          unless $dbd_mysql_ssl_dropped;
     }
 
     unless ($args->{force}) {
@@ -2413,7 +2416,10 @@ sub cpanm ($$) {
 
     ## Let cpanm not use Web API, as it slows down operations.
     ## This option forces |--dev| ignored.
-    push @option, '--mirror-only' unless $args->{dev};
+    if (not $args->{dev} and
+        not grep { ref $_ and defined $_->{op} and $_->{op} eq '@' } @$modules) {
+      push @option, '--mirror-only';
+    }
 
     ## Don't rely on LWP
     push @option, '--no-lwp';
@@ -2669,7 +2675,7 @@ sub cpanm ($$) {
       if ($log =~ /^\s*\+ Module::Install$/m) {
         push @required_install, PMBP::Module->new_from_package ('Module::Install');
       }
-      if ($log =~ /^String found where operator expected at Makefile.PL line [0-9]+, near \"([0-9A-Za-z_]+)/m) {
+      if ($log =~ /^String found where operator expected (?:\([^()]+\) |)at Makefile.PL line [0-9]+, near \"([0-9A-Za-z_]+)/m) {
         my $module_name = {
           author_tests => 'Module::Install::AuthorTests',
           readme_from => 'Module::Install::ReadmeFromPod',
@@ -2836,6 +2842,15 @@ sub cpanm ($$) {
       if ($log =~ m{Can't link/include C library 'ssl', 'crypto', aborting.}) {
         # DBD::mysql
         $required_misc{openssl_ld} = 1;
+      }
+      if ($log =~ m{Unknown option: ssl}) {
+        # DBD::mysql configure --ssl
+        $dbd_mysql_ssl_dropped = 1;
+        $can_retry = 1;
+      }
+      if ($log =~ m{DBD::mysql requires MySQL 8.x for building.}) {
+        push @required_install,
+            PMBP::Module->new_from_module_arg ('DBD::mysql@4.051');
       }
       if ($log =~ /^version.c:.+?: (?:fatal |)error: db.h: No such file or directory/m and
           $log =~ /^-> FAIL Installing DB_File failed/m) {
@@ -3175,6 +3190,7 @@ sub cpanm ($$) {
             info 0, "Can't detect why cpanm failed";
           }
         }
+        $redo = 1 if $can_retry;
         redo COMMAND if $redo;
       }
       if ($args->{info}) {
@@ -3723,6 +3739,9 @@ sub scandeps ($$$;%) {
 
   if ($module->package eq 'Net::SSLeay') {
     $args{dev} = 1;
+  }
+  if ($module->as_short eq 'DBD::mysql') {
+    $module = PMBP::Module->new_from_module_arg ('DBD::mysql@4.051');
   }
 
   my $temp_dir_name = $args{temp_dir_name} || create_temp_dir_name;
@@ -4499,6 +4518,9 @@ sub install_module ($$$;%) {
     }
   } elsif ($module->package eq 'Net::SSLeay') {
     $dev = 1;
+  }
+  if ($module->as_short eq 'DBD::mysql') {
+    $module = PMBP::Module->new_from_module_arg ('DBD::mysql@4.051');
   }
   cpanm {perl_version => $perl_version,
          perl_lib_dir_name => $lib_dir_name,
@@ -6207,17 +6229,18 @@ sub new_from_module_arg ($$) {
     croak "Module argument is not specified";
   } elsif ($arg =~ /\A([0-9A-Za-z_:]+)\z/) {
     return bless {package => $PackageCompat->{$1} || $1}, $class;
-  } elsif ($arg =~ /\A([0-9A-Za-z_:]+)~([0-9A-Za-z_.-]+)\z/) {
+  } elsif ($arg =~ /\A([0-9A-Za-z_:]+)([~\@])([0-9A-Za-z_.-]+)\z/) {
     return bless {package => $PackageCompat->{$1} || $1,
-                  version => $2}, $class;
+                  version => $3, op => $2}, $class;
   } elsif ($arg =~ m{\A([0-9A-Za-z_:]+)=([Hh][Tt][Tt][Pp][Ss]?://.+)\z}) {
     my $self = bless {package => $PackageCompat->{$1} || $1,
                       url => $2}, $class;
     $self->_set_distname;
     return $self;
-  } elsif ($arg =~ m{\A([0-9A-Za-z_:]+)~([0-9A-Za-z_.-]+)=([Hh][Tt][Tt][Pp][Ss]?://.+)\z}) {
+  } elsif ($arg =~ m{\A([0-9A-Za-z_:]+)([~\@])([0-9A-Za-z_.-]+)=([Hh][Tt][Tt][Pp][Ss]?://.+)\z}) {
     my $self = bless {package => $PackageCompat->{$1} || $1,
-                      version => $2, url => $3}, $class;
+                      version => $3, url => $4,
+                      op => $2}, $class;
     $self->_set_distname;
     return $self;
   } elsif ($arg =~ m{\A([Hh][Tt][Tt][Pp][Ss]?://.+)\z}) {
@@ -6346,6 +6369,9 @@ sub is_equal_module ($$) {
   return 0 if not defined $m1->{version} and defined $m2->{version};
   return 0 if defined $m1->{version} and defined $m2->{version} and
               $m1->{version} ne $m2->{version};
+  return 0 if not defined $m1->{op} and defined $m2->{op};
+  return 0 if defined $m1->{op} and not defined $m2->{op};
+  return 0 if defined $m1->{op} and defined $m2->{op} and not $m1->{op} eq $m2->{op};
   return 1;
 } # is_equal_module
 
@@ -6354,6 +6380,7 @@ sub merge_input_data ($$) {
   if (not defined $m1->{package}) {
     $m1->{package} = $m2->{package};
     $m1->{version} = $m2->{version};
+    $m1->{op} ||= $m2->{op};
     $m1->{distvname} ||= $m2->{distvname} if defined $m2->{distvname};
     $m1->{pathname} ||= $m2->{pathname} if defined $m2->{pathname};
     $m1->{url} ||= $m2->{url} if defined $m2->{url};
@@ -6362,7 +6389,7 @@ sub merge_input_data ($$) {
 
 sub as_short ($) {
   my $self = shift;
-  return (defined $self->{package} ? $self->{package} : '') . (defined $self->{version} ? '~' . $self->{version} : '');
+  return (defined $self->{package} ? $self->{package} : '') . (defined $self->{version} ? $self->{op} . $self->{version} : '');
 } # as_short
 
 sub as_cpanm_arg ($$) {
@@ -6383,7 +6410,11 @@ sub as_cpanm_arg ($$) {
       $p =~ s/^inc:://;
       return $p;
     } else {
-      return $self->{package};
+      if (defined $self->{op}) {
+        return $self->{package} . $self->{op} . $self->{version};
+      } else {
+        return $self->{package};
+      }
     }
   }
 } # as_cpanm_arg
