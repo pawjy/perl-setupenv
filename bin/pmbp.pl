@@ -2815,6 +2815,10 @@ sub cpanm ($$) {
         push @required_installable, 'mysqld';
         $failed = 1;
       }
+      if ($log =~ m{Failed to determine directory of mysql.h.}) {
+        # DBD::MariaDB
+        push @required_installable, 'mysqld';
+      }
       if ($log =~ /^The value of POSTGRES_INCLUDE points to a non-existent directory/m or
           $log =~ /^You need to install postgresql-server-dev-X.Y for building a server-side extension or libpq-dev for building a client-side application./m or
           $log =~ /No POSTGRES_HOME defined, cannot find automatically/m) {
