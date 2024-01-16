@@ -4316,13 +4316,13 @@ sub scan_dependency_from_directory ($) {
   my @exclude_pattern = map { "^$_" } qw(modules bin/modules t_deps/modules t_deps/projects);
   for (split /\n/, qx{cd @{[shellarg $dir_name]} && find @{[join ' ', map { shellarg $_ } @include_dir_name]} 2> /dev/null @{[join ' ', map { "| grep -v $_" } map { shellarg $_ } @exclude_pattern]} | grep "\\.\\(pm\\|pl\\|t\\)\$" | xargs grep "\\(use\\|require\\|extends\\) " --no-filename}) {
     s/\#.*$//;
-    while (/\b(?:(?:use|require)\s*(?:base|parent)|extends)\s*(.+)/g) {
+    while (/\b(?:(?:use|require)\s+(?:base|parent)|extends)\s+(.+)/g) {
       my $base = $1;
       while ($base =~ /([0-9A-Za-z_:]+)/g) {
         $modules->{$1} = 1;
       }
     }
-    while (/\b(?:use|require)\s*([0-9A-Za-z_:]+)/g) {
+    while (/\b(?:use|require)\s+([0-9A-Za-z_]+(?:::[0-9A-Za-z_]+)*)\b/g) {
       my $name = $1;
       next if $name =~ /["']/;
       $modules->{$name} = 1;
@@ -7864,7 +7864,7 @@ Thanks to suzak and nobuoka.
 
 =head1 LICENSE
 
-Copyright 2012-2023 Wakaba <wakaba@suikawiki.org>.
+Copyright 2012-2024 Wakaba <wakaba@suikawiki.org>.
 
 Copyright 2012-2017 Hatena <https://www.hatena.ne.jp/company/>.
 
