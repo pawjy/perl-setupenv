@@ -4316,13 +4316,13 @@ sub scan_dependency_from_directory ($) {
   my @exclude_pattern = map { "^$_" } qw(modules bin/modules t_deps/modules t_deps/projects);
   for (split /\n/, qx{cd @{[shellarg $dir_name]} && find @{[join ' ', map { shellarg $_ } @include_dir_name]} 2> /dev/null @{[join ' ', map { "| grep -v $_" } map { shellarg $_ } @exclude_pattern]} | grep "\\.\\(pm\\|pl\\|t\\)\$" | xargs grep "\\(use\\|require\\|extends\\) " --no-filename}) {
     s/\#.*$//;
-    while (/\b(?:(?:use|require)\s*(?:base|parent)|extends)\s*(.+)/g) {
+    while (/\b(?:(?:use|require)\s+(?:base|parent)|extends)\s+(.+)/g) {
       my $base = $1;
       while ($base =~ /([0-9A-Za-z_:]+)/g) {
         $modules->{$1} = 1;
       }
     }
-    while (/\b(?:use|require)\s*([0-9A-Za-z_:]+)/g) {
+    while (/\b(?:use|require)\s+([0-9A-Za-z_]+(?:::[0-9A-Za-z_]+)*)\b/g) {
       my $name = $1;
       next if $name =~ /["']/;
       $modules->{$name} = 1;
@@ -5089,8 +5089,8 @@ sub save_apache_package ($$$) {
   my $file_name = pmtar_dir_name . "/packages/apache/$package_name-$version.tar.gz";
   
   my $url_dir_name = {'apr-util' => 'apr'}->{$package_name} || $package_name;
-  for my $mirror ($mirror_url,
-                  "https://www.apache.org/dist/",
+  for my $mirror (#$mirror_url,
+                  #"https://www.apache.org/dist/",
                   "https://archive.apache.org/dist/") {
     next unless defined $mirror;
     if (-s $file_name) {
@@ -5182,7 +5182,8 @@ sub install_apache_httpd ($) {
         onoutput => sub { $log .= $_[0]; 2 };
     last if $ok;
 
-    if ($log =~ m{^configure: error: pcre-config for libpcre not found. PCRE is required and available from http://pcre.org/}m) {
+    if ($log =~ m{^configure: error: pcre-config for libpcre not found. PCRE is required and available from http://pcre.org/}m or
+        $log =~ m{^\Qconfigure: error: pcre(2)-config for libpcre not found. PCRE is required and available from http://pcre.org/\E}m) {
       if (install_system_packages [{name => 'pcre-devel',
                                     debian_name => 'libpcre3-dev'}]) {
         redo if $i++ < 1;
@@ -7864,7 +7865,7 @@ Thanks to suzak and nobuoka.
 
 =head1 LICENSE
 
-Copyright 2012-2023 Wakaba <wakaba@suikawiki.org>.
+Copyright 2012-2024 Wakaba <wakaba@suikawiki.org>.
 
 Copyright 2012-2017 Hatena <https://www.hatena.ne.jp/company/>.
 
