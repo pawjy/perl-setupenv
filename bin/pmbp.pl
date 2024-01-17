@@ -5089,8 +5089,8 @@ sub save_apache_package ($$$) {
   my $file_name = pmtar_dir_name . "/packages/apache/$package_name-$version.tar.gz";
   
   my $url_dir_name = {'apr-util' => 'apr'}->{$package_name} || $package_name;
-  for my $mirror ($mirror_url,
-                  "https://www.apache.org/dist/",
+  for my $mirror (#$mirror_url,
+                  #"https://www.apache.org/dist/",
                   "https://archive.apache.org/dist/") {
     next unless defined $mirror;
     if (-s $file_name) {
@@ -5182,7 +5182,8 @@ sub install_apache_httpd ($) {
         onoutput => sub { $log .= $_[0]; 2 };
     last if $ok;
 
-    if ($log =~ m{^configure: error: pcre-config for libpcre not found. PCRE is required and available from http://pcre.org/}m) {
+    if ($log =~ m{^configure: error: pcre-config for libpcre not found. PCRE is required and available from http://pcre.org/}m or
+        $log =~ m{^\Qconfigure: error: pcre(2)-config for libpcre not found. PCRE is required and available from http://pcre.org/\E}m) {
       if (install_system_packages [{name => 'pcre-devel',
                                     debian_name => 'libpcre3-dev'}]) {
         redo if $i++ < 1;
