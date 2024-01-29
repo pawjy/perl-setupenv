@@ -3744,9 +3744,6 @@ sub scandeps ($$$;%) {
   if ($module->package eq 'Net::SSLeay') {
     $args{dev} = 1;
   }
-  if ($module->as_short eq 'DBD::mysql') {
-    $module = PMBP::Module->new_from_module_arg ('DBD::mysql@4.051');
-  }
 
   my $temp_dir_name = $args{temp_dir_name} || create_temp_dir_name;
 
@@ -4522,9 +4519,6 @@ sub install_module ($$$;%) {
     }
   } elsif ($module->package eq 'Net::SSLeay') {
     $dev = 1;
-  }
-  if ($module->as_short eq 'DBD::mysql') {
-    $module = PMBP::Module->new_from_module_arg ('DBD::mysql@4.051');
   }
   cpanm {perl_version => $perl_version,
          perl_lib_dir_name => $lib_dir_name,
@@ -6218,14 +6212,14 @@ BEGIN {
 }
 
 sub new_from_package ($$) {
-  return bless {package => $PackageCompat->{$_[1]} || $_[1]}, $_[0];
+  return $_[0]->_new ({package => $PackageCompat->{$_[1]} || $_[1]});
 } # new_from_package
 
 sub new_from_pm_file_name ($$) {
   my $m = $_[1];
   $m =~ s/\.pm$//;
   $m =~ s{[/\\]+}{::}g;
-  return bless {package => $PackageCompat->{$m} || $m}, $_[0];
+  return $_[0]->_new ({package => $PackageCompat->{$m} || $m});
 } # new_from_pm_file_name
 
 sub new_from_module_arg ($$) {
@@ -6233,26 +6227,18 @@ sub new_from_module_arg ($$) {
   if (not defined $arg) {
     croak "Module argument is not specified";
   } elsif ($arg =~ /\A([0-9A-Za-z_:]+)\z/) {
-    return bless {package => $PackageCompat->{$1} || $1}, $class;
+    return $class->_new ({package => $PackageCompat->{$1} || $1});
   } elsif ($arg =~ /\A([0-9A-Za-z_:]+)([~\@])([0-9A-Za-z_.-]+)\z/) {
-    return bless {package => $PackageCompat->{$1} || $1,
-                  version => $3, op => $2}, $class;
+    return $class->_new ({package => $PackageCompat->{$1} || $1,
+                          version => $3, op => $2});
   } elsif ($arg =~ m{\A([0-9A-Za-z_:]+)=([Hh][Tt][Tt][Pp][Ss]?://.+)\z}) {
-    my $self = bless {package => $PackageCompat->{$1} || $1,
-                      url => $2}, $class;
-    $self->_set_distname;
-    return $self;
+    return $class->_new ({package => $PackageCompat->{$1} || $1, url => $2});
   } elsif ($arg =~ m{\A([0-9A-Za-z_:]+)([~\@])([0-9A-Za-z_.-]+)=([Hh][Tt][Tt][Pp][Ss]?://.+)\z}) {
-    my $self = bless {package => $PackageCompat->{$1} || $1,
-                      version => $3, url => $4,
-                      op => $2}, $class;
-    $self->_set_distname;
-    return $self;
+    return $class->_new ({package => $PackageCompat->{$1} || $1,
+                          version => $3, url => $4, op => $2});
   } elsif ($arg =~ m{\A([Hh][Tt][Tt][Pp][Ss]?://.+)\z}) {
     warn "URL without module name ($1) is specified; installing modules without module name is not supported\n";
-    my $self = bless {url => $1}, $class;
-    $self->_set_distname;
-    return $self;
+    return $class->_new ({url => $1});
   } else {
     croak "Module argument |$arg| is not supported";
   }
@@ -6260,17 +6246,18 @@ sub new_from_module_arg ($$) {
 
 sub new_from_cpanm_scandeps_json_module ($$) {
   my ($class, $json) = @_;
-  return bless {package => $PackageCompat->{$json->{module} || ''} || $json->{module},
-                version => $json->{module_version},
-                distvname => $json->{distvname} || $json->{dir},
-                pathname => $json->{pathname} || (defined $json->{dir} ? 'misc/' . $json->{dir} . '.tar.gz' : undef)}, $class;
+  return $class->_new
+      ({package => $PackageCompat->{$json->{module} || ''} || $json->{module},
+        version => $json->{module_version},
+        distvname => $json->{distvname} || $json->{dir},
+        pathname => $json->{pathname} || (defined $json->{dir} ? 'misc/' . $json->{dir} . '.tar.gz' : undef)});
 } # new_from_cpanm_scandeps_json_module
 
 sub new_from_carton_lock_entry ($$) {
   my ($class, $json) = @_;
-  my $entry = bless {package => $json->{module} || $json->{target} || $json->{name},
-                     version => $json->{version},
-                     pathname => $json->{pathname}}, $class;
+  my $entry = {package => $json->{module} || $json->{target} || $json->{name},
+               version => $json->{version},
+               pathname => $json->{pathname}};
   $entry->{package} = {
     'libxml::perl' => 'XML::Perl2SAX',
     'MIME::tools' => 'MIME::Tools',
@@ -6280,35 +6267,48 @@ sub new_from_carton_lock_entry ($$) {
     'Template::Toolkit' => 'Template',
     'Scalar-Util-Instance' => 'Scalar::Util::Instance',
   }->{$entry->{package}} || $entry->{package};
-  return $entry;
+  return $class->_new ($entry);
 } # new_from_carton_lock_entry
 
 sub new_from_jsonalizable ($$) {
-  return bless $_[1], $_[0];
+  return $_[0]->_new ($_[1]);
 } # new_from_jsonalizable
 
 sub new_from_indexable ($$) {
-  return bless {package => $PackageCompat->{$_[1]->[0] || ''} || $_[1]->[0],
-                version => $_[1]->[1] eq 'undef' ? undef : $_[1]->[1],
-                pathname => $_[1]->[2]}, $_[0];
+  return $_[0]->_new
+      ({package => $PackageCompat->{$_[1]->[0] || ''} || $_[1]->[0],
+        version => $_[1]->[1] eq 'undef' ? undef : $_[1]->[1],
+        pathname => $_[1]->[2]});
 } # new_from_indexable
 
-sub _set_distname ($) {
-  my $self = shift;
+sub _new ($$) {
+  my ($class, $module) = @_;
+  bless $module, $class;
 
-  if (defined $self->{url}) {
-    $self->{url} =~ s{^http://wakaba\.github\.com/}{https://wakaba.github.io/};
-    $self->{url} =~ s{^http://(backpan\.perl\.org)/}{https://$1/};
+  if ($module->{package} eq 'DBD::mysql' and
+      not defined $module->{version} and
+      not defined $module->{pathname} and
+      not defined $module->{url}) {
+    $module->{version} = '4.051';
+    $module->{op} = '@';
+    delete $module->{distvname};
   }
 
-  if (not defined $self->{pathname} and defined $self->{url}) {
-    if ($self->{url} =~ m{/authors/id/(.+\.(?:tar\.(?:gz|bz2)|zip|tgz))$}) {
-      $self->{pathname} = $1;
-    } elsif ($self->{url} =~ m{([^/]+\.(?:tar\.(?:gz|bz2)|zip|tgz))$}) {
-      $self->{pathname} = "misc/$1";
+  if (defined $module->{url}) {
+    $module->{url} =~ s{^http://wakaba\.github\.com/}{https://wakaba.github.io/};
+    $module->{url} =~ s{^http://(backpan\.perl\.org)/}{https://$1/};
+  }
+
+  if (not defined $module->{pathname} and defined $module->{url}) {
+    if ($module->{url} =~ m{/authors/id/(.+\.(?:tar\.(?:gz|bz2)|zip|tgz))$}) {
+      $module->{pathname} = $1;
+    } elsif ($module->{url} =~ m{([^/]+\.(?:tar\.(?:gz|bz2)|zip|tgz))$}) {
+      $module->{pathname} = "misc/$1";
     }
   }
-} # _set_distname
+
+  return $module;
+} # _new
 
 sub package ($) {
   return $_[0]->{package};
@@ -6324,7 +6324,10 @@ sub pathname ($) {
   if (defined $_[0]->{package}) {
     main::get_default_mirror_file_name unless $ModulePackagePathnameMapping;
     my $pathname = $ModulePackagePathnameMapping->{$_[0]->{package}};
-    if (defined $pathname) {
+    if (defined $pathname and
+        not defined $_[0]->{op} and
+        not defined $_[0]->{version} and
+        not defined $_[0]->{url}) {
       return $_[0]->{pathname} = $pathname;
     }
 
