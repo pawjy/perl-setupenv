@@ -2332,6 +2332,7 @@ sub cpanm ($$) {
   my $archname = $args->{info} ? $Config{archname} : get_perl_archname $perl_command, $perl_version;
   my @additional_path;
   my @additional_option;
+  my $retry_with_openssl_dev = 0;
   my $retry_with_openssl = 0;
   my $dbd_mysql_ssl_dropped;
 
@@ -3087,7 +3088,17 @@ sub cpanm ($$) {
           if ($PlatformIsMacOSX) {
             $redo = 1 if xcode_select_install or install_openssl ($perl_version);
           } else {
-            $redo = 1 if install_openssl ($perl_version);
+            if (not $retry_with_openssl_dev) {
+              if (install_system_packages [{name => 'openssl-devel',
+                                            debian_name => 'libssl-dev'}]) {
+                $retry_with_openssl_dev = 1;
+                $redo = 1;
+              } else {
+                $redo = 1 if install_openssl ($perl_version);
+              }
+            } else {
+              $redo = 1 if install_openssl ($perl_version);
+            }
           }
         }
         if ($required_misc{mecab}) {
@@ -4623,6 +4634,7 @@ sub get_openssl_version ($) {
       onoutput => sub { $version = $_[0]; 2 }
       or $version = undef;
   $version =~ s/[\x0D\x0A]+\z// if defined $version;
+  $version =~ s/\s*\(Library: .+?\)$// if defined $version; # for backcompat and comparison with Net::SSLeay OpenSSL version
   return $_OpenSSLVersion = $version;
 } # get_openssl_version
 
@@ -6949,12 +6961,30 @@ a clean environment.
 An example of template file:
 
   #!/bin/bash
+  set -eo pipefail
   cd /myapp
   {{INSTALL}}
   ## Now we can assume there are |perl| and |local/bin/pmbp.pl|.
   perl local/bin/pmbp.pl --install-commands "make git"
   git clone https://url/of/component
   cd component && make deps
+
+This would install an application into C</myapp>.
+
+Another example template file:
+
+  #!/bin/bash
+  set -eo pipefail
+  rootpath=$(cd `dirname $0` && pwd)
+  cd $rootpath
+  {{INSTALL}}
+  perl local/bin/pmbp.pl --install-make && \
+  make deps && \
+  exec $rootpath/bin/local-server
+
+The generated script is expected to be placed in the application
+source tree's root directory.  It would install the dependencies and
+then start the C<bin/local-server> program.
 
 =back
 
