@@ -5638,9 +5638,14 @@ sub install_perl_app ($$$;%) {
         or info_die "|$name|: |git checkout $sha| failed";
   }
 
-  run_command ['make', '-q', 'deps'], chdir => $dir_name,
-      '$?' => \my $deps;
-  if (($deps >> 8) == 0 or ($deps >> 8) == 1) {
+  my $can_make_deps = 0;
+  if (-f "$dir_name/Makefile") {
+    install_commands ['make'];
+    run_command ['make', '-q', 'deps'], chdir => $dir_name,
+        '$?' => \my $deps;
+    $can_make_deps = (($deps >> 8) == 0 or ($deps >> 8) == 1);
+  }
+  if ($can_make_deps) {
     # $ make deps
     run_command ['make', 'deps'], chdir => $dir_name,
         envs => {PMBP_VERBOSE => 100},
