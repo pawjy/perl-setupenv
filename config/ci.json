@@ -4,6 +4,10 @@
     "tests": ["make test"],
     "macos": true,
     "env_matrix": {
+      "PMBP_OPENSSL_TYPE": [
+        "openssl",
+        "libressl"
+      ],
       "TARGET": [
         "imagemagick",
         "modperl",

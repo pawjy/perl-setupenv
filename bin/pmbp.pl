@@ -20,6 +20,7 @@ my $PlatformIsWindows = $^O eq 'MSWin32';
 my $PlatformIsMacOSX = $^O eq 'darwin';
 my $PerlCommand = 'perl';
 my $SpecifiedPerlVersion = $ENV{PMBP_PERL_VERSION};
+my $SpecifiedOpenSSLType = $ENV{PMBP_OPENSSL_TYPE} || 'auto';
 my $PerlOptions = {};
 $PerlOptions->{relocatable} = 1 if $ENV{PMBP_HEROKU_BUILDPACK};
 my $WgetCommand = 'wget';
@@ -72,6 +73,7 @@ GetOptions (
   '--pmpp-dir-name=s' => \$PMPPDirName,
   '--perl-version=s' => \$SpecifiedPerlVersion,
   '--perl-relocatable' => sub { $PerlOptions->{relocatable} = 1 },
+  '--openssl-type=s' => \$SpecifiedOpenSSLType,
   '--verbose' => sub { $Verbose++ },
   '--preserve-info-file' => \$PreserveInfoFile,
   '--dump-info-file-before-die' => \$DumpInfoFileBeforeDie,
@@ -2307,7 +2309,7 @@ sub cpanm ($$) {
           $package eq 'Crypt::SSLeay' or
           $package =~ /^Crypt::OpenSSL::/) {
         info 1, "Net::SSLeay requires OpenSSL (or equivalent)";
-        install_openssl_if_too_old ($perl_version);
+        install_openssl_if_too_old ($perl_version, $SpecifiedOpenSSLType);
       } elsif ($package eq 'Image::Magick') {
         info 1, "Image::Magick requires ImageMagick";
         return build_imagemagick
@@ -3081,12 +3083,12 @@ sub cpanm ($$) {
         }
         if ($required_misc{openssl}) {
           $retry_with_openssl = 1;
-          $redo = 1 if install_openssl ($perl_version);
+          $redo = 1 if install_openssl ($perl_version, $SpecifiedOpenSSLType);
         }
         if ($required_misc{openssl_ld}) {
           $retry_with_openssl = 1;
           if ($PlatformIsMacOSX) {
-            $redo = 1 if xcode_select_install or install_openssl ($perl_version);
+            $redo = 1 if xcode_select_install or install_openssl ($perl_version, $SpecifiedOpenSSLType);
           } else {
             if (not $retry_with_openssl_dev) {
               if (install_system_packages [{name => 'openssl-devel',
@@ -3094,10 +3096,10 @@ sub cpanm ($$) {
                 $retry_with_openssl_dev = 1;
                 $redo = 1;
               } else {
-                $redo = 1 if install_openssl ($perl_version);
+                $redo = 1 if install_openssl ($perl_version, $SpecifiedOpenSSLType);
               }
             } else {
-              $redo = 1 if install_openssl ($perl_version);
+              $redo = 1 if install_openssl ($perl_version, $SpecifiedOpenSSLType);
             }
           }
         }
@@ -3238,7 +3240,7 @@ sub cpanm ($$) {
       unless ($result =~ /\A[0-9]+\z/) {
         info 1, "OpenSSL or Net::SSLeay is broken [$result]";
         unless ($CPANMDepth > 100 or $redo++ > 10) {
-          install_openssl ($perl_version);
+          install_openssl ($perl_version, $SpecifiedOpenSSLType);
           $args->{force} = 1;
           redo COMMAND;
         } else {
@@ -4507,7 +4509,7 @@ sub install_module ($$$;%) {
   my $dev;
   if (has_module ($perl_command, $perl_version, $module, $lib_dir_name)) {
     if ($module->package eq 'Net::SSLeay' and
-        (is_net_ssleay_openssl_too_old ($perl_command, $perl_version) or
+        (is_net_ssleay_openssl_too_old ($perl_command, $perl_version, $SpecifiedOpenSSLType) or
          not defined get_openssl_version ($perl_version) or
          not defined get_net_ssleay_openssl_version ($perl_command, $perl_version) or
          not get_openssl_version ($perl_version) eq get_net_ssleay_openssl_version ($perl_command, $perl_version))) {
@@ -4544,10 +4546,10 @@ sub install_module ($$$;%) {
     info 0, 'Check Net::SSLeay...';
     info 0, "Platform OpenSSL:\n----\n" . $v1 . "\n----";
     info 0, "Net::SSLeay OpenSSL:\n----\n" . $v2 . "\n----";
-    if (is_net_ssleay_openssl_too_old ($perl_command, $perl_version) or
+    if (is_net_ssleay_openssl_too_old ($perl_command, $perl_version, $SpecifiedOpenSSLType) or
         not get_openssl_version ($perl_version) eq get_net_ssleay_openssl_version ($perl_command, $perl_version)) {
       info 0, "Reinstall Net::SSLeay (2)...";
-      install_openssl ($perl_version);
+      install_openssl ($perl_version, $SpecifiedOpenSSLType);
       cpanm {perl_version => $perl_version,
              perl_lib_dir_name => $lib_dir_name,
              module_index_file_name => $args{module_index_file_name},
@@ -4559,7 +4561,7 @@ sub install_module ($$$;%) {
         lib_dir_name => $lib_dir_name;
     if (not $v1) {
       info 0, "Reinstall Crypt::SSLeay (2)...";
-      install_openssl ($perl_version);
+      install_openssl ($perl_version, $SpecifiedOpenSSLType);
       cpanm {perl_version => $perl_version,
              perl_lib_dir_name => $lib_dir_name,
              module_index_file_name => $args{module_index_file_name},
@@ -4583,7 +4585,9 @@ sub get_openssl_branches_by_api () {
   }
   my @branch;
   for (@$json) {
-    if ($_->{name} =~ /^OpenSSL_(\d+)_(\d+)_(\d+)-stable$/) {
+    if ($_->{name} =~ /^openssl-(\d+)\.(\d+)_(\d+)$/) {
+      push @branch, [$_->{name}, $1, $2, 0];
+    } elsif ($_->{name} =~ /^OpenSSL_(\d+)_(\d+)_(\d+)-stable$/) {
       push @branch, [$_->{name}, $1, $2, $3];
     }
   }
@@ -4630,7 +4634,10 @@ sub get_openssl_version ($) {
   my $version;
   run_command
       ['openssl', 'version'],
-      envs => {PATH => get_env_path ($perl_version)},
+      envs => {
+        PATH => get_env_path ($perl_version),
+        LD_LIBRARY_PATH => (join ':', (get_ld_library_path_names $perl_version)),
+      },
       onoutput => sub { $version = $_[0]; 2 }
       or $version = undef;
   $version =~ s/[\x0D\x0A]+\z// if defined $version;
@@ -4681,11 +4688,15 @@ sub get_net_ssleay_openssl_version_details ($$) {
   return $version;
 } # get_net_ssleay_openssl_version_details
 
-sub is_openssl_too_old ($) {
-  my ($perl_version) = @_;
+sub is_openssl_too_old ($$) {
+  my ($perl_version, $expected_type) = @_;
   my $version = get_openssl_version ($perl_version);
   return 1 if not defined $version;
-  if ($version =~ /^OpenSSL (?:0\.|1\.0\.|1\.1\.0)/) {
+  if ($expected_type eq 'openssl' and not $version =~ /^OpenSSL/) {
+    return 1;
+  } elsif ($expected_type eq 'libressl' and not $version =~ /^LibreSSL/) {
+    return 1;
+  } elsif ($version =~ /^OpenSSL (?:0\.|1\.0\.|1\.1\.0)/) {
     return 1;
   } elsif ($version =~ /^LibreSSL (?:[012]\.|3\.[0123]\.)/) {
     return 1;
@@ -4693,11 +4704,15 @@ sub is_openssl_too_old ($) {
   return 0;
 } # is_openssl_too_old
 
-sub is_net_ssleay_openssl_too_old ($$) {
-  my ($perl_command, $perl_version) = @_;
+sub is_net_ssleay_openssl_too_old ($$$) {
+  my ($perl_command, $perl_version, $expected_type) = @_;
   my $version = get_net_ssleay_openssl_version ($perl_command, $perl_version);
   return 1 if not defined $version;
-  if ($version =~ /^OpenSSL (?:0\.|1\.0\.|1\.1\.0)/) {
+  if ($expected_type eq 'openssl' and not $version =~ /^OpenSSL/) {
+    return 1;
+  } elsif ($expected_type eq 'libressl' and not $version =~ /^LibreSSL/) {
+    return 1;
+  } elsif ($version =~ /^OpenSSL (?:0\.|1\.0\.|1\.1\.0)/) {
     return 1;
   } elsif ($version =~ /^LibreSSL (?:[012]\.|3\.[0123]\.)/) {
     return 1;
@@ -4705,11 +4720,11 @@ sub is_net_ssleay_openssl_too_old ($$) {
   return 0;
 } # is_net_ssleay_openssl_too_old
 
-sub install_openssl ($) {
-  my ($perl_version) = @_;
+sub install_openssl ($$) {
+  my ($perl_version, $expected_type) = @_;
   my $common_dir_name = "$RootDirName/local/common";
 
-  if (is_openssl_too_old ($perl_version)) {
+  if (is_openssl_too_old ($perl_version, $expected_type)) {
     #
   } elsif (-x "$common_dir_name/bin/openssl") {
     info 0, sprintf "There is |$common_dir_name/bin/openssl| (%s)",
@@ -4717,9 +4732,12 @@ sub install_openssl ($) {
     return 0;
   }
 
-  info 0, "Installing openssl...";
-  my $branch = get_libressl_branch;
+  $expected_type = 'libressl' unless $expected_type eq 'openssl';
+
+  info 0, "Installing OpenSSL ($expected_type)...";
+  my $branch = $expected_type eq 'openssl' ? get_openssl_branch : get_libressl_branch;
   my $url = q<https://github.com/libressl-portable/portable>;
+  $url = q<https://github.com/openssl/openssl> if $expected_type eq 'openssl';
   my $max_retry = 10;
   make_path "$PMBPDirName/tmp";
   #my $repo_dir_name = "$PMBPDirName/tmp/openssl";
@@ -4746,10 +4764,10 @@ sub install_openssl ($) {
               chdir => $temp_dir_name) {
     if ($PlatformIsMacOSX) {
       xcode_select_install
-          or info_die "Failed to install openssl (xcode-select)";
+          or info_die "Failed to install $expected_type (xcode-select)";
     } else {
       install_system_packages [{name => 'zlib-devel', debian_name => 'zlib1g-dev'}]
-          or info_die "Failed to install openssl (zlib-devel)";
+          or info_die "Failed to install $expected_type (zlib-devel)";
     }
   }
 
@@ -4758,13 +4776,15 @@ sub install_openssl ($) {
     my $autogen_sed_failed = 0;
     my $autogen_failed = 0;
     {
-      info 0, "($make_failed,$autogen_failed) Installing LibreSSL revision:";
+      info 0, "($make_failed,$autogen_failed) Installing OpenSSL ($expected_type) revision:";
       run_command [git, 'rev-parse', 'HEAD'],
           chdir => $repo_dir_name,
           onoutput => sub { 0 };
 
-    my $needs = {};
-    my $ok = run_command ['./autogen.sh'],
+      my $needs = {};
+      my $ok;
+      if ($expected_type eq 'libressl') {
+        $ok = run_command ['./autogen.sh'],
         chdir => $repo_dir_name,
         envs => {LANG => 'C'},
         onoutput => sub {
@@ -4790,14 +4810,27 @@ sub install_openssl ($) {
           }
           return 6;
         };
-    if (not $ok and $autogen_sed_failed == 1) {
-      ## <https://github.com/Homebrew/legacy-homebrew/issues/43874>
-      run_command ['brew', 'uninstall', 'libtool'] or info 1, "brew failed";
-      run_command ['brew', 'install', 'libtool'] or info_die "brew failed";
-      $autogen_sed_failed++;
-      redo;
-    } elsif (not $ok and keys %$needs) {
-      install_system_packages [map {
+      } else { # openssl
+        if ($branch =~ /^OpenSSL/) {
+          $ok = run_command ['./config',
+                             "--prefix=$common_dir_name"],
+              chdir => $repo_dir_name
+              or info_die "Can't build OpenSSL ($expected_type)";
+        } else {
+          $ok = run_command ['./Configure',
+                             "--prefix=$common_dir_name"],
+              chdir => $repo_dir_name
+              or info_die "Can't build OpenSSL ($expected_type)";
+        }
+      }
+      if (not $ok and $autogen_sed_failed == 1) {
+        ## <https://github.com/Homebrew/legacy-homebrew/issues/43874>
+        run_command ['brew', 'uninstall', 'libtool'] or info 1, "brew failed";
+        run_command ['brew', 'install', 'libtool'] or info_die "brew failed";
+        $autogen_sed_failed++;
+        redo;
+      } elsif (not $ok and keys %$needs) {
+        install_system_packages [map {
         {
           patch => {name => 'patch'}, # apt, yum
           autoconf => {name => 'autoconf'},
@@ -4805,7 +4838,7 @@ sub install_openssl ($) {
           libtool => {name => 'libtool'},
         }->{$_} || info_die "Unknown needs key |$_|";
       } keys %$needs]
-          or info_die "Can't install openssl";
+          or info_die "Can't install OpenSSL ($expected_type)";
       $autogen_failed++;
       redo;
     } elsif (not $ok and $autogen_failed < $max_retry) {
@@ -4815,26 +4848,28 @@ sub install_openssl ($) {
           chdir => $repo_dir_name;
       run_command [git, 'checkout', 'HEAD~1'],
           chdir => $repo_dir_name
-          or info_die "Failed openssl autogen and git checkout ($autogen_failed)";
+          or info_die "Failed OpenSSL ($expected_type) autogen and git checkout ($autogen_failed)";
       $autogen_failed++;
       redo;
     }
-    info_die "Failed openssl autogen" unless $ok;
+    info_die "Failed OpenSSL ($expected_type) autogen" unless $ok;
   }
-  run_command ['./configure',
-               "--help"],
-      chdir => $repo_dir_name
-      or info_die "Can't build the package";
-  run_command ['./configure',
-               "--prefix=$common_dir_name"],
-      chdir => $repo_dir_name
-      or info_die "Can't build the package";
-    my $can_retry = 0;
-    my $ok = run_command ['make'],
-        chdir => $repo_dir_name,
-        onoutput => sub {
-          my $log = $_[0];
-          #collect2: error: ld returned 1 exit status
+      if ($expected_type eq 'libressl') {
+        run_command ['./configure', "--help"],
+            chdir => $repo_dir_name
+            or info_die "Can't build the package";
+        run_command ['./configure',
+                     "--prefix=$common_dir_name"],
+            chdir => $repo_dir_name
+            or info_die "Can't build OpenSSL ($expected_type)";
+      } # libressl
+
+      my $can_retry = 0;
+      my $ok = run_command ['make'],
+          chdir => $repo_dir_name,
+          onoutput => sub {
+            my $log = $_[0];
+            #collect2: error: ld returned 1 exit status
           if ($log =~ /collect2: error: ld returned 1 exit status/) {
             ## You might want to check df
             #
@@ -4848,16 +4883,16 @@ sub install_openssl ($) {
           chdir => $repo_dir_name;
       run_command [git, 'checkout', 'HEAD~1'],
           chdir => $repo_dir_name
-          or info_die "Failed openssl make and git checkout ($make_failed)";
+          or info_die "Failed OpenSSL ($expected_type) make and git checkout ($make_failed)";
       $make_failed++;
       redo;
     } elsif (not $ok) {
-      info_die "Failed openssl make ($make_failed)";
+      info_die "Failed OpenSSL ($expected_type) make ($make_failed)";
     }
   }
   run_command ['make', 'install'],
       chdir => $repo_dir_name
-      or info_die "Can't install the package";
+      or info_die "Can't install OpenSSL ($expected_type)";
   $_OpenSSLVersion = undef;
 
   ## Now, |Net::SSLeay| can be compiled and the command:
@@ -4866,19 +4901,19 @@ sub install_openssl ($) {
   return 1;
 } # install_openssl
 
-sub install_openssl_if_too_old ($) {
-  my ($perl_version) = @_;
-  if (is_openssl_too_old ($perl_version)) {
+sub install_openssl_if_too_old ($$) {
+  my ($perl_version, $expected_type) = @_;
+  if (is_openssl_too_old ($perl_version, $expected_type)) {
     my $openssl_version = get_openssl_version_details ($perl_version);
     if (defined $openssl_version) {
-      info 0, "Your OpenSSL is too old:\n$openssl_version";
+      info 0, "Your OpenSSL ($expected_type) is too old:\n$openssl_version";
     } else {
-      info 0, "You don't have OpenSSL";
+      info 0, "You don't have OpenSSL ($expected_type)";
     }
-    install_openssl ($perl_version);
+    install_openssl ($perl_version, $expected_type);
   } else {
     my $openssl_version = get_openssl_version ($perl_version);
-    info 0, "You have OpenSSL |$openssl_version| (not too old)";
+    info 0, "You have OpenSSL ($expected_type) |$openssl_version| (not too old)";
   }
 } # install_openssl_if_too_old
 
@@ -5900,11 +5935,11 @@ while (@Command) {
     install_commands $command->{value};
   } elsif ($command->{type} eq 'install-openssl') {
     $get_perl_version->() unless defined $perl_version;
-    install_openssl ($perl_version);
+    install_openssl ($perl_version, $SpecifiedOpenSSLType);
   } elsif ($command->{type} eq 'install-openssl-if-old' or
            $command->{type} eq 'install-openssl-if-mac') {
     $get_perl_version->() unless defined $perl_version;
-    install_openssl_if_too_old ($perl_version);
+    install_openssl_if_too_old ($perl_version, $SpecifiedOpenSSLType);
   } elsif ($command->{type} eq 'print-openssl-version') {
     $get_perl_version->() unless defined $perl_version;
     my $ver = get_openssl_version ($perl_version);
@@ -7484,16 +7519,23 @@ C<--install-commands NAME>.
 
 =item --install-openssl
 
-Install LibreSSL into C<local/common>.
+Install an OpenSSL or LibreSSL into C<local/common>.
 
 =item --install-openssl-if-old
 
-Same as C<--install-openssl> but has no effect unless an OpenSSL is
-installed and it is not too old.
+Same as C<--install-openssl> but has no effect unless an OpenSSL or
+LibreSSL is installed and it is not too old.
 
 =item --install-openssl-if-mac
 
 B<Deprecated>.  Same as C<--install-openssl-if-old>.
+
+=item --openssl-type="TYPE"
+
+Specify the type of OpenSSL need to be installed.  Either C<openssl>
+(OpenSSL), C<libressl> (LibreSSL), or C<auto> (any of them).  The
+default is C<auto>, which is interpreted as C<libressl> when a new
+install is required.
 
 =item --print-openssl-version
 
@@ -7687,6 +7729,10 @@ Defaulted to C<4> if the environment variable C<TRAVIS> is set.
 =item PMBP_PERL_VERSION
 
 Set the default value for the C<--perl-version> option.
+
+=item PMBP_OPENSSL_TYPE
+
+Set the default value for the C<--openssl-type> option.
 
 =item PMBP_PMTAR_DIR_NAME, PMBP_PMPP_DIR_NAME
 
