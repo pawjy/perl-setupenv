@@ -86,6 +86,7 @@
          "continue-on-error" : "${{ matrix.experimental }}",
          "env" : {
             "CIRCLE_ARTIFACTS" : "/tmp/circle-artifacts/test",
+            "PMBP_OPENSSL_TYPE" : "${{ matrix.env_PMBP_OPENSSL_TYPE }}",
             "TARGET" : "${{ matrix.env_TARGET }}"
          },
          "runs-on" : "${{ matrix.os }}",
@@ -118,261 +119,625 @@
             "matrix" : {
                "include" : [
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "imagemagick",
                      "experimental" : true,
                      "os" : "ubuntu-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "modperl",
                      "experimental" : true,
                      "os" : "ubuntu-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "tls",
                      "experimental" : false,
                      "os" : "ubuntu-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "tls-2",
                      "experimental" : false,
                      "os" : "ubuntu-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "tls-3",
                      "experimental" : false,
                      "os" : "ubuntu-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "tls-4",
                      "experimental" : false,
                      "os" : "ubuntu-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "tls-5",
                      "experimental" : false,
                      "os" : "ubuntu-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "tls-old",
                      "experimental" : false,
                      "os" : "ubuntu-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "svn",
                      "experimental" : true,
                      "os" : "ubuntu-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "scan",
                      "experimental" : false,
                      "os" : "ubuntu-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "lists",
                      "experimental" : false,
                      "os" : "ubuntu-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "perl",
                      "experimental" : false,
                      "os" : "ubuntu-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "perl-old",
                      "experimental" : false,
                      "os" : "ubuntu-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "pm-old",
                      "experimental" : true,
                      "os" : "ubuntu-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "apache",
                      "experimental" : false,
                      "os" : "ubuntu-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "rrdtool",
                      "experimental" : true,
                      "os" : "ubuntu-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "mecab",
                      "experimental" : false,
                      "os" : "ubuntu-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "gd",
                      "experimental" : true,
                      "os" : "ubuntu-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "env",
                      "experimental" : false,
                      "os" : "ubuntu-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "git",
                      "experimental" : false,
                      "os" : "ubuntu-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "update",
                      "experimental" : false,
                      "os" : "ubuntu-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "install-1",
                      "experimental" : false,
                      "os" : "ubuntu-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "normal",
                      "experimental" : false,
                      "os" : "ubuntu-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "mysqld",
                      "experimental" : false,
                      "os" : "ubuntu-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "docker",
                      "experimental" : false,
                      "os" : "ubuntu-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "gnuplot",
                      "experimental" : false,
                      "os" : "ubuntu-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "imagemagick",
+                     "experimental" : true,
+                     "os" : "ubuntu-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "modperl",
+                     "experimental" : true,
+                     "os" : "ubuntu-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "tls",
+                     "experimental" : false,
+                     "os" : "ubuntu-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "tls-2",
+                     "experimental" : false,
+                     "os" : "ubuntu-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "tls-3",
+                     "experimental" : false,
+                     "os" : "ubuntu-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "tls-4",
+                     "experimental" : false,
+                     "os" : "ubuntu-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "tls-5",
+                     "experimental" : false,
+                     "os" : "ubuntu-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "tls-old",
+                     "experimental" : false,
+                     "os" : "ubuntu-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "svn",
+                     "experimental" : true,
+                     "os" : "ubuntu-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "scan",
+                     "experimental" : false,
+                     "os" : "ubuntu-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "lists",
+                     "experimental" : false,
+                     "os" : "ubuntu-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "perl",
+                     "experimental" : false,
+                     "os" : "ubuntu-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "perl-old",
+                     "experimental" : false,
+                     "os" : "ubuntu-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "pm-old",
+                     "experimental" : true,
+                     "os" : "ubuntu-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "apache",
+                     "experimental" : false,
+                     "os" : "ubuntu-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "rrdtool",
+                     "experimental" : true,
+                     "os" : "ubuntu-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "mecab",
+                     "experimental" : false,
+                     "os" : "ubuntu-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "gd",
+                     "experimental" : true,
+                     "os" : "ubuntu-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "env",
+                     "experimental" : false,
+                     "os" : "ubuntu-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "git",
+                     "experimental" : false,
+                     "os" : "ubuntu-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "update",
+                     "experimental" : false,
+                     "os" : "ubuntu-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "install-1",
+                     "experimental" : false,
+                     "os" : "ubuntu-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "normal",
+                     "experimental" : false,
+                     "os" : "ubuntu-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "mysqld",
+                     "experimental" : false,
+                     "os" : "ubuntu-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "docker",
+                     "experimental" : false,
+                     "os" : "ubuntu-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "gnuplot",
+                     "experimental" : false,
+                     "os" : "ubuntu-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "imagemagick",
                      "experimental" : true,
                      "os" : "macos-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "modperl",
                      "experimental" : true,
                      "os" : "macos-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "tls",
                      "experimental" : false,
                      "os" : "macos-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "tls-2",
                      "experimental" : false,
                      "os" : "macos-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "tls-3",
                      "experimental" : false,
                      "os" : "macos-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "tls-4",
                      "experimental" : false,
                      "os" : "macos-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "tls-5",
                      "experimental" : false,
                      "os" : "macos-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "tls-old",
                      "experimental" : true,
                      "os" : "macos-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "svn",
                      "experimental" : true,
                      "os" : "macos-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "scan",
                      "experimental" : false,
                      "os" : "macos-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "lists",
                      "experimental" : false,
                      "os" : "macos-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "perl",
                      "experimental" : false,
                      "os" : "macos-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "perl-old",
                      "experimental" : true,
                      "os" : "macos-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "pm-old",
                      "experimental" : true,
                      "os" : "macos-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "apache",
                      "experimental" : true,
                      "os" : "macos-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "rrdtool",
                      "experimental" : true,
                      "os" : "macos-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "mecab",
                      "experimental" : false,
                      "os" : "macos-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "gd",
                      "experimental" : true,
                      "os" : "macos-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "env",
                      "experimental" : false,
                      "os" : "macos-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "git",
                      "experimental" : false,
                      "os" : "macos-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "update",
                      "experimental" : false,
                      "os" : "macos-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "install-1",
                      "experimental" : false,
                      "os" : "macos-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "normal",
                      "experimental" : false,
                      "os" : "macos-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "mysqld",
                      "experimental" : false,
                      "os" : "macos-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "docker",
                      "experimental" : true,
                      "os" : "macos-latest"
                   },
                   {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
+                     "env_TARGET" : "gnuplot",
+                     "experimental" : true,
+                     "os" : "macos-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "imagemagick",
+                     "experimental" : true,
+                     "os" : "macos-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "modperl",
+                     "experimental" : true,
+                     "os" : "macos-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "tls",
+                     "experimental" : false,
+                     "os" : "macos-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "tls-2",
+                     "experimental" : false,
+                     "os" : "macos-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "tls-3",
+                     "experimental" : false,
+                     "os" : "macos-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "tls-4",
+                     "experimental" : false,
+                     "os" : "macos-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "tls-5",
+                     "experimental" : false,
+                     "os" : "macos-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "tls-old",
+                     "experimental" : true,
+                     "os" : "macos-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "svn",
+                     "experimental" : true,
+                     "os" : "macos-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "scan",
+                     "experimental" : false,
+                     "os" : "macos-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "lists",
+                     "experimental" : false,
+                     "os" : "macos-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "perl",
+                     "experimental" : false,
+                     "os" : "macos-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "perl-old",
+                     "experimental" : true,
+                     "os" : "macos-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "pm-old",
+                     "experimental" : true,
+                     "os" : "macos-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "apache",
+                     "experimental" : true,
+                     "os" : "macos-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "rrdtool",
+                     "experimental" : true,
+                     "os" : "macos-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "mecab",
+                     "experimental" : false,
+                     "os" : "macos-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "gd",
+                     "experimental" : true,
+                     "os" : "macos-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "env",
+                     "experimental" : false,
+                     "os" : "macos-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "git",
+                     "experimental" : false,
+                     "os" : "macos-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "update",
+                     "experimental" : false,
+                     "os" : "macos-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "install-1",
+                     "experimental" : false,
+                     "os" : "macos-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "normal",
+                     "experimental" : false,
+                     "os" : "macos-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "mysqld",
+                     "experimental" : false,
+                     "os" : "macos-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "docker",
+                     "experimental" : true,
+                     "os" : "macos-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
                      "env_TARGET" : "gnuplot",
                      "experimental" : true,
                      "os" : "macos-latest"
