@@ -2440,6 +2440,7 @@ sub cpanm ($$) {
                                  "$cpanm_lib_dir_name/lib/perl5/$archname",
                                  "$cpanm_lib_dir_name/lib/perl5",
                                  ((sprintf "%vd", $^V) eq $perl_version ? ($ENV{PERL5LIB}) : ())),
+                LD_LIBRARY_PATH => (join ':', (get_ld_library_path_names ($perl_version))),
                 HOME => get_cpanm_dummy_home_dir_name ($perl_lib_dir_name),
                 CPATH => $cpath,
                 PERL_CPANM_HOME => $CPANMHomeDirName,
@@ -2450,20 +2451,37 @@ sub cpanm ($$) {
 
       ## For Crypt::SSLeay's Makefile.PL
       $envs->{OPENSSL_INCLUDE} = "$RootDirName/local/common/include";
-      $envs->{OPENSSL_LIB} = "$RootDirName/local/common/lib";
-
-      if ($retry_with_openssl) {
-        ## For DBD::mysql
-        $envs->{LIBRARY_PATH} = "$RootDirName/local/common/lib";
+      if (-d "$RootDirName/local/common/lib64") {
+        $envs->{OPENSSL_LIB} = "$RootDirName/local/common/lib64";
+        if ($retry_with_openssl) {
+          ## For DBD::mysql
+          $envs->{LIBRARY_PATH} = "$RootDirName/local/common/lib64";
+        }
+      } else {
+        $envs->{OPENSSL_LIB} = "$RootDirName/local/common/lib";
+        if ($retry_with_openssl) {
+          ## For DBD::mysql
+          $envs->{LIBRARY_PATH} = "$RootDirName/local/common/lib";
+        }
       }
     }
      
     if (@module_arg and $module_arg[0] eq 'Crypt::OpenSSL::Random' and
         not $args->{info}) {
-      push @configure_args, "LIBDIR=" . "$RootDirName/local/common/lib";
+      if (-d "$RootDirName/local/common/lib64") {
+        push @configure_args, "LIBDIR=" . "$RootDirName/local/common/lib64";
+      } else {
+        push @configure_args, "LIBDIR=" . "$RootDirName/local/common/lib";
+      }
     } elsif (@module_arg and $module_arg[0] eq 'Crypt::OpenSSL::RSA' and
              not $args->{info}) {
-      push @option, "--build-args=OTHERLDFLAGS=-L" . "$RootDirName/local/common/lib";
+      if (-d "$RootDirName/local/common/lib64") {
+        push @option,
+            "--build-args=OTHERLDFLAGS=-L" . "$RootDirName/local/common/lib64";
+      } else {
+        push @option,
+            "--build-args=OTHERLDFLAGS=-L" . "$RootDirName/local/common/lib";
+      }
     } elsif (@module_arg and $module_arg[0] eq 'GD' and
         not $args->{info} and not $args->{scandeps}) {
       ## <https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=636649>
@@ -3230,7 +3248,7 @@ sub cpanm ($$) {
           [$perl_command,
            (map { '-I' . $_ } @lib),
            '-MNet::SSLeay',
-           '-e', 'print scalar Net::SSLeay::ST_OK ()'],
+           '-e', 'print scalar Net::SSLeay::ST_ACCEPT ()'],
           envs => get_envs_for_perl ($perl_command, $perl_version),
           info_level => 3,
           onoutput => sub {
