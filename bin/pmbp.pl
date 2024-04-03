@@ -3635,6 +3635,8 @@ sub get_ld_library_path_names ($) {
   my $perl_version = shift;
   my @lib_path;
   push @lib_path, get_pm_dir_name ($perl_version) . "/lib";
+  my $lib64 = resolve_path "local/common/lib64", $RootDirName;
+  push @lib_path, $lib64 if -d $lib64;
   push @lib_path, resolve_path "local/common/lib", $RootDirName;
   push @lib_path, mecab_lib_dir_name ();
   return @lib_path;
@@ -4813,10 +4815,12 @@ sub install_openssl ($$) {
       } else { # openssl
         if ($branch =~ /^OpenSSL/) {
           $ok = run_command ['./config',
-                             "--prefix=$common_dir_name"],
+                             "--prefix=$common_dir_name",
+                             "--openssldir=$common_dir_name/ssl",
+                             "--no-docs"],
               chdir => $repo_dir_name
               or info_die "Can't build OpenSSL ($expected_type)";
-        } else {
+        } else { # LibreSSL
           $ok = run_command ['./Configure',
                              "--prefix=$common_dir_name"],
               chdir => $repo_dir_name
@@ -4889,11 +4893,15 @@ sub install_openssl ($$) {
     } elsif (not $ok) {
       info_die "Failed OpenSSL ($expected_type) make ($make_failed)";
     }
+
+    run_command ['make', 'install'],
+        chdir => $repo_dir_name
+        or info_die "Can't install OpenSSL ($expected_type)";
+    $_OpenSSLVersion = undef;
+    if (is_openssl_too_old ($perl_version, $expected_type)) {
+      info_die "Failed to install OpenSSL ($expected_type)";
+    }
   }
-  run_command ['make', 'install'],
-      chdir => $repo_dir_name
-      or info_die "Can't install OpenSSL ($expected_type)";
-  $_OpenSSLVersion = undef;
 
   ## Now, |Net::SSLeay| can be compiled and the command:
   ##   $ ./perl -MNet::SSLeay -e 'print +Net::SSLeay::SSLeay_version,"\n"'
