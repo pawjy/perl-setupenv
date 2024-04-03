@@ -22,7 +22,7 @@ $tempdir/perl -MNet::SSLeay -e "
             '';
 "
 
-($tempdir/perl -MNet::SSLeay -e 'print +Net::SSLeay::SSLeay_version ()' > $tempdir/version2.txt && echo "ok 2") || echo "not ok 2"
+($tempdir/perl -MNet::SSLeay -e '$v=Net::SSLeay::SSLeay_version();$v=~s/\s+$//;print$v' > $tempdir/version2.txt && echo "ok 2") || echo "not ok 2"
 
 perl $pmbp --root-dir-name "$tempdir" \
     --print-openssl-version > $tempdir/version.txt
