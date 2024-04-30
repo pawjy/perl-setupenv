@@ -1602,6 +1602,7 @@ sub add_git_submodule ($$;%) {
   my $default_parent = 'modules';
   my $parent = $args{parent_dir_name};
   $parent = $default_parent if not defined $parent;
+  $url =~ s{^git://github.com/}{https://github.com/};
   my $dir_name = [grep { length } split m{/}, $url]->[-1];
   $dir_name =~ s/\.git$//;
   $dir_name =~ s/^perl-//;
