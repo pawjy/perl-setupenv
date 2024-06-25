@@ -2648,6 +2648,17 @@ sub cpanm ($$) {
         my $log = copy_log_file $1 => 'cpanm';
         $scan_errors->($level + 1, $log);
       }
+      if ($level <= 2 and
+          $log =~ /^configure: error: in \`(.+)':\nconfigure: error: .+\nSee \`(config.log)' for more details\s*$/m) {
+        ## IO::AIO
+        # $CPANMHomeDirName/IO-AIO-4.81/config.log
+        #
+        #configure: error: in `/path/to/local/cpanm/tmp/work/123.4/IO-AIO-4.81':
+        #configure: error: C compiler cannot create executables
+        #See `config.log' for more details
+        my $log = copy_log_file "$1/$2" => 'configure';
+        $scan_errors->($level + 1, $log);
+      }
       if ($log =~ m{^(\S+) \S+ is required to configure this module; please install it or upgrade your CPAN/CPANPLUS shell.}m) {
         push @required_install, PMBP::Module->new_from_package ($1);
         # Don't set $failed flag.
