@@ -2597,8 +2597,10 @@ sub cpanm ($$) {
       $mpfr_prefix =~ s/\s+$//;
       if (length $mpfr_prefix) {
         #$envs->{CFLAGS} = "-I$mpfr_prefix/include";
-        $cpath .= ":$mpfr_prefix/include";
-        $envs->{LDFLAGS} = "-L$mpfr_prefix/lib";
+        #$cpath .= ":$mpfr_prefix/include";
+        #$envs->{LDFLAGS} = "-L$mpfr_prefix/lib";
+        $envs->{MPFR_HOME} = $mpfr_prefix;
+        ## <https://github.com/lestrrat-p5/DateTime-Astro/blob/master/builder/MyBuilder.pm>
       }
     }
 
