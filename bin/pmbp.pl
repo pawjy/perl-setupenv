@@ -2383,9 +2383,11 @@ sub cpanm ($$) {
     }
 
     my @configure_args;
+    my $is_mysql = 0;
     if (@module_arg and $module_arg[0] eq 'DBD::mysql' and not $args->{info}) {
       push @configure_args, '--ssl'
           unless $dbd_mysql_ssl_dropped;
+      $is_mysql = 1;
     }
 
     unless ($args->{force}) {
@@ -3022,6 +3024,18 @@ sub cpanm ($$) {
       }
     }; # $scan_errors
     ## --- End of error message sniffer ---
+
+    if ($is_mysql) {
+      run_command ['mysql_config'],
+          envs => $envs,
+          prefix => "mysql_config($CPANMDepth/$redo): ",
+          onoutput => sub {
+            return 3;
+          },
+          onstderr => sub {
+            return 3;
+          };
+    } # $is_mysql
 
     my @cmd = ($perl_command,
                @perl_option,
