@@ -3043,12 +3043,18 @@ sub cpanm ($$) {
       run_command ['mysql_config'],
           envs => $envs,
           prefix => "mysql_config($CPANMDepth/$redo): ",
-          onoutput => sub {
-            return 3;
-          },
-          onstderr => sub {
-            return 3;
-          };
+          onoutput => sub { 3 },
+          onstderr => sub { 3 };
+      run_command ['mysql_config', '--cflags'],
+          envs => $envs,
+          prefix => "mysql_config($CPANMDepth/$redo): ",
+          onoutput => sub { 3 },
+          onstderr => sub { 3 };
+      run_command ['mysql_config', '--include'],
+          envs => $envs,
+          prefix => "mysql_config($CPANMDepth/$redo): ",
+          onoutput => sub { 3 },
+          onstderr => sub { 3 };
     } # $is_mysql
 
     my @cmd = ($perl_command,
