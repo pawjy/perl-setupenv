@@ -3055,6 +3055,13 @@ sub cpanm ($$) {
           prefix => "mysql_config($CPANMDepth/$redo): ",
           onoutput => sub { 3 },
           onstderr => sub { 3 };
+      my $libs = '';
+      run_command ['mysql_config', '--libs'],
+          envs => $envs,
+          prefix => "mysql_config($CPANMDepth/$redo): ",
+          onoutput => sub { $libs .= $_[0]; 3 },
+          onstderr => sub { 3 };
+      $envs->{DBD_MYSQL_LIBS} = "-L$RootDirName/local/common/lib $libs";
     } # $is_mysql
 
     my @cmd = ($perl_command,
