@@ -2839,7 +2839,8 @@ sub cpanm ($$) {
              homebrew_name => 'gd'};
         $failed = 1;
       }
-      if ($log =~ /fatal error: mpfr.h: No such file or directory/m) {
+      if ($log =~ /fatal error: mpfr.h: No such file or directory/m or
+          $log =~ /fatal error: 'mpfr.h' file not found/m) {
         push @required_system,
             {name => 'mpfr-devel', debian_name => 'libmpfr-dev'};
         $failed = 1;
