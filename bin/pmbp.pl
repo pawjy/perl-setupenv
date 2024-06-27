@@ -2384,7 +2384,8 @@ sub cpanm ($$) {
 
     my @configure_args;
     my $is_mysql = 0;
-    if (@module_arg and $module_arg[0] eq 'DBD::mysql' and not $args->{info}) {
+    if (@module_arg and $module_arg[0] =~ m{^DBD::mysql(?:\z|\@)} and
+        not $args->{info}) {
       push @configure_args, '--ssl'
           unless $dbd_mysql_ssl_dropped;
       $is_mysql = 1;
@@ -6043,7 +6044,7 @@ while (@Command) {
   } elsif ($command->{type} eq 'install-module') {
     $get_perl_version->() unless defined $perl_version;
     hide_pmpp_arch_dir $PerlCommand, $perl_version if $pmpp_touched;
-    info 0, "Installing @{[$command->{module}->as_short]}...";
+    info 0, "Installing Perl module @{[$command->{module}->as_short]}...";
     install_module $PerlCommand, $perl_version, $command->{module},
         module_index_file_name => $module_index_file_name;
   } elsif ($command->{type} eq 'install-modules-by-list') {
