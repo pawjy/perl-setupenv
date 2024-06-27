@@ -2385,7 +2385,7 @@ sub cpanm ($$) {
 
     my @configure_args;
     my $is_mysql = 0;
-    if (@module_arg and $module_arg[0] =~ m{^DBD::mysql(?:\z|\@)} and
+    if (@module_arg and $module_arg[0] =~ m{^DBD::mysql(?:\z|[\@~])} and
         not $args->{info}) {
       push @configure_args, '--ssl'
           unless $dbd_mysql_ssl_dropped;
