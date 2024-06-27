@@ -2594,6 +2594,7 @@ sub cpanm ($$) {
       run_command ['brew', '--prefix', 'mpfr'],
           discard_stderr => 1,
           onoutput => sub { $mpfr_prefix .= $_[0]; 5 };
+      $mpfr_prefix =~ s/\s+$//;
       if (length $mpfr_prefix) {
         #$envs->{CFLAGS} = "-I$mpfr_prefix/include";
         $cpath .= ":$mpfr_prefix/include";
@@ -2625,6 +2626,7 @@ sub cpanm ($$) {
           onstderr => sub { 3 };
       push @configure_args, qq{--libs="-L$RootDirName/local/common/lib $libs"};
       #$envs->{DBD_MYSQL_LIBS} = ...;
+      ## <https://metacpan.org/dist/DBD-mysql/view/lib/DBD/mysql/INSTALL.pod>
     } # $is_mysql
     if (@configure_args) {
       push @option, '--configure-args=' . join ' ', @configure_args;
