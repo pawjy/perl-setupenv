@@ -2819,7 +2819,8 @@ sub cpanm ($$) {
         #     homebrew_name => 'openssl'};
         $failed = 1;
       }
-      if ($log =~ m{ld: library not found for -lssl}m) {
+      if ($log =~ m{ld: library not found for -lssl}m or
+          $log =~ m{ld: library 'ssl' not found}) {
         $required_misc{openssl_ld} = 1;
       }
       if ($log =~ m{^Can't link/include (?:C library )?'gmp.h', 'gmp'}m) {
