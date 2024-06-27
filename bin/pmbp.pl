@@ -2861,6 +2861,7 @@ sub cpanm ($$) {
             {name => 'mpfr-devel', debian_name => 'libmpfr-dev',
              homebrew_name => 'mpfr'};
         $failed = 1;
+        $retry_with_mpfr = 1;
       }
       if ($log =~ m{ld: cannot find -lmysqlclient}m) {
         push @required_installable, 'mysqld';
