@@ -2868,11 +2868,13 @@ sub cpanm ($$) {
           $log =~ m{ld: library 'ssl' not found}) {
         $required_misc{openssl_ld} = 1;
       }
-      if ($log =~ m{^Can't link/include (?:C library )?'gmp.h', 'gmp'}m) {
+      if ($log =~ m{^Can't link/include (?:C library )?'gmp.h', 'gmp'}m or
+          $log =~ m{fatal error: 'gmp.h' file not found}m) {
         push @required_system,
             {name => 'gmp-devel', debian_name => 'libgmp-dev',
              homebrew_name => 'gmp'};
         $failed = 1;
+        # /opt/homebrew/opt/mpfr/include/mpfr.h:53:10: fatal error: 'gmp.h' file not found
       }
       if ($log =~ m{^Can't link/include 'v8'}m) {
         push @required_system, {name => 'v8-devel', debian_name => 'libv8-dev',
