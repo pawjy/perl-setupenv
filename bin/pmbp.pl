@@ -2337,6 +2337,7 @@ sub cpanm ($$) {
   my @additional_option;
   my $retry_with_openssl_dev = 0;
   my $retry_with_openssl = 0;
+  my $retry_with_mpfr = 0;
   my $dbd_mysql_ssl_dropped;
 
   my $redo = 0;
@@ -2587,6 +2588,17 @@ sub cpanm ($$) {
       install_makeinstaller 'mathpari', [qq{pari_tgz="$temp_file_name"}];
       $envs->{SHELL} = "$MakeInstaller.mathpari";
       push @option, '--look';
+    }
+    if ($PlatformIsMacOSX and $retry_with_mpfr) {
+      my $mpfr_prefix = '';
+      run_command ['brew', '--prefix', 'mpfr'],
+          discard_stderr => 1,
+          onoutput => sub { $mpfr_prefix .= $_[0]; 5 };
+      if (length $mpfr_prefix) {
+        #$envs->{CFLAGS} = "-I$mpfr_prefix/include";
+        $cpath .= ":$mpfr_prefix/include";
+        $envs->{LDFLAGS} = "-L$mpfr_prefix/lib";
+      }
     }
     if (@configure_args) {
       push @option, '--configure-args=' . join ' ', @configure_args;
