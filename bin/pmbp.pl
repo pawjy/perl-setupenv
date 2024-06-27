@@ -2600,6 +2600,32 @@ sub cpanm ($$) {
         $envs->{LDFLAGS} = "-L$mpfr_prefix/lib";
       }
     }
+
+    if ($is_mysql) {
+      run_command ['mysql_config'],
+          envs => $envs,
+          prefix => "mysql_config($CPANMDepth/$redo): ",
+          onoutput => sub { 3 },
+          onstderr => sub { 3 };
+      run_command ['mysql_config', '--cflags'],
+          envs => $envs,
+          prefix => "mysql_config($CPANMDepth/$redo): ",
+          onoutput => sub { 3 },
+          onstderr => sub { 3 };
+      run_command ['mysql_config', '--include'],
+          envs => $envs,
+          prefix => "mysql_config($CPANMDepth/$redo): ",
+          onoutput => sub { 3 },
+          onstderr => sub { 3 };
+      my $libs = '';
+      run_command ['mysql_config', '--libs'],
+          envs => $envs,
+          prefix => "mysql_config($CPANMDepth/$redo): ",
+          onoutput => sub { $libs .= $_[0]; 3 },
+          onstderr => sub { 3 };
+      push @configure_args, qq{--libs="-L$RootDirName/local/common/lib $libs"};
+      #$envs->{DBD_MYSQL_LIBS} = ...;
+    } # $is_mysql
     if (@configure_args) {
       push @option, '--configure-args=' . join ' ', @configure_args;
     }
@@ -3039,31 +3065,6 @@ sub cpanm ($$) {
       }
     }; # $scan_errors
     ## --- End of error message sniffer ---
-
-    if ($is_mysql) {
-      run_command ['mysql_config'],
-          envs => $envs,
-          prefix => "mysql_config($CPANMDepth/$redo): ",
-          onoutput => sub { 3 },
-          onstderr => sub { 3 };
-      run_command ['mysql_config', '--cflags'],
-          envs => $envs,
-          prefix => "mysql_config($CPANMDepth/$redo): ",
-          onoutput => sub { 3 },
-          onstderr => sub { 3 };
-      run_command ['mysql_config', '--include'],
-          envs => $envs,
-          prefix => "mysql_config($CPANMDepth/$redo): ",
-          onoutput => sub { 3 },
-          onstderr => sub { 3 };
-      my $libs = '';
-      run_command ['mysql_config', '--libs'],
-          envs => $envs,
-          prefix => "mysql_config($CPANMDepth/$redo): ",
-          onoutput => sub { $libs .= $_[0]; 3 },
-          onstderr => sub { 3 };
-      $envs->{DBD_MYSQL_LIBS} = "-L$RootDirName/local/common/lib $libs";
-    } # $is_mysql
 
     my @cmd = ($perl_command,
                @perl_option,
