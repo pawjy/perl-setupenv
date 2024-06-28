@@ -2602,6 +2602,15 @@ sub cpanm ($$) {
         $envs->{MPFR_HOME} = $mpfr_prefix;
         ## <https://github.com/lestrrat-p5/DateTime-Astro/blob/master/builder/MyBuilder.pm>
       }
+      my $gmp_prefix = '';
+      run_command ['brew', '--prefix', 'gmp'],
+          discard_stderr => 1,
+          onoutput => sub { $gmp_prefix .= $_[0]; 5 };
+      $mpfr_prefix =~ s/\s+$//;
+      if (length $gmp_prefix) {
+        $envs->{GMP_HOME} = $gmp_prefix;
+        ## <https://github.com/lestrrat-p5/DateTime-Astro/blob/master/builder/MyBuilder.pm>
+      }
     }
 
     if ($is_mysql) {
