@@ -4864,6 +4864,8 @@ sub install_openssl ($$) {
   }
 
   my $make_failed = 0;
+  my $retry_same = 1;
+  my $no_no_docs = 0;
   {
     my $autogen_sed_failed = 0;
     my $autogen_failed = 0;
@@ -4907,7 +4909,7 @@ sub install_openssl ($$) {
           $ok = run_command ['./config',
                              "--prefix=$common_dir_name",
                              "--openssldir=$common_dir_name/ssl",
-                             "--no-docs"],
+                             ($no_no_docs ? () : "--no-docs")],
               chdir => $repo_dir_name
               or info_die "Can't build OpenSSL ($expected_type)";
         } else { # LibreSSL
@@ -4958,19 +4960,26 @@ sub install_openssl ($$) {
             or info_die "Can't build OpenSSL ($expected_type)";
       } # libressl
 
-      my $can_retry = 0;
-      my $ok = run_command ['make'],
-          chdir => $repo_dir_name,
-          onoutput => sub {
-            my $log = $_[0];
-            #collect2: error: ld returned 1 exit status
+    my $can_retry = 0;
+    my $ok = run_command ['make'],
+        chdir => $repo_dir_name,
+        onoutput => sub {
+          my $log = $_[0];
+          #collect2: error: ld returned 1 exit status
           if ($log =~ /collect2: error: ld returned 1 exit status/) {
             ## You might want to check df
             #
+          } elsif ($log =~ /gcc: error: unrecognized command-line option '--no-docs'; did you mean '--no-doc'\?/) {
+            $no_no_docs = 1;
+            $can_retry = 1;
           }
           return 6;
         };
     if (not $ok and $can_retry and $make_failed < $max_retry) {
+      unless ($retry_same) {
+        $retry_same = 0;
+        redo;
+      }
       run_command [git, 'add', '.'],
           chdir => $repo_dir_name;
       run_command [git, 'reset', '--hard'],
@@ -4979,6 +4988,7 @@ sub install_openssl ($$) {
           chdir => $repo_dir_name
           or info_die "Failed OpenSSL ($expected_type) make and git checkout ($make_failed)";
       $make_failed++;
+      $retry_same = 1;
       redo;
     } elsif (not $ok) {
       info_die "Failed OpenSSL ($expected_type) make ($make_failed)";
