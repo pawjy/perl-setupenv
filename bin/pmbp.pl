@@ -4969,7 +4969,8 @@ sub install_openssl ($$) {
           if ($log =~ /collect2: error: ld returned 1 exit status/) {
             ## You might want to check df
             #
-          } elsif ($log =~ /gcc: error: unrecognized command-line option '--no-docs'; did you mean '--no-doc'\?/) {
+          } elsif ($log =~ /gcc: error: unrecognized command-line option '--no-docs'; did you mean '--no-doc'\?/ or
+                   $log =~ /clang: error: unsupported option '--no-docs'/) {
             $no_no_docs = 1;
             $can_retry = 1;
           }
