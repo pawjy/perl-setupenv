@@ -2925,7 +2925,8 @@ sub cpanm ($$) {
              redhat_name => 'perl-libs',
              debian_name => 'libperl-dev'};
       }
-      if ($log =~ m{Can't exec "mysql_config": No such file or directory}m) {
+      if ($log =~ m{Cannot find the file 'mariadb_config' nor 'mysql_config'} or
+          $log =~ m{Can't exec "mysql_config": No such file or directory}m) {
         push @required_system,
             {name => 'mysql-client-devel',
              #redhat_name => 'MySQL-devel',
