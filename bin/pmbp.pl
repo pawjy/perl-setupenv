@@ -2755,6 +2755,14 @@ sub cpanm ($$) {
             qw{ExtUtils::MakeMaker ExtUtils::ParseXS};
         $failed = 1;
       }
+      if ($log =~ /Can't locate Safe.pm in \@INC /) {
+        push @required_system, {name => 'perl-Safe'};
+        $failed = 1;
+      }
+      if ($log =~ m{Can't locate Module/CoreList.pm in \@INC }) {
+        push @required_system, {name => 'perl-Module-CoreList'};
+        $failed = 1;
+      }
       if ($log =~ /^MoreUtils.xs:.+?: error: 'GIMME' undeclared/m) {
         push @required_install, PMBP::Module->new_from_package ('List::MoreUtils~0.410');
       }
@@ -3253,7 +3261,7 @@ sub cpanm ($$) {
                    local_option => '-l', skip_satisfied => 0}, [$module];
           }
           $redo = 1;
-        } elsif (@required_install) {
+        } elsif (not @required_system and @required_install) {
           ## |@required_install| - CPAN Perl modules need to be
           ## installed for running the application or build scripts of
           ## modules.
