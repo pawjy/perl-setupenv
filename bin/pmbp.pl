@@ -1422,6 +1422,13 @@ $CommandDefs->{gnuplot} = {
   packages => [{name => 'gnuplot'}],
 };
 
+$CommandDefs->{'perl-deprecate'} = {
+  packages => [{name => 'perl-deprecate'}],
+};
+$CommandDefs->{'perl-locale'} = {
+  packages => [{name => 'perl-locale'}],
+};
+
 sub install_commands ($) {
   my @package;
   my %found;
@@ -1954,6 +1961,12 @@ sub install_perl_by_perlbuild ($;%) {
         $redo = 1;
       } elsif ($output =~ m{^No patch utility found}m) {
         push @required_installable, 'patch';
+        $redo = 1;
+      } elsif ($output =~ m{Can't locate deprecate.pm in \@INC }) {
+        push @required_installable, 'perl-deprecate';
+        $redo = 1;
+      } elsif ($output =~ m{Can't locate locale.pm in \@INC }) {
+        push @required_installable, 'perl-locale';
         $redo = 1;
       }
 
