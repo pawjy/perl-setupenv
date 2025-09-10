@@ -1429,6 +1429,11 @@ $CommandDefs->{'perl-locale'} = {
   packages => [{name => 'perl-locale'}],
 };
 
+$CommandDefs->{ip} = {
+  bin => 'ip',
+  packages => [{name => 'iproute', debian_name => 'iproute2'}],
+};
+
 sub install_commands ($) {
   my @package;
   my %found;
