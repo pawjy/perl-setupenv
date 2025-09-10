@@ -163,7 +163,7 @@
                   {
                      "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "tls-old",
-                     "experimental" : false,
+                     "experimental" : true,
                      "os" : "ubuntu-latest"
                   },
                   {
@@ -319,7 +319,7 @@
                   {
                      "env_PMBP_OPENSSL_TYPE" : "libressl",
                      "env_TARGET" : "tls-old",
-                     "experimental" : false,
+                     "experimental" : true,
                      "os" : "ubuntu-latest"
                   },
                   {
