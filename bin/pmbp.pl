@@ -4706,6 +4706,8 @@ sub get_openssl_branches_by_api () {
   for (@$json) {
     if ($_->{name} =~ /^openssl-(\d+)\.(\d+)_(\d+)$/) {
       push @branch, [$_->{name}, $1, $2, 0];
+    } elsif ($_->{name} =~ /^openssl-(\d+)\.(\d+)$/) { # openssl-3.0
+      push @branch, [$_->{name}, $1, $2, 0];
     } elsif ($_->{name} =~ /^OpenSSL_(\d+)_(\d+)_(\d+)-stable$/) {
       push @branch, [$_->{name}, $1, $2, $3];
     }
