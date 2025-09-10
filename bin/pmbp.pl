@@ -4936,7 +4936,7 @@ sub install_openssl ($$) {
           $ok = run_command ['./config',
                              "--prefix=$common_dir_name",
                              "--openssldir=$common_dir_name/ssl",
-                             ($no_no_docs ? () : "--no-docs")],
+                             ($no_no_docs ? () : "no-docs")],
               chdir => $repo_dir_name
               or info_die "Can't build OpenSSL ($expected_type)";
         } else { # LibreSSL
