@@ -8,7 +8,7 @@ perl $pmbp --root-dir-name="$tempdir" $pmbp_pre_commands --install-module=$1 \
   || echo "not ok 1"
 libs=`perl $pmbp --root-dir-name="$tempdir" --print-libs`
 #echo PERL5LIB=$libs
-(./perl -M$1 \
+($tempdir/perl -M$1 \
   -e '$'$1'::VERSION or die "No VERSION"' && \
   echo "ok 1" && \
   rm -fr $tempdir) || echo "not ok 1"
