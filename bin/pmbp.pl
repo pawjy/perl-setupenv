@@ -4934,20 +4934,28 @@ sub install_openssl ($$) {
           return 6;
         };
       } else { # openssl
-        if ($branch =~ /^OpenSSL/) {
+        if ($branch =~ /^[Oo]pen[Ss][Ss][Ll][-_][01][._]/) { # OpenSSL 1
           $ok = run_command ['./config',
                              "--prefix=$common_dir_name",
                              "--openssldir=$common_dir_name/ssl",
                              ($no_no_docs ? () : "no-docs")],
               chdir => $repo_dir_name
               or info_die "Can't build OpenSSL ($expected_type)";
-        } else { # LibreSSL
-          $ok = run_command ['./Configure',
-                             "--prefix=$common_dir_name"],
+        } else { # OpenSSL 3+
+          $ok = run_command ['./config',
+                             "--prefix=$common_dir_name",
+                             "--openssldir=$common_dir_name/ssl",
+                             ($no_no_docs ? () : "disable-docs")],
               chdir => $repo_dir_name
               or info_die "Can't build OpenSSL ($expected_type)";
         }
-      }
+        ## old LibreSSL
+        #  $ok = run_command ['./Configure',
+        #                     "--prefix=$common_dir_name"],
+        #      chdir => $repo_dir_name
+        #      or info_die "Can't build OpenSSL ($expected_type)";
+        #}
+      } # libressl / openssl
       if (not $ok and $autogen_sed_failed == 1) {
         ## <https://github.com/Homebrew/legacy-homebrew/issues/43874>
         run_command ['brew', 'uninstall', 'libtool'] or info 1, "brew failed";
