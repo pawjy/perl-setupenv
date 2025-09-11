@@ -162,8 +162,14 @@
                   },
                   {
                      "env_PMBP_OPENSSL_TYPE" : "openssl",
+                     "env_TARGET" : "tls-openssl",
+                     "experimental" : false,
+                     "os" : "ubuntu-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "tls-old",
-                     "experimental" : true,
+                     "experimental" : false,
                      "os" : "ubuntu-latest"
                   },
                   {
@@ -318,8 +324,14 @@
                   },
                   {
                      "env_PMBP_OPENSSL_TYPE" : "libressl",
-                     "env_TARGET" : "tls-old",
+                     "env_TARGET" : "tls-openssl",
                      "experimental" : true,
+                     "os" : "ubuntu-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "tls-old",
+                     "experimental" : false,
                      "os" : "ubuntu-latest"
                   },
                   {
@@ -474,6 +486,12 @@
                   },
                   {
                      "env_PMBP_OPENSSL_TYPE" : "openssl",
+                     "env_TARGET" : "tls-openssl",
+                     "experimental" : false,
+                     "os" : "macos-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "openssl",
                      "env_TARGET" : "tls-old",
                      "experimental" : true,
                      "os" : "macos-latest"
@@ -626,6 +644,12 @@
                      "env_PMBP_OPENSSL_TYPE" : "libressl",
                      "env_TARGET" : "tls-5",
                      "experimental" : false,
+                     "os" : "macos-latest"
+                  },
+                  {
+                     "env_PMBP_OPENSSL_TYPE" : "libressl",
+                     "env_TARGET" : "tls-openssl",
+                     "experimental" : true,
                      "os" : "macos-latest"
                   },
                   {
