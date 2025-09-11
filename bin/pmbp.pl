@@ -4939,7 +4939,8 @@ sub install_openssl ($$) {
           $ok = run_command ['./config',
                              "--prefix=$common_dir_name",
                              "--openssldir=$common_dir_name/ssl",
-                             ($no_no_docs ? () : "no-docs")],
+                             #($no_no_docs ? () : "no-docs"),
+                            ],
               chdir => $repo_dir_name
               or info_die "Can't build OpenSSL ($expected_type)";
         } else { # OpenSSL 3+
@@ -5008,7 +5009,9 @@ sub install_openssl ($$) {
             ## You might want to check df
             #
           } elsif ($log =~ /gcc: error: unrecognized command-line option '--no-docs'; did you mean '--no-doc'\?/ or
-                   $log =~ /clang: error: unsupported option '--no-docs'/) {
+                   $log =~ /clang: error: unsupported option '--no-docs'/ or
+                   $log =~ /clang: error: unknown argument: '--no-docs'/ or
+                   $log =~ /Unsupported options: no-docs/) {
             $no_no_docs = 1;
             $can_retry = 1;
           }
