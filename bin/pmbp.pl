@@ -4817,9 +4817,9 @@ sub is_openssl_too_old ($$) {
     return 1;
   } elsif ($expected_type eq 'libressl' and not $version =~ /^LibreSSL/) {
     return 1;
-  } elsif ($version =~ /^OpenSSL (?:[01]\.)/) {
-    return 1;
   } elsif ($version =~ /^OpenSSL 1\.1\.1x-dev/) { # XXX
+    return 0;
+  } elsif ($version =~ /^OpenSSL (?:[01]\.)/) {
     return 1;
   } elsif ($version =~ /^LibreSSL (?:[012]\.|3\.[0123]\.)/) {
     return 1;
@@ -4835,9 +4835,9 @@ sub is_net_ssleay_openssl_too_old ($$$) {
     return 1;
   } elsif ($expected_type eq 'libressl' and not $version =~ /^LibreSSL/) {
     return 1;
-  } elsif ($version =~ /^OpenSSL (?:[01]\.)/) {
-    return 1;
   } elsif ($version =~ /^OpenSSL 1\.1\.1x-dev/) { # XXX
+    return 0;
+  } elsif ($version =~ /^OpenSSL (?:[01]\.)/) {
     return 1;
   } elsif ($version =~ /^LibreSSL (?:[012]\.|3\.[0123]\.)/) {
     return 1;
