@@ -4853,7 +4853,8 @@ sub install_openssl ($$) {
     return 0;
   }
 
-  $expected_type = 'libressl' unless $expected_type eq 'openssl';
+  # |libressl|, |openssl|, |auto|, or invalid values
+  $expected_type = 'openssl' unless $expected_type eq 'libressl';
 
   info 0, "Installing OpenSSL ($expected_type)...";
   my $branch = $expected_type eq 'openssl' ? get_openssl_branch : get_libressl_branch;
@@ -7680,7 +7681,7 @@ B<Deprecated>.  Same as C<--install-openssl-if-old>.
 
 Specify the type of OpenSSL need to be installed.  Either C<openssl>
 (OpenSSL), C<libressl> (LibreSSL), or C<auto> (any of them).  The
-default is C<auto>, which is interpreted as C<libressl> when a new
+default is C<auto>, which is interpreted as C<openssl> when a new
 install is required.
 
 =item --print-openssl-version
