@@ -14,12 +14,12 @@ updatenightly: version/perl.txt version/perl-cpan-path.txt
 	$(GIT) add version/*.txt
 	$(CURL) -sSLf https://raw.githubusercontent.com/wakaba/ciconfig/master/ciconfig | RUN_GIT=1 REMOVE_UNUSED=1 perl
 
-local/cpan-perl.html:
+local/cpan-perl.json:
 	mkdir -p local
-	$(CURL) -f -L https://metacpan.org/release/perl > $@
-version/perl.txt: bin/extract-latest-perl-version.pl local/cpan-perl.html
+	$(CURL) -f -L https://fastapi.metacpan.org/release/perl > $@
+version/perl.txt: bin/extract-latest-perl-version.pl local/cpan-perl.json
 	mkdir -p version
-	perl bin/extract-latest-perl-version.pl < local/cpan-perl.html
+	perl bin/extract-latest-perl-version.pl < local/cpan-perl.json
 version/perl-cpan-path.txt: version/perl.txt
 
 ## ------ Build ------
