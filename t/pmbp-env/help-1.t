@@ -3,7 +3,7 @@ echo "1..3"
 basedir=`dirname $0`/../..
 pmbp=$basedir/bin/pmbp.pl
 
-if [ -n "$TRAVIS" ]; then
+if [ -n "$CI" ]; then
   sudo apt-get install -y perl-doc
 fi
 

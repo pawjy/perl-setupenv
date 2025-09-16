@@ -2418,7 +2418,6 @@ sub cpanm ($$) {
     push @option,
         map { ('--mirror' => $_) }
             @CPANMirror,
-            #qw(http://cpan.mirrors.travis-ci.org/) if $ENV{TRAVIS};
             get_cpan_top_url,
             #http://search.cpan.org/CPAN
             qw(
@@ -3455,7 +3454,6 @@ sub save_by_pathname ($$) {
   }
 
   for (
-    #qw(http://cpan.mirrors.travis-ci.org/) if $ENV{TRAVIS};
     main::get_cpan_top_url,
     #http://search.cpan.org/CPAN
     @CPANMirror,
@@ -6904,8 +6902,8 @@ the current C<PATH> is used.
 
 =item --execute-system-package-installer
 
-If the option is specified, or if the C<TRAVIS> environment variable
-is se to a true value, the required package detected by the script is
+If the option is specified, or if the C<CI> environment variable is
+set to a true value, the required package detected by the script is
 automatically installed.
 
 Otherwise, the suggested system packages are printed to the standard
@@ -7881,7 +7879,7 @@ Set the default for the C<--dump-info-file-before-die> option.
 =item PMBP_PARALLEL_COUNT
 
 Set the default value for the C<--perlbrew-parallel-count> option.
-Defaulted to C<4> if the environment variable C<TRAVIS> is set.
+Defaulted to C<4> if the environment variable C<CI> is set.
 
 =item PMBP_PERL_VERSION
 
@@ -7916,17 +7914,12 @@ Set the default verbosity level.  See C<--verbose> option for details.
 
 =item CI
 
-=item TRAVIS
-
 The C<CI> environment variable is set by various CI platforms.
 
-The C<TRAVIS> environment variable is set by Travis CI
-<https://about.travis-ci.org/docs/user/ci-environment/#Environment-variables>.
-
-These environment variables affect log level.  Additionally, these
-environment variables enable automatical installation of Debian apt
-packages, if necessary.  See description for related options for more
-information.
+This environment variable affects log level.  Additionally, this
+environment variable enables invocations of platform's package
+managers, such as Debian C<apt>, if necessary.  See descriptions for
+relevant options for more information.
 
 =back
 
