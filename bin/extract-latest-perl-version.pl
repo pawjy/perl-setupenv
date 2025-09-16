@@ -4,7 +4,7 @@ use warnings;
 local $/ = undef;
 my $json = <>;
 
-$json =~ m{"download_url"\s*:\s*"[^"]+/authors/(id/[^/]+/[^/]+/([A-Z]+)/perl-([0-9][0-9.]+[0-9])\.[^"]+)"}
+$json =~ m{"download_url"\s*:\s*"[^"]+/(authors/id/[^/]+/[^/]+/([A-Z]+)/perl-([0-9][0-9.]+[0-9])\.[^"]+)"}
     or die "Failed to extract Perl version";
 
 my $author_name = $2;
