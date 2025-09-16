@@ -4663,8 +4663,8 @@ sub install_module ($$$;%) {
     my $v2 = get_net_ssleay_openssl_version_details
         ($perl_command, $perl_version);
     info 0, 'Check Net::SSLeay...';
-    info 0, "Platform OpenSSL:\n----\n" . $v1 . "\n----";
-    info 0, "Net::SSLeay OpenSSL:\n----\n" . $v2 . "\n----";
+    info 0, "Platform OpenSSL:\n----\n" . (defined $v1 ? $v1 : '') . "\n----";
+    info 0, "Net::SSLeay OpenSSL:\n----\n" . (defined $v2 ? $v2 : '') . "\n----";
     if (is_net_ssleay_openssl_too_old ($perl_command, $perl_version, $SpecifiedOpenSSLType) or
         not get_openssl_version ($perl_version) eq get_net_ssleay_openssl_version ($perl_command, $perl_version)) {
       info 0, "Reinstall Net::SSLeay (2)...";
@@ -4771,7 +4771,10 @@ sub get_openssl_version_details ($) {
   my $version;
   run_command
       ['openssl', 'version', '-a'],
-      envs => {PATH => get_env_path ($perl_version)},
+      envs => {
+        PATH => get_env_path ($perl_version),
+        LD_LIBRARY_PATH => (join ':', (get_ld_library_path_names $perl_version)),
+      },
       onoutput => sub { $version .= $_[0]; 2 }
       or $version = undef;
   $version =~ s/[\x0D\x0A]+\z// if defined $version;
