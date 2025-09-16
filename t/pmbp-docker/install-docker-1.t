@@ -6,7 +6,7 @@ tempdir=`perl -MFile::Temp=tempdir -e 'print tempdir'`/testapp
 
 mkdir -p $tempdir/foo
 
-if [ $TRAVIS != "" ] && [ $TRAVIS_OS_NAME == "osx" ]; then
+if [ -n "$TRAVIS" ] && [ "$TRAVIS_OS_NAME" == "osx" ]; then
   echo "Travis CI (Mac OS X)"
   export HOMEBREW_NO_AUTO_UPDATE=1
   brew install coreutils || true
