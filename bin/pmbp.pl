@@ -568,7 +568,7 @@ sub update_pmbp_pl ($) {
 } # update_pmbp_pl
 
 sub save_pmbp_tutorial () {
-  save_url (q<https://raw.github.com/wakaba/perl-setupenv/master/doc/pmbp-turorial.pod> => $RootDirName.'/local/pmbp/doc/pmbp-tutorial.pod',
+  save_url (q<https://raw.githubusercontent.com/wakaba/perl-setupenv/master/doc/pmbp-turorial.pod> => $RootDirName.'/local/pmbp/doc/pmbp-tutorial.pod',
       max_age => 3*24*60*60);
 } # save_pmbp_tutorial
 
@@ -1789,7 +1789,7 @@ sub install_perlbrew () {
 
   ## Core module in Perl 5.9.5+
   ## (IPC::Cmd modified to remove dependency)
-  save_url q<https://raw.github.com/wakaba/perl-setupenv/master/lib/perl58perlbrewdeps.pm>
+  save_url q<https://raw.githubusercontent.com/wakaba/perl-setupenv/master/lib/perl58perlbrewdeps.pm>
       => "$RootDirName/local/perlbrew/lib/perl5/IPC/Cmd.pm";
 
   run_command ['mv', "$RootDirName/local/perlbrew/bin/patchperl"
