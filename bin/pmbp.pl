@@ -5724,7 +5724,7 @@ sub before_apt_for_docker () {
     if ($platform->{VERSION_ID} < 10) {
       $method = 'old';
     }
-    $platform->{codename} = $platform->{UBUNTU_CODENAME} // $platform->{VERSION_CODENAME};
+    $platform->{codename} = $platform->{UBUNTU_CODENAME} || $platform->{VERSION_CODENAME};
   }
 
   my $commands;
