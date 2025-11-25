@@ -5707,7 +5707,9 @@ sub before_apt_for_docker () {
         onoutput => sub { $value .= $_[0] if defined $_[0]; 2 }
         or info_die "Failed to install docker (/etc/os-release)";
     for (split /\x0A/, $value) {
-      if (/^([^=]+)=(.*)$/) {
+      if (/^([^=]+)="(.*)"$/) {
+        $platform->{$1} = $2;
+      } elsif (/^([^=]+)=(.*)$/) {
         $platform->{$1} = $2;
       }
     }
