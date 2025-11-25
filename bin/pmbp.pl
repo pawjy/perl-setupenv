@@ -5695,57 +5695,126 @@ sub is_docker_too_old () {
 } # is_docker_too_old
 
 sub before_apt_for_docker () {
-  ## <https://docs.docker.com/engine/installation/linux/docker-ce/debian/>
-  
-  unless (which 'lsb_release') {
-    install_system_packages [{name => 'software-properties-common'}]
-        or info_die "Failed to install docker (lsb_release)";
-  }
-  my $id = '';
-  my $result = run_command ['lsb_release', '-cs'],
-      onoutput => sub { $id .= $_[0] if defined $_[0]; 2 }
-      or info_die "Failed to install docker (lsb_release)";
-  chomp $id;
-
-  my $os = '';
-  run_command ['bash', '-c', '. /etc/os-release; echo "$ID"'],
-      onoutput => sub { $os .= $_[0] if defined $_[0]; 2 }
-      or info_die "Failed to install docker (os-release)";
-  chomp $os;
-
-  unless (_save_url qq<https://download.docker.com/linux/$os/dists/$id/> => "$PMBPDirName/tmp/dummy." . rand) {
-    info 1, "There is no docker apt repository for $os $id";
-    ## This need to be updated when a new version is available...
-    if ($os eq 'debian') {
-      $id = 'stretch';
-    } elsif ($os eq 'ubuntu') {
-      $id = 'xenial';
-    } else {
-      info_die "Failed to install docker ($os $id not supported)";
+  my $platform = {
+    ID => '', # debian | ubuntu
+    VERSION_ID => '', # version number
+    VERSION_CODENAME => '', # version name
+    #UBUNTU_CODENAME
+  };
+  {
+    my $value = '';
+    run_command ['cat', '/etc/os-release'],
+        onoutput => sub { $value .= $_[0] if defined $_[0]; 2 }
+        or info_die "Failed to install docker (/etc/os-release)";
+    for (split /\x0A/, $value) {
+      if (/^([^=]+)=(.*)$/) {
+        $platform->{$1} = $2;
+      }
     }
   }
+  my $os = $platform->{ID};
+
+  my $method = 'debian';
+  if ($platform->{ID} eq 'debian') {
+    if ($platform->{VERSION_ID} < 20.04) {
+      $method = 'old';
+    }
+    $platform->{codename} = $platform->{VERSION_CODENAME};
+  } elsif ($platform->{ID} eq 'ubuntu') {
+    if ($platform->{VERSION_ID} < 10) {
+      $method = 'old';
+    }
+    $platform->{codename} = $platform->{UBUNTU_CODENAME} // $platform->{VERSION_CODENAME};
+  }
+
+  my $commands;
+  if ($method eq 'debian' or $method eq 'ubuntu') {
+    ## As of R7.11.25:
+    ## <https://docs.docker.com/engine/install/debian/>
+    ## <https://docs.docker.com/engine/install/ubuntu/>
+    
+    $commands = construct_install_system_packages_commands
+        [{name => 'ca-certificates'}];
+
+    my $temp_file_name = "$PMBPDirName/tmp/docker-apt-key";
+    save_url
+        qq<https://download.docker.com/linux/$os/gpg> => $temp_file_name,
+        max_age => 24*60*60;
+    # https://download.docker.com/linux/debian/gpg
+    # https://download.docker.com/linux/ubuntu/gpg
+
+    push @$commands,
+        [{}, wrap_by_sudo ['install', '-m', '0755', '-d', '/etc/apt/keyrings'],
+         undef, sub { }, undef];
+    push @$commands,
+        [{}, wrap_by_sudo ['cp', $temp_file_name, '/etc/apt/keyrings/docker.asc'],
+         undef, sub { }, undef];
+    push @$commands,
+        [{}, wrap_by_sudo ['chmod', 'a+r', '/etc/apt/keyrings/docker.asc'],
+         undef, sub { }, undef];
+
+    my $temp2_file_name = "$PMBPDirName/tmp/docker-sources";
+    open my $temp2_file, '>', $temp2_file_name or
+        info_die "$0: $temp2_file_name: $!";
+    print $temp2_file qq{
+Types: deb
+URIs: https://download.docker.com/linux/$platform->{ID}
+Suites: $platform->{codename}
+Components: stable
+Signed-By: /etc/apt/keyrings/docker.asc
+    };
+    close $temp2_file;
+
+    push @$commands,
+        [{}, wrap_by_sudo [$AptGetCommand, 'update'], undef, sub { }, 'network'];
+  } elsif ($method eq 'old') {
+    ## <https://docs.docker.com/engine/installation/linux/docker-ce/debian/>
+
+    unless (which 'lsb_release') {
+      install_system_packages [{name => 'software-properties-common'}]
+          or info_die "Failed to install docker (lsb_release)";
+    }
+    my $id = '';
+    my $result = run_command ['lsb_release', '-cs'],
+        onoutput => sub { $id .= $_[0] if defined $_[0]; 2 }
+        or info_die "Failed to install docker (lsb_release)";
+    chomp $id;
+
+    unless (_save_url qq<https://download.docker.com/linux/$os/dists/$id/> => "$PMBPDirName/tmp/dummy." . rand) {
+      info 1, "There is no docker apt repository for $os $id";
+      ## This need to be updated when a new version is available...
+      if ($os eq 'debian') {
+        $id = 'stretch';
+      } elsif ($os eq 'ubuntu') {
+        $id = 'xenial';
+      } else {
+        info_die "Failed to install docker ($os $id not supported)";
+      }
+    }
   
-  my $commands = construct_install_system_packages_commands
-      [{name => 'apt-transport-https'},
-       {name => 'ca-certificates'},
-       {name => 'gnupg2'}];
+    $commands = construct_install_system_packages_commands
+        [{name => 'apt-transport-https'},
+         {name => 'ca-certificates'},
+         {name => 'gnupg2'}];
 
-  my $temp_file_name = "$PMBPDirName/tmp/docker-apt-key";
-  save_url
-      qq<https://download.docker.com/linux/$os/gpg> => $temp_file_name,
-      max_age => 24*60*60;
-  push @$commands,
-      [{}, wrap_by_sudo ['apt-key', 'add', $temp_file_name], undef, sub { }, undef];
+    my $temp_file_name = "$PMBPDirName/tmp/docker-apt-key";
+    save_url
+        qq<https://download.docker.com/linux/$os/gpg> => $temp_file_name,
+        max_age => 24*60*60;
+    push @$commands,
+        [{}, wrap_by_sudo ['apt-key', 'add', $temp_file_name], undef, sub { }, undef];
 
-  my $arch = 'amd64';
-  push @$commands,
-      [{}, wrap_by_sudo ['add-apt-repository',
-                         "deb [arch=$arch] https://download.docker.com/linux/$os $id stable"],
-       undef, sub { }, undef];
+    my $arch = 'amd64';
+    push @$commands,
+        [{}, wrap_by_sudo ['add-apt-repository',
+                           "deb [arch=$arch] https://download.docker.com/linux/$os $id stable"],
+         undef, sub { }, undef];
 
-  push @$commands,
-      [{}, wrap_by_sudo [$AptGetCommand, 'update', '--allow-releaseinfo-change'], undef, sub { }, 'network'];
-  
+    push @$commands,
+        [{}, wrap_by_sudo [$AptGetCommand, 'update', '--allow-releaseinfo-change'], undef, sub { }, 'network'];
+  } else {
+    info_die "Bad method |$method|";
+  }
   return $commands;
 } # before_apt_for_docker
 
