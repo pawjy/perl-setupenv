@@ -5718,12 +5718,12 @@ sub before_apt_for_docker () {
 
   my $method = 'debian';
   if ($platform->{ID} eq 'debian') {
-    if ($platform->{VERSION_ID} < 20.04) {
+    if ($platform->{VERSION_ID} < 10) {
       $method = 'old';
     }
     $platform->{codename} = $platform->{VERSION_CODENAME};
   } elsif ($platform->{ID} eq 'ubuntu') {
-    if ($platform->{VERSION_ID} < 10) {
+    if ($platform->{VERSION_ID} < 20.04) {
       $method = 'old';
     }
     $platform->{codename} = $platform->{UBUNTU_CODENAME} || $platform->{VERSION_CODENAME};
