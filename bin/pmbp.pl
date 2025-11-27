@@ -5766,7 +5766,10 @@ Components: stable
 Signed-By: /etc/apt/keyrings/docker.asc
     };
     close $temp2_file;
-
+    push @$commands,
+        [{}, wrap_by_sudo ['cp', $temp2_file_name, '/etc/apt/sources.list.d/docker.sources'],
+         undef, sub { }, undef];
+    
     push @$commands,
         [{}, wrap_by_sudo [$AptGetCommand, 'update'], undef, sub { }, 'network'];
   } elsif ($method eq 'old') {
