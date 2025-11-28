@@ -5989,35 +5989,41 @@ sub get_python_version () {
 sub install_pip () {
   return if which 'pip3';
 
-  my $commands = [];
   unless (which 'python3') {
-    $commands = construct_install_system_packages_commands
+    my $commands = construct_install_system_packages_commands
         [{name => 'python3'}, {name => 'python3-distutils',
                                homebrew_name => 'python3'}];
+    run_system_commands $commands;
   }
 
-  my $python_version = get_python_version
-      || info_die "Failed to run |python3|";
-  if ($python_version < 3.12) {
-    #ModuleNotFoundError: No module named 'distutils.cmd'
-    $commands = construct_install_system_packages_commands
-        [{name => 'python3-distutils', homebrew_name => 'python3'}];
+  {
+    my $commands = [];
+    my $python_version = get_python_version
+        || info_die "Failed to run |python3|";
+    if ($python_version < 3.12) {
+      #ModuleNotFoundError: No module named 'distutils.cmd'
+      $commands = construct_install_system_packages_commands
+          [{name => 'python3-distutils', homebrew_name => 'python3'}];
+    }
+
+    my $temp_file_name = "$PMBPDirName/tmp/get-pip.py";
+    save_url
+        qq<https://bootstrap.pypa.io/get-pip.py> => $temp_file_name,
+        max_age => 24*60*60;
+
+    push @$commands, [{}, (wrap_by_sudo ['python3', $temp_file_name]),
+                      'Installing pip', sub { }, 'packagemanager'];
+    run_system_commands $commands;
   }
-
-  my $temp_file_name = "$PMBPDirName/tmp/get-pip.py";
-  save_url
-      qq<https://bootstrap.pypa.io/get-pip.py> => $temp_file_name,
-      max_age => 24*60*60;
-
-  push @$commands, [{}, (wrap_by_sudo ['python3', $temp_file_name]),
-                    'Installing pip', sub { }, 'packagemanager'];
-
-  push @$commands, [{}, (wrap_by_sudo ['pip3', 'install', '--upgrade', 'setuptools']),
-                    'Installing setuptools', sub { }, 'packagemanager'];
   
-  run_system_commands $commands;
-
   info_die "Failed to install pip" unless which 'pip3';
+  
+  {
+    my $commands = [];
+    push @$commands, [{}, (wrap_by_sudo ['pip3', 'install', '--upgrade', 'setuptools']),
+                      'Installing setuptools', sub { }, 'packagemanager'];
+    run_system_commands $commands;
+  }
 } # install_pip
 
 sub install_awscli () {
