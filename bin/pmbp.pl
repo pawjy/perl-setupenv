@@ -5976,15 +5976,29 @@ sub install_perldoc () {
 
 ## ------ Python applications ------
 
+sub get_python_version () {
+  my $out = '';
+  run_command
+      ['python3', '-c', "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"],
+      onoutput => sub { $out .= $_[0]; 6 }
+          or info_die "|python3| failed";
+  chomp $out if defined $out;
+  return length $out ? $out : undef;
+} # get_python_version
+
 sub install_pip () {
-  return if which 'pip';
+  return if which 'pip3';
 
   my $commands = [];
   unless (which 'python3') {
     $commands = construct_install_system_packages_commands
         [{name => 'python3'}, {name => 'python3-distutils',
                                homebrew_name => 'python3'}];
-  } else {
+  }
+
+  my $python_version = get_python_version
+      || info_die "Failed to run |python3|";
+  if ($python_version < 3.12) {
     #ModuleNotFoundError: No module named 'distutils.cmd'
     $commands = construct_install_system_packages_commands
         [{name => 'python3-distutils', homebrew_name => 'python3'}];
@@ -6000,7 +6014,7 @@ sub install_pip () {
 
   run_system_commands $commands;
 
-  info_die "Failed to install pip" unless which 'pip';
+  info_die "Failed to install pip" unless which 'pip3';
 } # install_pip
 
 sub install_awscli () {
@@ -6009,7 +6023,7 @@ sub install_awscli () {
   install_pip;
 
   my $commands = [];
-  push @$commands, [{}, (wrap_by_sudo ['pip', 'install', 'awscli']),
+  push @$commands, [{}, (wrap_by_sudo ['pip3', 'install', 'awscli']),
                     'Installing awscli', sub { }, 'packagemanager'];
   run_system_commands $commands;
 
