@@ -6012,6 +6012,9 @@ sub install_pip () {
   push @$commands, [{}, (wrap_by_sudo ['python3', $temp_file_name]),
                     'Installing pip', sub { }, 'packagemanager'];
 
+  push @$commands, [{}, (wrap_by_sudo ['pip3', 'install', '--upgrade', 'setuptools']),
+                    'Installing setuptools', sub { }, 'packagemanager'];
+  
   run_system_commands $commands;
 
   info_die "Failed to install pip" unless which 'pip3';
