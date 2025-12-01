@@ -6010,7 +6010,7 @@ sub install_pip () {
         qq<https://bootstrap.pypa.io/get-pip.py> => $temp_file_name,
         max_age => 24*60*60;
 
-    push @$commands, [{}, (wrap_by_sudo ['python3', $temp_file_name]),
+    push @$commands, [{}, (wrap_by_sudo ['python3', $temp_file_name, '--break-system-packages']),
                       'Installing pip', sub { }, 'packagemanager'];
     run_system_commands $commands;
   }
