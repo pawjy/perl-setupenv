@@ -5991,8 +5991,7 @@ sub install_pip () {
 
   unless (which 'python3') {
     my $commands = construct_install_system_packages_commands
-        [{name => 'python3'}, {name => 'python3-distutils',
-                               homebrew_name => 'python3'}];
+        [{name => 'python3'}];
     run_system_commands $commands;
   }
 
