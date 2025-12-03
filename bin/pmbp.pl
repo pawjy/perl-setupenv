@@ -6019,7 +6019,7 @@ sub install_pip () {
   
   {
     my $commands = [];
-    push @$commands, [{}, (wrap_by_sudo ['pip3', 'install', '--upgrade', 'setuptools']),
+    push @$commands, [{}, (wrap_by_sudo ['pip3', 'install', '--upgrade', 'setuptools', '--break-system-packages']),
                       'Installing setuptools', sub { }, 'packagemanager'];
     run_system_commands $commands;
   }
@@ -6031,7 +6031,7 @@ sub install_awscli () {
   install_pip;
 
   my $commands = [];
-  push @$commands, [{}, (wrap_by_sudo ['pip3', 'install', 'awscli']),
+  push @$commands, [{}, (wrap_by_sudo ['pip3', 'install', 'awscli', '--break-system-packages']),
                     'Installing awscli', sub { }, 'packagemanager'];
   run_system_commands $commands;
 
