@@ -5016,7 +5016,8 @@ sub install_openssl ($$) {
           } elsif ($log =~ /gcc: error: unrecognized command-line option '--no-docs'; did you mean '--no-doc'\?/ or
                    $log =~ /clang: error: unsupported option '--no-docs'/ or
                    $log =~ /clang: error: unknown argument: '--no-docs'/ or
-                   $log =~ /Unsupported options: no-docs/) {
+                   $log =~ /Unsupported options: no-docs/ or
+                   $log =~ /Unsupported options: disable-docs/) {
             $no_no_docs = 1;
             $can_retry = 1;
           }
