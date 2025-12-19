@@ -5020,6 +5020,16 @@ sub install_openssl ($$) {
                    $log =~ /Unsupported options: disable-docs/) {
             $no_no_docs = 1;
             $can_retry = 1;
+          } elsif ($log =~ /netcat.c:[0-9]+:[0-9]+: error: use of undeclared identifier/) {
+            # libressl on Mac OS X
+            if (install_system_packages [{
+              name => 'netcat',
+              homebrew_name => 'netcat',
+              debian_name => 'netcat-openbsd',
+              redhat_name => 'nmap-ncat',
+            }]) {
+              $can_retry = 1;
+            }
           }
           return 6;
         };
