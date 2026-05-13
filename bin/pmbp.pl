@@ -473,7 +473,7 @@ sub get_real_time () {
     q<https://time.akamai.com/?ms>,
   ) {
     my $ts_file_name = "$RootDirName/local/timestamp";
-    _save_url ($url => $ts_file_name)
+    _save_url ($url => $ts_file_name, timeout => 1)
         or do { info 0, "Can't get current timestamp"; next };
     open my $file, '<', $ts_file_name or
         do { info 0, "Failed to open timestamp file"; next };
