@@ -2620,6 +2620,12 @@ sub cpanm ($$) {
           push @option, '--look';
         },
       },
+      ## URI::UTF8::Punycode - mypuny.c is missing #include <ctype.h>
+      {
+        name => 'uripunycode',
+        match => sub { @module_arg and $module_arg[0] eq 'URI::UTF8::Punycode' },
+        pre_build => q{grep -q '#include.*ctype.h' mypuny.c || sed -i '2i#include <ctype.h>' mypuny.c},
+      },
     );
 
     {
