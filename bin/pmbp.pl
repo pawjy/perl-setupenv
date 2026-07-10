@@ -2239,6 +2239,7 @@ sub install_makeinstaller ($$;%) {
   my ($name, $configure_args, %args) = @_;
   #return if -f "$MakeInstaller.$name";
   my $makefilepl_args = join ' ', @$configure_args;
+  my $pre_build = $args{pre_build} || '';
   info_writing 1, "makeinstaller.$name", "$MakeInstaller.$name";
   mkdir_for_file "$MakeInstaller.$name";
   open my $file, '>', "$MakeInstaller.$name"
@@ -2247,6 +2248,7 @@ sub install_makeinstaller ($$;%) {
     printf $file q{#!/bin/bash
       export SHELL="%s"
       (
+        %s
         if [ -f Build.PL ]; then
           echo perl Build.PL %s && perl Build.PL %s && \
           echo ./Build          && ./Build && \
@@ -2258,6 +2260,7 @@ sub install_makeinstaller ($$;%) {
         fi
       ) || echo "!!! MakeInstaller failed !!!"
     }, _quote_dq $ENV{SHELL},
+       $pre_build,
        $makefilepl_args, $makefilepl_args,
        $args{perl_options} || '',
        $makefilepl_args,
@@ -2267,11 +2270,13 @@ sub install_makeinstaller ($$;%) {
     printf $file q{#!/bin/bash
       (
         export SHELL="%s"
+        %s
         echo perl %s Makefile.PL %s && perl %s Makefile.PL %s && \
         echo make                && make && \
         echo make install        && make install
       ) || echo "!!! MakeInstaller failed !!!"
     }, _quote_dq $ENV{SHELL},
+       $pre_build,
        $args{perl_options} || '',
        $makefilepl_args,
        $args{perl_options} || '',
@@ -2504,108 +2509,146 @@ sub cpanm ($$) {
         push @option,
             "--build-args=OTHERLDFLAGS=-L" . "$RootDirName/local/common/lib";
       }
-    } elsif (@module_arg and $module_arg[0] eq 'GD' and
-        not $args->{info} and not $args->{scandeps}) {
-      ## <https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=636649>
-      install_makeinstaller 'gd', [q{CCFLAGS="$PMBP__CCFLAGS"}],
-          module_build => 1;
+    }
+
+    ## --- Module build configurations (data-driven) ---
+    ## Modules using --look + custom SHELL mechanism are defined here.
+    ## Each entry: { name, match => sub{}, configure_args, module_build,
+    ##               perl_options, pre_build, pre_actions, setup => sub{}, skip_default_look }
+    my @ModuleBuildConfigs = (
+      ## GD - <https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=636649>
       ## Though it has both Makefile.PL and Build.PL, Makefile.PL does
       ## not make GD.so in some Debian environment.
-      my $ccflags = '-Wformat=0 ' . get_perl_config $perl_command, $perl_version, 'ccflags';
-      $envs->{PMBP__CCFLAGS} = $ccflags;
-      $envs->{SHELL} = "$MakeInstaller.gd";
-      push @option, '--look';
-    } elsif (not $args->{info} and not $args->{scandeps} and
-             @$modules and
-             defined $modules->[0]->distvname and
-             $modules->[0]->distvname =~ /^mod_perl-2\./) {
-      install_apache_httpd ('2.2');
-      ## <https://perl.apache.org/docs/2.0/user/install/install.html#Dynamic_mod_perl>
-      install_makeinstaller 'modperl2', [
-        qq{MP_APXS="$RootDirName/local/apache/httpd-2.2/bin/apxs"},
-        qq{MP_APR_CONFIG="$RootDirName/local/apache/httpd-2.2/bin/apr-1-config"},
-      ];
-      $envs->{SHELL} = "$MakeInstaller.modperl2";
-      push @option, '--look';
-    } elsif (not $args->{info} and not $args->{scandeps} and
-             @$modules and
-             defined $modules->[0]->distvname and
-             $modules->[0]->distvname =~ /^mod_perl-1\./) {
-      install_apache1 ();
-      ## <https://perl.apache.org/docs/1.0/guide/getwet.html>
-      install_makeinstaller 'modperl1', [
-        qq{USE_APXS=1},
-        qq{WITH_APXS="$RootDirName/local/apache/httpd-1.3/bin/apxs"},
-        qq{EVERYTHING=1},
-      ];
-      $envs->{SHELL} = "$MakeInstaller.modperl1";
-      push @option, '--look';
-    #} elsif ($args->{scandeps} and
-    #         @$modules and
-    #         defined $modules->[0]->distvname and
-    #         $modules->[0]->distvname =~ /^mod_perl-2\./) {
-    #  install_apache_httpd ('2.2');
-    #  # XXX This does not work well...
-    #} elsif ($args->{scandeps} and
-    #         @$modules and
-    #         defined $modules->[0]->distvname and
-    #         $modules->[0]->distvname =~ /^mod_perl-1\./) {
-    #  install_apache1 ();
-    #  # XXX This does not work well...
-    } elsif (@module_arg and $module_arg[0] eq 'Text::MeCab' and
-             not $args->{info}) {
-      my $mecab_config = mecab_config_file_name ();
-      unless (defined $mecab_config) {
-        install_mecab ()
-            or info_die "Can't install mecab";
-        $mecab_config = mecab_config_file_name ();
+      {
+        name => 'gd',
+        match => sub { @module_arg and $module_arg[0] eq 'GD' and
+                       not $args->{info} and not $args->{scandeps} },
+        configure_args => [q{CCFLAGS="$PMBP__CCFLAGS"}],
+        module_build => 1,
+        setup => sub {
+          my $ccflags = '-Wformat=0 ' . get_perl_config $perl_command, $perl_version, 'ccflags';
+          $envs->{PMBP__CCFLAGS} = $ccflags;
+        },
+      },
+      ## mod_perl-2.x - <https://perl.apache.org/docs/2.0/user/install/install.html#Dynamic_mod_perl>
+      {
+        name => 'modperl2',
+        match => sub { not $args->{info} and not $args->{scandeps} and
+                       @$modules and defined $modules->[0]->distvname and
+                       $modules->[0]->distvname =~ /^mod_perl-2\./ },
+        configure_args => [
+          qq{MP_APXS="$RootDirName/local/apache/httpd-2.2/bin/apxs"},
+          qq{MP_APR_CONFIG="$RootDirName/local/apache/httpd-2.2/bin/apr-1-config"},
+        ],
+        pre_actions => [sub { install_apache_httpd ('2.2') }],
+      },
+      ## mod_perl-1.x - <https://perl.apache.org/docs/1.0/guide/getwet.html>
+      {
+        name => 'modperl1',
+        match => sub { not $args->{info} and not $args->{scandeps} and
+                       @$modules and defined $modules->[0]->distvname and
+                       $modules->[0]->distvname =~ /^mod_perl-1\./ },
+        configure_args => [
+          qq{USE_APXS=1},
+          qq{WITH_APXS="$RootDirName/local/apache/httpd-1.3/bin/apxs"},
+          qq{EVERYTHING=1},
+        ],
+        pre_actions => [sub { install_apache1 () }],
+      },
+      ## Text::MeCab - <http://cpansearch.perl.org/src/DMAKI/Text-MeCab-0.20014/tools/probe_mecab.pl>
+      ## Perl 5.26 incompatibly changes "do"'s file lookup rule,
+      ## which breaks Text::MeCab's Makefile.PL.
+      {
+        name => 'textmecab',
+        match => sub { @module_arg and $module_arg[0] eq 'Text::MeCab' and
+                       not $args->{info} },
+        skip_default_look => 1,
+        setup => sub {
+          my $mecab_config = mecab_config_file_name ();
+          unless (defined $mecab_config) {
+            install_mecab ()
+                or info_die "Can't install mecab";
+            $mecab_config = mecab_config_file_name ();
+          }
+          my @config = (
+            qq{--mecab-config="$mecab_config"},
+            qq{--encoding="} . mecab_charset () . q{"},
+          );
+          unless ($args->{scandeps}) {
+            install_makeinstaller 'textmecab', \@config,
+                perl_options => q{-I.};
+            $envs->{SHELL} = "$MakeInstaller.textmecab";
+            push @option, '--look';
+          } else {
+            push @configure_args, @config;
+          }
+          $envs->{LD_LIBRARY_PATH} = mecab_lib_dir_name ();
+        },
+      },
+      ## Math::Pari
+      {
+        name => 'mathpari',
+        match => sub { @module_arg and $module_arg[0] eq 'Math::Pari' and
+                       not $args->{info} and not $args->{scandeps} },
+        skip_default_look => 1,
+        setup => sub {
+          my $file_name = pmtar_dir_name () . '/pari.tar.gz';
+          my $PariSourceURL = q<ftp://megrez.math.u-bordeaux.fr/pub/pari/unix/OLD/2.1/pari-2.1.7.tgz>;
+          save_url $PariSourceURL => $file_name
+              if not -f $file_name or [stat $file_name]->[9] + 24 * 60 * 60 < time;
+
+          my $pari_version;
+          run_command
+              ['sh', '-c', 'tar -tz < ' . $file_name],
+              onoutput => sub {
+                if ($_[0] =~ /^pari-([0-9.]+)/) {
+                  $pari_version = $1;
+                }
+                return 20;
+              };
+          info_die "Can't get pari version from |$file_name|"
+              unless defined $pari_version;
+
+          make_path "$PMBPDirName/tmp";
+          my $temp_file_name = "$PMBPDirName/tmp/pari-$pari_version.tar.gz";
+          run_command ['ln', '-s', $file_name => $temp_file_name];
+          info_die "Can't create symlink |$temp_file_name|"
+              unless -f $temp_file_name;
+
+          install_makeinstaller 'mathpari', [qq{pari_tgz="$temp_file_name"}];
+          $envs->{SHELL} = "$MakeInstaller.mathpari";
+          push @option, '--look';
+        },
+      },
+    );
+
+    {
+      my $matched_config;
+      for my $config (@ModuleBuildConfigs) {
+        if ($config->{match}->()) {
+          $matched_config = $config;
+          last;
+        }
       }
-      # <http://cpansearch.perl.org/src/DMAKI/Text-MeCab-0.20014/tools/probe_mecab.pl>
-      my @config = (
-        qq{--mecab-config="$mecab_config"},
-        qq{--encoding="} . mecab_charset () . q{"},
-      );
-      unless ($args->{scandeps}) {
-        install_makeinstaller 'textmecab', \@config,
-            ## Perl 5.26 incompatibly changes "do"'s file lookup rule,
-            ## which breaks Text::MeCab's Makefile.PL.
-            perl_options => q{-I.};
-        $envs->{SHELL} = "$MakeInstaller.textmecab";
-        push @option, '--look';
-      } else {
-        push @configure_args, @config;
+
+      if ($matched_config) {
+        if ($matched_config->{pre_actions}) {
+          $_->() for @{$matched_config->{pre_actions}};
+        }
+        if ($matched_config->{setup}) {
+          $matched_config->{setup}->();
+        }
+        if (not $matched_config->{skip_default_look}) {
+          install_makeinstaller $matched_config->{name},
+              $matched_config->{configure_args} || [],
+              module_build => $matched_config->{module_build} || 0,
+              perl_options => $matched_config->{perl_options} || '',
+              pre_build => $matched_config->{pre_build} || '';
+          $envs->{SHELL} = "$MakeInstaller.$matched_config->{name}";
+          push @option, '--look';
+        }
       }
-      $envs->{LD_LIBRARY_PATH} = mecab_lib_dir_name ();
-    } elsif (@module_arg and $module_arg[0] eq 'Math::Pari' and
-             not $args->{info} and not $args->{scandeps}) {
-      my $file_name = pmtar_dir_name () . '/pari.tar.gz';
-      my $PariSourceURL = q<ftp://megrez.math.u-bordeaux.fr/pub/pari/unix/OLD/2.1/pari-2.1.7.tgz>;
-      #q<ftp://megrez.math.u-bordeaux.fr/pub/pari/unix/pari.tgz> ## Can't compile with this newer version...
-      save_url $PariSourceURL => $file_name
-          if not -f $file_name or [stat $file_name]->[9] + 24 * 60 * 60 < time;
-
-      my $pari_version;
-      run_command
-          ['sh', '-c', 'tar -tz < ' . $file_name],
-          onoutput => sub {
-            if ($_[0] =~ /^pari-([0-9.]+)/) {
-              $pari_version = $1;
-            }
-            return 20;
-          };
-      info_die "Can't get pari version from |$file_name|"
-          unless defined $pari_version;
-
-      make_path "$PMBPDirName/tmp";
-      my $temp_file_name = "$PMBPDirName/tmp/pari-$pari_version.tar.gz";
-      run_command ['ln', '-s', $file_name => $temp_file_name];
-      info_die "Can't create symlink |$temp_file_name|"
-          unless -f $temp_file_name;
-
-      install_makeinstaller 'mathpari', [qq{pari_tgz="$temp_file_name"}];
-      $envs->{SHELL} = "$MakeInstaller.mathpari";
-      push @option, '--look';
-    }
+    } # ModuleBuildConfigs
     if ($PlatformIsMacOSX and $retry_with_mpfr) {
       my $mpfr_prefix = '';
       run_command ['brew', '--prefix', 'mpfr'],
