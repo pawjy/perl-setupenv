@@ -2624,7 +2624,7 @@ sub cpanm ($$) {
       {
         name => 'uripunycode',
         match => sub { @module_arg and $module_arg[0] eq 'URI::UTF8::Punycode' },
-        pre_build => q{grep -q '#include.*ctype.h' mypuny.c || sed -i '2i#include <ctype.h>' mypuny.c},
+        pre_build => q{grep -q '#include.*ctype.h' bin/mypuny.c || sed -i.bak '2i#include <ctype.h>' bin/mypuny.c && rm -f bin/mypuny.c.bak},
       },
     );
 
