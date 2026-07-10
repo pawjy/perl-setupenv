@@ -4742,7 +4742,7 @@ sub install_module ($$$;%) {
 sub get_openssl_branches_by_api () {
   ## This can fail due to GitHub's API rate limits.
   my $json_file_name = "$PMBPDirName/tmp/openssl-branches.json";
-  save_url q<https://api.github.com/repos/openssl/openssl/branches> => $json_file_name,
+  save_url q<https://api.github.com/repos/openssl/openssl/branches?per_page=100> => $json_file_name,
       max_age => 60*60*24*100;
   my $json = load_json $json_file_name;
   unless (defined $json and ref $json eq 'ARRAY') {
