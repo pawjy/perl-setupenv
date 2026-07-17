@@ -709,6 +709,7 @@ sub copy_log_file ($$) {
   mkdir_for_file $log_file_name;
   copy_file $file_name => $log_file_name or 
       info_die "Can't save log file: $!\n";
+  info 5, "Log file copied: |$file_name| -> |$log_file_name|";
   info_writing 0, "install log file", $log_file_name;
   open my $file, '<', $file_name or info_die "$0: $file_name: $!";
   local $/ = undef;
@@ -2751,7 +2752,7 @@ sub cpanm ($$) {
       }
       if ($level == 1 and
           ($log =~ /! (?:Installing|Configuring) (\S+) failed\. See (.+?) for details\./m or
-           $log =~ /! Configure failed for (\S+)\. See (.+?) for details\.$/m)) {
+           $log =~ /! Configure failed for (\S+)\. See (.+?) for details\./m)) { # build.log
         my $log = copy_log_file $2 => $1;
         $scan_errors->($level + 1, $log);
         if ($log =~ m{! You might have to install the following modules first to get --scandeps working correctly.\n!((?:\n! \* \S+)+)}) {
