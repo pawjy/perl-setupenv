@@ -2875,6 +2875,8 @@ sub cpanm ($$) {
         ## <https://stackoverflow.com/questions/67003619/mac-m1-homebrew-perl-carton-netssleay-is-loading-libcrypto-in-an-unsafe-way>
         push @required_install, PMBP::Module->new_from_package
             ('ExtUtils::MakeMaker~7.58');
+        $required_misc{openssl} = 1;
+        $failed = 1;
       }
       if ($log =~ /COULD NOT FIND LIBSSL HEADERS/) {
         ## Net::SSLeay
