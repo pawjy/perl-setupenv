@@ -1697,6 +1697,18 @@ sub get_perl_version ($;$) {
   return $perl_version;
 } # get_perl_version
 
+sub perl_version_lte ($$) {
+  my ($version, $limit) = @_;
+  my @v = ($version =~ /\A([0-9]+)\.([0-9]+)\.([0-9]+)\z/);
+  my @l = ($limit  =~ /\A([0-9]+)\.([0-9]+)\.([0-9]+)\z/);
+  return 1 if @v != 3 or @l != 3;
+  for my $i (0..2) {
+    my $c = $v[$i] <=> $l[$i];
+    return $c <= 0 if $c;
+  }
+  return 1;
+} # perl_version_lte
+
 sub init_perl_version ($) {
   my $perl_version = shift;
   $perl_version = get_perl_version $PerlCommand if not defined $perl_version;
@@ -1914,6 +1926,21 @@ sub install_perl_by_perlbuild ($;%) {
       save_url "https://raw.githubusercontent.com/wakaba/perl-setupenv/master/lib/Devel/PatchPerl/Plugin/MacOSX.pm" => "$RootDirName/local/perlbrew-lib/Devel/PatchPerl/Plugin/MacOSX.pm",
           max_age => 10*24*60*60;
       push @patch, qw(MacOSX);
+
+      ## The Xcode 27 SDK declares |dup3()| and |pipe2()| as available
+      ## from macOS 27.0, but libSystem does not export them on macOS
+      ## 26. They are weak-imported, so the freshly built miniperl
+      ## crashes with |SIGSEGV| as soon as it opens a file
+      ## (e.g. during the minitest that builds
+      ## |lib/buildcustomize.pl|). Upstream fixed this by undefining
+      ## |d_dup3|/|d_pipe2| in |hints/darwin.sh| on Darwin < 27. That
+      ## fix landed in 5.45 and has not been backported to 5.44.x yet,
+      ## so do it here.  See
+      ## <https://github.com/Perl/perl5/issues/24804>.
+      if (perl_version_lte $perl_version, '5.44.0') {
+        info 2, "perlbuild($i): undefining d_dup3/d_pipe2 for macOS";
+        push @perl_option, '-U' => 'd_dup3', '-U' => 'd_pipe2';
+      }
     }
 
     make_path $perl_tar_dir_path;
