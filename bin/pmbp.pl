@@ -3043,7 +3043,8 @@ sub cpanm ($$) {
                                 debian_name => 'libpq-dev',
                                 homebrew_name => 'postgresql'};
       }
-      if ($log =~ m{ld: cannot find -lperl}m) {
+      if ($log =~ m{ld: cannot find -lperl}m or
+          $log =~ m{: cannot find lperl: }) {
         push @required_system,
             {name => 'perl-devel',
              redhat_name => 'perl-libs',
@@ -5235,7 +5236,8 @@ sub build_imagemagick ($$$;%) {
     my @required_installable;
     my $onoutput = sub {
       my $log = $_[0];
-      if ($log =~ m{ld: cannot find -lperl}m) {
+      if ($log =~ m{ld: cannot find -lperl}m or
+          $log =~ m{: cannot find lperl: }) {
         push @required_system,
             {name => 'perl-devel',
              redhat_name => 'perl-libs',
