@@ -2426,6 +2426,8 @@ sub cpanm ($$) {
           ? ('Class::Accessor::Fast', $_) :
       $_ eq 'RRDTool::OO'
           ? ('Alien::RRDtool', $_) :
+      $_ eq 'FindBin::libs'
+          ? ('File::Util::SecureDir', $_) : # R8.11.21
       {'GD::Image' => 'GD'}->{$_} || $_;
     } map {
       ref $_ ? $_->as_cpanm_arg (pmtar_dir_name ()) : $_;
@@ -2496,6 +2498,9 @@ sub cpanm ($$) {
                                  "$cpanm_lib_dir_name/lib/perl5",
                                  ((sprintf "%vd", $^V) eq $perl_version ? ($ENV{PERL5LIB}) : ())),
                 LD_LIBRARY_PATH => (join ':', (get_ld_library_path_names ($perl_version))),
+                LIBRARY_PATH => (join ':', grep { defined and length }
+                                     (get_ld_library_path_names ($perl_version)),
+                                     $ENV{LIBRARY_PATH}),
                 HOME => get_cpanm_dummy_home_dir_name ($perl_lib_dir_name),
                 CPATH => $cpath,
                 PERL_CPANM_HOME => $CPANMHomeDirName,
@@ -3076,7 +3081,8 @@ sub cpanm ($$) {
              debian_name => 'libdb-dev'};
         $failed = 1;
       }
-      if ($log =~ m{ld: cannot find -lperl$}m) {
+      if ($log =~ m{ld: cannot find -lperl$}m or
+          $log =~ m{: cannot find lperl: }) {
         push @required_system,
             {name => 'perl-devel',
              redhat_name => 'perl-libs',
