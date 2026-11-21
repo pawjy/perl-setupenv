@@ -2742,6 +2742,8 @@ sub cpanm ($$) {
     my $remove_inc;
     my $install_extutils_embed;
     my $cpanm_pid;
+    my $last_configure_error_dir;
+    my %copied_configure_log;
     my $scan_errors; $scan_errors = sub ($$) {
       my ($level, $log) = @_;
       if ($log =~ /Can\'t locate (\S+\.pm) in \@INC/m) {
@@ -2797,15 +2799,28 @@ sub cpanm ($$) {
         $scan_errors->($level + 1, $log);
       }
       if ($level <= 2 and
-          $log =~ /^configure: error: in \`(.+)':\nconfigure: error: .+\nSee \`(config.log)' for more details\s*$/m) {
+          $log =~ /^.*?configure: error: in \`(.+)':\s*\n.*?configure: error: .+\n.*?See \`(config.log)' for more details\s*$/m) {
         ## IO::AIO
         # $CPANMHomeDirName/IO-AIO-4.81/config.log
         #
         #configure: error: in `/path/to/local/cpanm/tmp/work/123.4/IO-AIO-4.81':
         #configure: error: C compiler cannot create executables
         #See `config.log' for more details
-        my $log = copy_log_file "$1/$2" => 'configure';
-        $scan_errors->($level + 1, $log);
+        unless ($copied_configure_log{"$1/$2"}++) {
+          my $config_log = copy_log_file "$1/$2" => 'configure';
+          $scan_errors->($level + 1, $config_log);
+        }
+      } elsif ($level <= 2) {
+        $last_configure_error_dir = $1
+            if $log =~ /^.*?configure: error: in \`(.+)':/m;
+        if ($log =~ /^.*?See \`(config\.log)' for more details\s*$/m and
+            defined $last_configure_error_dir) {
+          my $config_path = "$last_configure_error_dir/$1";
+          if (-f $config_path and not $copied_configure_log{$config_path}++) {
+            my $config_log = copy_log_file $config_path => 'configure';
+            $scan_errors->($level + 1, $config_log);
+          }
+        }
       }
       if ($log =~ m{^(\S+) \S+ is required to configure this module; please install it or upgrade your CPAN/CPANPLUS shell.}m) {
         push @required_install, PMBP::Module->new_from_package ($1);
