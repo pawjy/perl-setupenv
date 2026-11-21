@@ -1948,7 +1948,10 @@ sub install_perl_by_perlbuild ($;%) {
     my $run = 1;
     if (-f $perl_path) {
       info 2, "perlbuild($i): |$perl_path| found";
-      if ($args{force}) {
+      if (-f "$perl_dir_path/.pmbp-system-perl") {
+        info 2, "perlbuild($i): system-perl shim found; rebuilding";
+        remove_tree $perl_dir_path;
+      } elsif ($args{force}) {
         info 2, "perlbuild($i): force-install flag specified";
       } else {
         info 2, "perlbuild($i): skipped";
@@ -2046,7 +2049,36 @@ sub install_perl ($;%) {
 
 sub create_perlbrew_perl_latest_symlink ($) {
   my $perl_version = shift;
-  return unless -d "$RootDirName/local/perlbrew/perls/perl-$perl_version";
+  my $perl_dir = "$RootDirName/local/perlbrew/perls/perl-$perl_version";
+
+  unless (-d $perl_dir) {
+    my $actual = eval { get_perl_version ($PerlCommand) } || '';
+    $actual =~ s/^v//;
+    if ($actual eq $perl_version) {
+      my $perl_path = which ($PerlCommand) || $PerlCommand;
+      $perl_path = abs_path $perl_path if -e $perl_path;
+      my $bin_dir = "$perl_dir/bin";
+      make_path $bin_dir;
+      unless (-x "$bin_dir/perl") {
+        symlink $perl_path, "$bin_dir/perl"
+            or copy_file $perl_path, "$bin_dir/perl"
+            or info_die "$0: $bin_dir/perl: $!";
+        chmod 0755, "$bin_dir/perl";
+      }
+      for my $cmd (qw(prove perldoc)) {
+        my $p = which ($cmd);
+        next unless defined $p and -e $p;
+        $p = abs_path $p;
+        unless (-e "$bin_dir/$cmd") {
+          symlink $p, "$bin_dir/$cmd" or copy_file $p, "$bin_dir/$cmd";
+        }
+      }
+      open my $f, '>', "$perl_dir/.pmbp-system-perl" or info_die "$0: $perl_dir/.pmbp-system-perl: $!";
+      close $f;
+    } else {
+      return;
+    }
+  }
 
   run_command ['rm', '-f', "$RootDirName/local/perl-latest"];
   run_command ['ln', '-s', "perl-$perl_version", "perl-latest"],

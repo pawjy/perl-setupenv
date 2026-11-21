@@ -11,6 +11,11 @@ perl $pmbp --root-dir-name "$tempdir" \
     --install
 
 V=`perl $pmbp --root-dir-name "$tempdir" --perl-version latest --print-actual-perl-version`
+if [ -n "$V" ] && [ ! -x "$tempdir/local/perlbrew/perls/perl-$V/bin/perl" ]; then
+  perl $pmbp --root-dir-name "$tempdir" --perl-version latest --install-perl
+  perl $pmbp --root-dir-name "$tempdir" --perl-version latest --install
+fi
+
 if [ -z "$V" ]; then
   echo "not ok 1 # no version"
   echo "not ok 2 # no version"

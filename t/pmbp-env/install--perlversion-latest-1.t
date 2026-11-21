@@ -13,6 +13,12 @@ perl $pmbp --root-dir-name "$tempdir" \
     --create-perl-command-shortcut perl
 
 V=`perl $pmbp --root-dir-name "$tempdir" --print-selected-perl-version`
+if [ -n "$V" ] && [ ! -x "$tempdir/local/perlbrew/perls/perl-$V/bin/perl" ]; then
+  perl $pmbp --root-dir-name "$tempdir" --perl-version latest --install-perl
+  perl $pmbp --root-dir-name "$tempdir" \
+      --install \
+      --create-perl-command-shortcut perl
+fi
 
 (ls "$tempdir/config/perl/libs.txt" > /dev/null && echo "ok 1") || echo "not ok 1"
 perl -e "-f '$tempdir/config/perl/libs.txt' ? print qq{ok 2\n} : print qq{not ok 2\n}"
