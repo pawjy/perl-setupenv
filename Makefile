@@ -38,6 +38,7 @@ lib/perl58perlbrewdeps.pm: Makefile
 ## ------ Tests ------
 
 PROVE = prove
+UNAME_S := $(shell uname -s)
 
 test: test-deps test-main
 
@@ -65,22 +66,38 @@ ifeq "$(TARGET)" "lists"
 	$(PROVE) -j1 --verbose t/pmbp-lists/*.t
 endif
 ifeq "$(TARGET)" "env"
+ifeq "$(UNAME_S)" "Darwin"
+	$(PROVE) -j1 --verbose t/pmbp-env/*.t t/pmbp-env-514/*.t
+else
 	$(PROVE) -j1 --verbose t/pmbp-env/*.t
+endif
 endif
 ifeq "$(TARGET)" "git"
 	$(PROVE) -j1 --verbose t/pmbp-git/*.t
 endif
 ifeq "$(TARGET)" "scan"
+ifeq "$(UNAME_S)" "Darwin"
+	$(PROVE) -j1 --verbose t/pmbp-scan/*.t t/pmbp-scan-514/*.t
+else
 	$(PROVE) -j1 --verbose t/pmbp-scan/*.t
 endif
+endif
 ifeq "$(TARGET)" "perl"
+ifeq "$(UNAME_S)" "Darwin"
+	$(PROVE) --verbose t/pmbp-perl/*.t t/pmbp-perl-514/*.t
+else
 	$(PROVE) --verbose t/pmbp-perl/*.t
+endif
 endif
 ifeq "$(TARGET)" "pm-old"
 	$(PROVE) --verbose t/pmbp-pm-old/*.t
 endif
 ifeq "$(TARGET)" "perl-old"
+ifeq "$(UNAME_S)" "Darwin"
 	$(PROVE) --verbose t/pmbp-perl-old/*.t
+else
+	$(PROVE) --verbose t/pmbp-perl-old/*.t t/pmbp-perl-514/*.t t/pmbp-env-514/*.t t/pmbp-scan-514/*.t
+endif
 endif
 ifeq "$(TARGET)" "imagemagick"
 	$(PROVE) --verbose t/pmbp-imagemagick/*.t
